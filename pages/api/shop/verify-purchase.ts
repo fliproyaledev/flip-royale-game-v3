@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           userId: userId.toLowerCase(),
           packType: packType || 'common',
           count: count || 1,
-          useInventory: false,
+          useInventory: true,
           paymentMethod: 'CRYPTO',
           txHash: txHash
         })
