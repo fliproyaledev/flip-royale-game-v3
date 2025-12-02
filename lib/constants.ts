@@ -23,3 +23,14 @@ export const ERC20_ABI = [
     type: "function",
   },
 ] as const;
+
+// Feature flag: disable Arena/Duel mode by default while it's not in use.
+// To re-enable, set environment variable `DISABLE_ARENA=false` (not recommended in prod without testing).
+export const DISABLE_ARENA: boolean = process.env.DISABLE_ARENA
+  ? String(process.env.DISABLE_ARENA).toLowerCase() === 'true'
+  : true
+
+// Client-side flag (NEXT_PUBLIC_) is read in front-end pages. Default true (disabled).
+export const NEXT_PUBLIC_DISABLE_ARENA: boolean = process.env.NEXT_PUBLIC_DISABLE_ARENA
+  ? String(process.env.NEXT_PUBLIC_DISABLE_ARENA).toLowerCase() === 'true'
+  : true

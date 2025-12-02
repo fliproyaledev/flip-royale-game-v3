@@ -47,6 +47,43 @@ export default function Arena() {
   const router = useRouter()
   const roomId = typeof router.query.room === 'string' ? router.query.room : ''
 
+  // Client-side flag: NEXT_PUBLIC_DISABLE_ARENA controls whether Arena is visible.
+  // Default is disabled to remove Arena functionality while not in use.
+  const ARENA_DISABLED = typeof process.env.NEXT_PUBLIC_DISABLE_ARENA !== 'undefined'
+    ? String(process.env.NEXT_PUBLIC_DISABLE_ARENA).toLowerCase() === 'true'
+    : true
+
+  if (ARENA_DISABLED) {
+    return (
+      <div className="app">
+        <header className="topbar">
+          <div className="brand"><img src="/logo.png" alt="FLIP ROYALE" className="logo" /></div>
+          <nav className="tabs">
+            <a className="tab" href="/">PLAY</a>
+            <a className="tab" href="/prices">PRICES</a>
+            <a className="tab active" href="/arena">ARENA ROYALE</a>
+            <a className="tab" href="/guide">GUIDE</a>
+            <a className="tab" href="/inventory">INVENTORY</a>
+            <a className="tab" href="/my-packs">MY PACKS</a>
+            <a className="tab" href="/leaderboard">LEADERBOARD</a>
+            <a className="tab" href="/history">HISTORY</a>
+            <a className="tab" href="/profile">PROFILE</a>
+          </nav>
+        </header>
+        <div className="panel">
+          <h2>Arena Royale — Disabled</h2>
+          <div style={{ padding: 28, color: 'var(--muted-inv)' }}>
+            <p>Arena / 1v1 Duel mode is currently disabled. We've removed the live duel functionality for now.</p>
+            <p>If you want to re-enable Arena for testing, set environment variable <code>NEXT_PUBLIC_DISABLE_ARENA=false</code> and redeploy.</p>
+            <div style={{ marginTop: 12 }}>
+              <button className="btn" onClick={() => router.push('/')}>Go to Play</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const [user, setUser] = useState<any>(null)
   const [rooms, setRooms] = useState<DuelRoom[]>([])
   const [room, setRoom] = useState<DuelRoom | null>(null)

@@ -22,6 +22,7 @@ import {
 } from './users'
 
 import { loadDuelsKV, saveDuelsKV } from './kv'
+import { DISABLE_ARENA } from './constants'
 
 // ---------------------
 // TYPES
@@ -80,6 +81,7 @@ function ensureDir() {
 // LOAD & SAVE
 // ---------------------
 export async function loadDuels(): Promise<Record<string, DuelRoom>> {
+  if (DISABLE_ARENA) return {}
   try {
     const kv = await loadDuelsKV()
     if (kv && Object.keys(kv).length > 0) return kv
@@ -98,6 +100,7 @@ export async function loadDuels(): Promise<Record<string, DuelRoom>> {
 }
 
 export async function saveDuels(map: Record<string, DuelRoom>): Promise<void> {
+  if (DISABLE_ARENA) return
   await saveDuelsKV(map).catch(() => { })
   if (IS_VERCEL) return
   try {
@@ -160,6 +163,7 @@ const SYSTEM_USER_ID = 'system'
 // CREATE ROOM
 // ---------------------
 export async function createRoom(userId: string, entryCost = 2500) {
+  if (DISABLE_ARENA) throw new Error('Arena mode is currently disabled')
   const map = await loadDuels()
   const date = todayIsoDate()
 
@@ -195,6 +199,7 @@ export async function createRoom(userId: string, entryCost = 2500) {
 // JOIN ROOM
 // ---------------------
 export async function joinRoom(roomId: string, userId: string) {
+  if (DISABLE_ARENA) throw new Error('Arena mode is currently disabled')
   const map = await loadDuels()
   const room = map[roomId]
 
@@ -223,6 +228,7 @@ export async function joinRoom(roomId: string, userId: string) {
 // SET PICKS
 // ---------------------
 export async function setPicks(roomId: string, userId: string, picks: DuelPickInput[]) {
+  if (DISABLE_ARENA) throw new Error('Arena mode is currently disabled')
   if (!Array.isArray(picks) || picks.length !== 5)
     throw new Error('Must select 5 picks')
 
@@ -268,6 +274,7 @@ export async function lockPicks(
   picks: DuelPickInput[],
   now: Date = new Date()
 ) {
+  if (DISABLE_ARENA) throw new Error('Arena mode is currently disabled')
   if (!Array.isArray(picks) || picks.length === 0)
     throw new Error('Provide picks')
 
@@ -337,6 +344,7 @@ export async function lockPicks(
 // SETTLE ROOM
 // ---------------------
 export async function settleRoom(roomId: string) {
+  if (DISABLE_ARENA) throw new Error('Arena mode is currently disabled')
   const map = await loadDuels()
   const room = map[roomId]
   if (!room) throw new Error('Room not found')
@@ -413,6 +421,7 @@ export async function settleRoom(roomId: string) {
 // CANCEL ROOM
 // ---------------------
 export async function cancelRoom(roomId: string, userId: string) {
+  if (DISABLE_ARENA) throw new Error('Arena mode is currently disabled')
   const map = await loadDuels()
   const room = map[roomId]
 
@@ -445,6 +454,7 @@ export async function cancelRoom(roomId: string, userId: string) {
 // CLEANUP LEGACY ROOMS
 // ---------------------
 export async function seedDailyRooms() {
+  if (DISABLE_ARENA) return
   const map = await loadDuels()
   const today = todayIsoDate()
   let changed = false
