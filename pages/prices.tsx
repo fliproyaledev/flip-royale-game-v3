@@ -65,10 +65,23 @@ export default function PricesPage() {
         const defaultView = buildDexscreenerViewUrl(token.dexscreenerUrl, token.dexscreenerNetwork, token.dexscreenerPair) || token.dexscreenerUrl
         
         // Fiyat listesinde bu tokeni ara
-        const priceData = priceList.find((p: any) => 
-          p?.tokenId?.toLowerCase() === token.id.toLowerCase() ||
-          p?.symbol?.toLowerCase() === token.symbol.toLowerCase()
+        let priceData = priceList.find((p: any) => 
+          String(p?.tokenId || '').toLowerCase() === token.id.toLowerCase() ||
+          String(p?.symbol || '').toLowerCase() === token.symbol.toLowerCase()
         )
+
+        // If not found by id/symbol, try matching by dexscreener pair address (most reliable)
+        if (!priceData && token.dexscreenerPair) {
+          const desired = token.dexscreenerPair.toLowerCase()
+          priceData = priceList.find((p: any) => {
+            const dexUrl = String(p?.dexUrl || p?.dexscreenerUrl || '')
+            const m = dexUrl.match(/0x[a-fA-F0-9]{40}/)
+            if (m) return m[0].toLowerCase() === desired
+            // some entries may include pair separately
+            if (p?.pair) return String(p.pair).toLowerCase() === desired
+            return false
+          })
+        }
 
         if (priceData) {
           const price = Number(priceData?.pLive ?? priceData?.price ?? NaN)
