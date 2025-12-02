@@ -92,7 +92,7 @@ export default function AuthPage() {
     }
   }
 
-  function loginUser(user: any) {
+  function loginUser(user: any, isNewUser?: boolean) {
     localStorage.setItem('flipflop-user', JSON.stringify({
       id: user.id,
       username: user.name || user.username,
