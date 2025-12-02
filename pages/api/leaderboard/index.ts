@@ -17,7 +17,7 @@ export default async function handler(
     // Support optional timeframe query: 'all' | 'daily' | 'weekly'
     const timeframe = String(req.query.timeframe || 'all')
 
-    function getUserScoreForTimeframe(u: any) {
+    const getUserScoreForTimeframe = (u: any) => {
       if (timeframe === 'daily') {
         // Most recent round entry (assume roundHistory[0] is newest)
         const latest = Array.isArray(u.roundHistory) && u.roundHistory.length > 0 ? u.roundHistory[0] : null
