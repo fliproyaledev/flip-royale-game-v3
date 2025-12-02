@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { TOKENS } from '../../../lib/tokens'
 
 const ORACLE_URL = process.env.ORACLE_URL
 
@@ -13,6 +14,39 @@ const MOCK_PRICES = [
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    // prevent CDN/edge caching so clients always receive fresh prices
+    res.setHeader('Cache-Control', 'no-store, max-age=0')
+
+    const extractPairAddress = (input?: string | null) => {
+      if (!input) return undefined
+      const m = String(input).match(/0x[a-fA-F0-9]{40}/)
+      return m ? m[0].toLowerCase() : undefined
+    }
+
+    const buildUnmatched = (prices: any[]) => {
+      const byId = new Map<string, any>()
+      const bySymbol = new Map<string, any>()
+      const byPair = new Map<string, any>()
+
+      for (const p of prices || []) {
+        if (p?.tokenId) byId.set(String(p.tokenId).toLowerCase(), p)
+        if (p?.symbol) bySymbol.set(String(p.symbol).toLowerCase(), p)
+        const pair = extractPairAddress(p?.dexUrl || p?.pair || p?.dexscreenerUrl)
+        if (pair) byPair.set(pair, p)
+      }
+
+      const unmatched: { id: string; symbol: string; pair?: string | undefined }[] = []
+      for (const t of TOKENS) {
+        const id = String(t.id || '').toLowerCase()
+        const sym = String(t.symbol || '').toLowerCase()
+        const tokenPair = t.dexscreenerPair
+        const matched = byId.has(id) || bySymbol.has(sym) || (tokenPair && byPair.has(tokenPair))
+        if (!matched) unmatched.push({ id: t.id, symbol: t.symbol, pair: tokenPair })
+      }
+
+      return unmatched
+    }
+
     // Oracle varsa Oracle'dan çek
     if (ORACLE_URL) {
       const r = await fetch(`${ORACLE_URL}/api/prices/get-all`)
@@ -24,16 +58,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : Array.isArray((data as any)?.prices)
             ? (data as any).prices
             : []
-        return res.status(200).json({ ok: true, prices })
+        const unmatchedTokens = buildUnmatched(prices)
+        return res.status(200).json({ ok: true, prices, unmatchedTokens })
       }
     }
 
     // Oracle yoksa veya başarısızsa mock data dön (geliştirme/test için)
-    return res.status(200).json({ ok: true, prices: MOCK_PRICES })
+    const unmatchedTokens = buildUnmatched(MOCK_PRICES)
+    return res.status(200).json({ ok: true, prices: MOCK_PRICES, unmatchedTokens })
 
   } catch (err: any) {
     console.error('Price proxy error', err)
     // Hata durumunda da mock data döndür
-    return res.status(200).json({ ok: true, prices: MOCK_PRICES })
+    const unmatchedTokens = buildUnmatched(MOCK_PRICES)
+    return res.status(200).json({ ok: true, prices: MOCK_PRICES, unmatchedTokens })
   }
 }
