@@ -50,7 +50,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // create minimal user
       user = {
         id: clean,
-        username: 'Player',
         name: 'Player',
         totalPoints: 0,
         bankPoints: 0,
