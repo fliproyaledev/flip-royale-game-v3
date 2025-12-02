@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { updateUser } from '../../../lib/users' // Oracle Köprüsü
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Sadece POST
@@ -22,7 +21,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 1. Yeni Kullanıcı Profili
     const newUserProfile = {
       id: normalizedAddress,
-      username: username, 
       name: username,
       totalPoints: 0,
       bankPoints: 0,
@@ -30,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       createdAt: now,
       updatedAt: now,
       
-      // HEDİYE PAKETİ: Envantere 1 adet common pack ekle (normalize to 'common_pack')
+      // HEDİYE PAKETİ: Envantore 1 adet common pack ekle
       inventory: { common_pack: 1 }, 
       
       logs: [{
@@ -40,12 +38,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }]
     };
 
-    // 2. Oracle'a Zorla Kaydet (Update User fonksiyonu yoksa oluşturur)
-    await updateUser(normalizedAddress, newUserProfile);
+    // 2. Oracle'a Kaydet
+    const ORACLE_URL = process.env.ORACLE_URL;
+    const ORACLE_SECRET = process.env.ORACLE_SECRET;
+
+    if (!ORACLE_URL || !ORACLE_SECRET) {
+      return res.status(500).json({ ok: false, error: 'Oracle configuration missing' });
+    }
+
+    const oracleRes = await fetch(`${ORACLE_URL}/api/users/update`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ORACLE_SECRET}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        address: normalizedAddress,
+        userData: newUserProfile
+      })
+    });
+
+    if (!oracleRes.ok) {
+      const error = await oracleRes.text();
+      console.error('❌ [Register] Oracle Error:', error);
+      return res.status(oracleRes.status).json({ ok: false, error: 'Failed to register on Oracle' });
+    }
+
+    const oracleData = await oracleRes.json();
 
     console.log(`✅ [Register] Kullanıcı Oracle'a başarıyla kaydedildi: ${normalizedAddress}`);
 
-    return res.status(200).json({ ok: true, user: newUserProfile, isNewUser: true });
+    return res.status(200).json({ ok: true, user: oracleData.user || newUserProfile, isNewUser: true });
 
   } catch (error: any) {
     console.error('❌ [Register] Hata:', error);

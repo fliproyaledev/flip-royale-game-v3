@@ -74,10 +74,6 @@ export async function getUser(address: string): Promise<UserRecord | null> {
     try {
       const res = await fetch(`${ORACLE_URL}/api/users/get?address=${clean}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${ORACLE_SECRET}`,
-          'Content-Type': 'application/json'
-        },
         cache: 'no-store'
       });
 
