@@ -1,9 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import {
-  loadDuels,
-  saveDuels,
-  settleRoom,
-} from "../../../lib/duels";
+// Arena duel settlement disabled: this endpoint is retained but becomes a safe no-op.
 
 // Vercel Environment Variables'dan gizli anahtarı alıyoruz
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -39,50 +35,6 @@ export default async function handler(
     return res.status(401).json({ ok: false, error: "Unauthorized: Invalid Secret Key" });
   }
   // ---------------------------------------------------------
-
-  try {
-    const today = utcDayKey();
-    const now = new Date();
-
-    const duels = await loadDuels();
-    const settled: string[] = [];
-    const errors: any[] = [];
-
-    for (const roomId in duels) {
-      const room = duels[roomId];
-      if (!room) continue;
-
-      // Zaten hesaplanmış veya iptal edilmiş odaları atla
-      if (room.status === "settled" || room.status === "cancelled") continue;
-
-      // Değerlendirme zamanı yoksa atla
-      if (!room.evalAt) continue;
-
-      const evalAt = new Date(room.evalAt);
-
-      // Değerlendirme zamanı henüz gelmediyse atla
-      if (now.getTime() < evalAt.getTime()) continue;
-
-      try {
-        // Odadaki düelloyu hesapla ve kazananı belirle
-        await settleRoom(roomId);
-        settled.push(roomId);
-      } catch (err: any) {
-        errors.push({ roomId, error: err.message });
-      }
-    }
-
-    // Değişiklikleri kaydet
-    await saveDuels(duels);
-
-    return res.status(200).json({
-      ok: true,
-      date: today,
-      settledCount: settled.length,
-      settledRooms: settled,
-      errors,
-    });
-  } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err.message });
-  }
+  // Arena mode removed/disabled. Return success but perform no operations.
+  return res.status(200).json({ ok: true, message: 'Arena mode is disabled; no settlement performed.' })
 }

@@ -1427,7 +1427,6 @@ async function saveNextRoundPicks(e?: any) {
         <nav className="tabs">
           <a className="tab active" href="/">FLIP ROYALE</a>
           <a className="tab" href="/prices">PRICES</a>
-          <a className="tab" href="/arena">ARENA ROYALE</a>
           <a className="tab" href="/guide">GUIDE</a>
           <a className="tab" href="/inventory">INVENTORY</a>
           <a className="tab" href="/my-packs">MY PACKS</a>
