@@ -45,21 +45,9 @@ function handleImageFallback(e: React.SyntheticEvent<HTMLImageElement>) {
 
 export default function History() {
   const [history, setHistory] = useState<DayResult[]>([])
-  const [arenaHistory, setArenaHistory] = useState<ArenaResult[]>([])
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  async function loadArenaHistory(userId: string) {
-    try {
-      const r = await fetch(`/api/duel/my-history?userId=${encodeURIComponent(userId)}`)
-      const j = await r.json()
-      if (j?.ok && Array.isArray(j.rooms)) {
-        setArenaHistory(j.rooms)
-      }
-    } catch (err) {
-      console.error('Failed to load arena history:', err)
-    }
-  }
 
   useEffect(() => {
     async function load() {
@@ -82,7 +70,6 @@ export default function History() {
               }))
               setHistory(mapped)
             }
-            loadArenaHistory(userId)
           }
         } catch (e) { console.error(e) }
       }
@@ -111,7 +98,6 @@ export default function History() {
         <nav className="tabs">
           <a className="tab" href="/">PLAY</a>
           <a className="tab" href="/prices">PRICES</a>
-          <a className="tab" href="/arena">ARENA</a>
           <a className="tab" href="/guide">GUIDE</a>
           <a className="tab" href="/inventory">INVENTORY</a>
           <a className="tab" href="/my-packs">MY PACKS</a>

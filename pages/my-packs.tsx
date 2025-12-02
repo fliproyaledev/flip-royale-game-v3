@@ -147,8 +147,12 @@ export default function MyPacksPage() {
           <nav className="tabs">
             <a className="tab" href="/">PLAY</a>
             <a className="tab" href="/prices">PRICES</a>
-            <a className="tab" href="/arena">ARENA</a>
+            <a className="tab" href="/guide">GUIDE</a>
             <a className="tab active" href="/my-packs">MY PACKS</a>
+            <a className="tab" href="/inventory">INVENTORY</a>
+            <a className="tab" href="/leaderboard">LEADERBOARD</a>
+            <a className="tab" href="/history">HISTORY</a>
+            <a className="tab" href="/profile">PROFILE</a>
           </nav>
           <div style={{ marginLeft: 'auto' }}><ThemeToggle /></div>
         </header>
@@ -170,8 +174,12 @@ export default function MyPacksPage() {
         <nav className="tabs">
           <a className="tab" href="/">PLAY</a>
           <a className="tab" href="/prices">PRICES</a>
-          <a className="tab" href="/arena">ARENA</a>
+          <a className="tab" href="/guide">GUIDE</a>
           <a className="tab active" href="/my-packs">MY PACKS</a>
+          <a className="tab" href="/inventory">INVENTORY</a>
+          <a className="tab" href="/leaderboard">LEADERBOARD</a>
+          <a className="tab" href="/history">HISTORY</a>
+          <a className="tab" href="/profile">PROFILE</a>
         </nav>
         <div style={{ marginLeft: 'auto' }}><ThemeToggle /></div>
       </header>
