@@ -55,55 +55,66 @@ export default function PricesPage() {
     if (showSpinner) setLoading(true)
     setError(null)
     try {
-      const result = await Promise.all(
-        jsonTokens.map(async token => {
-          const defaultView = buildDexscreenerViewUrl(token.dexscreenerUrl, token.dexscreenerNetwork, token.dexscreenerPair) || token.dexscreenerUrl
-          try {
-            const resp = await fetch(`/api/token-price?token=${encodeURIComponent(token.id)}`)
-            if (!resp.ok) throw new Error(`Request failed with ${resp.status}`)
-            const data = await resp.json()
-            const price = Number(data?.pLive ?? NaN)
-            const baseline = Number(data?.p0 ?? data?.pLive ?? NaN)
-            const changePct = Number.isFinite(Number(data?.changePct))
-              ? Number(data.changePct)
-              : (Number.isFinite(baseline) && baseline > 0 && Number.isFinite(price))
-                ? ((price - baseline) / baseline) * 100
-                : null
-            return {
-              tokenId: token.id,
-              symbol: token.symbol,
-              name: token.name,
-              logo: token.logo,
-              price: Number.isFinite(price) ? price : null,
-              baseline: Number.isFinite(baseline) ? baseline : null,
-              changePct,
-              fdv: data?.fdv ? Number(data.fdv) : null,
-              source: data?.source,
-              updatedAt: data?.ts,
-              dexscreenerUrl: data?.dexUrl || defaultView,
-              dexNetwork: data?.dexNetwork,
-              dexPair: data?.dexPair,
-              error: undefined
-            } as PriceRow
-          } catch (err: any) {
-            return {
-              tokenId: token.id,
-              symbol: token.symbol,
-              name: token.name,
-              logo: token.logo,
-              price: null,
-              baseline: null,
-              changePct: null,
-              source: undefined,
-              updatedAt: undefined,
-              dexscreenerUrl: defaultView,
-              dexNetwork: token.dexscreenerNetwork,
-              dexPair: token.dexscreenerPair,
-              error: err?.message || 'Unable to fetch price'
-            } as PriceRow
-          }
-        })
-      )
+      // Batch endpoint çağırılıyor
+      const resp = await fetch(`/api/prices/get-all`)
+      const data = await resp.json()
+      const priceList = Array.isArray(data?.prices) ? data.prices : []
+      
+      // Token listesini price verileriyle eşleştir
+      const result = jsonTokens.map(token => {
+        const defaultView = buildDexscreenerViewUrl(token.dexscreenerUrl, token.dexscreenerNetwork, token.dexscreenerPair) || token.dexscreenerUrl
+        
+        // Fiyat listesinde bu tokeni ara
+        const priceData = priceList.find((p: any) => 
+          p?.tokenId?.toLowerCase() === token.id.toLowerCase() ||
+          p?.symbol?.toLowerCase() === token.symbol.toLowerCase()
+        )
+
+        if (priceData) {
+          const price = Number(priceData?.pLive ?? priceData?.price ?? NaN)
+          const baseline = Number(priceData?.p0 ?? priceData?.baseline ?? priceData?.pLive ?? NaN)
+          const changePct = Number.isFinite(Number(priceData?.changePct))
+            ? Number(priceData.changePct)
+            : (Number.isFinite(baseline) && baseline > 0 && Number.isFinite(price))
+              ? ((price - baseline) / baseline) * 100
+              : null
+          
+          return {
+            tokenId: token.id,
+            symbol: token.symbol,
+            name: token.name,
+            logo: token.logo,
+            price: Number.isFinite(price) ? price : null,
+            baseline: Number.isFinite(baseline) ? baseline : null,
+            changePct,
+            fdv: priceData?.fdv ? Number(priceData.fdv) : null,
+            source: priceData?.source,
+            updatedAt: priceData?.ts,
+            dexscreenerUrl: priceData?.dexUrl || defaultView,
+            dexNetwork: token.dexscreenerNetwork,
+            dexPair: token.dexscreenerPair,
+            error: undefined
+          } as PriceRow
+        } else {
+          // Fallback: token data olmadan, boş veri döndür
+          return {
+            tokenId: token.id,
+            symbol: token.symbol,
+            name: token.name,
+            logo: token.logo,
+            price: null,
+            baseline: null,
+            changePct: null,
+            source: undefined,
+            updatedAt: undefined,
+            dexscreenerUrl: defaultView,
+            dexNetwork: token.dexscreenerNetwork,
+            dexPair: token.dexscreenerPair,
+            error: undefined
+          } as PriceRow
+        }
+      })
+      
       setRows(result)
       setLastUpdated(Date.now())
     } catch (err: any) {

@@ -6,8 +6,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { token } = req.query;
 
   if (!ORACLE_URL) {
-    // Oracle ayarlı değilse boş dön
-    return res.status(200).json({ p0: 0, pLive: 0, pClose: 0, source: 'fallback' });
+    // Oracle ayarlı değilse fallback format: {pLive, p0, changePct, source}
+    return res.status(200).json({ 
+      pLive: 0, 
+      p0: 0, 
+      changePct: 0,
+      source: 'fallback' 
+    });
   }
 
   try {
@@ -37,11 +42,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json(priceData);
     } else {
         // Bulunamazsa fallback
-        return res.status(200).json({ p0: 0, pLive: 0, pClose: 0, source: 'fallback' });
+        return res.status(200).json({ 
+          pLive: 0, 
+          p0: 0, 
+          changePct: 0,
+          source: 'fallback' 
+        });
     }
 
   } catch (error) {
     console.error("Price Bridge Error:", error);
-    return res.status(200).json({ p0: 0, pLive: 0, pClose: 0, source: 'error-fallback' });
+    return res.status(200).json({ 
+      pLive: 0, 
+      p0: 0, 
+      changePct: 0,
+      source: 'error-fallback' 
+    });
   }
 }
