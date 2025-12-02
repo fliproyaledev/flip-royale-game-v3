@@ -2939,10 +2939,11 @@ async function saveNextRoundPicks(e?: any) {
                 }}
                 onClick={() => {
                   setPurchasedPack(null);
-                  loadUserData(); 
+                  // Redirect to My Packs page so users can manage unopened packs there
+                  window.location.href = '/my-packs';
                 }}
               >
-                Open Later (Save to Inventory)
+                View My Packs
               </button>
             </div>
           </div>

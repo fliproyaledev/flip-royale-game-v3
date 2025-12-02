@@ -59,7 +59,7 @@ export default function PricesPage() {
         jsonTokens.map(async token => {
           const defaultView = buildDexscreenerViewUrl(token.dexscreenerUrl, token.dexscreenerNetwork, token.dexscreenerPair) || token.dexscreenerUrl
           try {
-            const resp = await fetch(`/api/price?token=${encodeURIComponent(token.id)}`)
+            const resp = await fetch(`/api/token-price?token=${encodeURIComponent(token.id)}`)
             if (!resp.ok) throw new Error(`Request failed with ${resp.status}`)
             const data = await resp.json()
             const price = Number(data?.pLive ?? NaN)
