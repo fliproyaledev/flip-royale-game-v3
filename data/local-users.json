@@ -1,0 +1,209 @@
+{
+  "0xcaf87cafc216d50d14f172f6e498794fc1f80d97": {
+    "id": "0xcaf87cafc216d50d14f172f6e498794fc1f80d97",
+    "username": "testorrz",
+    "name": "testorrz",
+    "totalPoints": 0,
+    "bankPoints": 0,
+    "giftPoints": 0,
+    "createdAt": "2025-12-02T10:17:14.202Z",
+    "updatedAt": "2025-12-02T10:17:14.203Z",
+    "inventory": {
+      "common": 1
+    },
+    "logs": [
+      {
+        "type": "system",
+        "date": "2025-12-02",
+        "note": "user-registered-oracle"
+      }
+    ]
+  },
+  "0x74f1610b447f359db7d2a6e89e0e9076adbe75a6": {
+    "id": "0x74f1610b447f359db7d2a6e89e0e9076adbe75a6",
+    "username": "test8",
+    "name": "test8",
+    "totalPoints": 0,
+    "bankPoints": 0,
+    "giftPoints": 0,
+    "createdAt": "2025-12-02T10:34:52.278Z",
+    "updatedAt": "2025-12-02T10:34:52.280Z",
+    "inventory": {
+      "common": 1
+    },
+    "logs": [
+      {
+        "type": "system",
+        "date": "2025-12-02",
+        "note": "user-registered-oracle"
+      }
+    ]
+  },
+  "0xc57875fb8af356447e13bb8a6947939373703dbf": {
+    "id": "0xc57875fb8af356447e13bb8a6947939373703dbf",
+    "username": "testo9",
+    "name": "testo9",
+    "totalPoints": 0,
+    "bankPoints": 0,
+    "giftPoints": 0,
+    "createdAt": "2025-12-02T10:45:44.560Z",
+    "updatedAt": "2025-12-02T11:12:21.502Z",
+    "inventory": {
+      "adm": 1,
+      "acolyt": 1,
+      "ceo": 2,
+      "robot": 1,
+      "bl": 1,
+      "swarm": 1,
+      "arbus": 1,
+      "virgen": 1,
+      "otto": 1
+    },
+    "logs": [
+      {
+        "type": "system",
+        "date": "2025-12-02",
+        "note": "user-registered-oracle"
+      }
+    ],
+    "nextRound": [
+      {
+        "tokenId": "ceo",
+        "dir": "UP",
+        "duplicateIndex": 1,
+        "locked": false
+      },
+      {
+        "tokenId": "acolyt",
+        "dir": "UP",
+        "duplicateIndex": 1,
+        "locked": false
+      },
+      {
+        "tokenId": "ceo",
+        "dir": "UP",
+        "duplicateIndex": 2,
+        "locked": false
+      },
+      {
+        "tokenId": "robot",
+        "dir": "UP",
+        "duplicateIndex": 1,
+        "locked": false
+      },
+      {
+        "tokenId": "adm",
+        "dir": "UP",
+        "duplicateIndex": 1,
+        "locked": false
+      }
+    ]
+  },
+  "0x5bf000af8de1937a849edf050eda9fae38a78f94": {
+    "id": "0x5bf000af8de1937a849edf050eda9fae38a78f94",
+    "username": "kongdao",
+    "name": "kongdao",
+    "totalPoints": 0,
+    "bankPoints": 0,
+    "giftPoints": 0,
+    "createdAt": "2025-12-02T11:13:40.200Z",
+    "updatedAt": "2025-12-02T11:13:40.201Z",
+    "inventory": {
+      "common_pack": 1
+    },
+    "logs": [
+      {
+        "type": "system",
+        "date": "2025-12-02",
+        "note": "user-registered-oracle"
+      }
+    ]
+  },
+  "0x79c9c5f686a0800e252f17cf1a03b1cbe4a21f98": {
+    "id": "0x79c9c5f686a0800e252f17cf1a03b1cbe4a21f98",
+    "username": "farkovs",
+    "name": "farkovs",
+    "totalPoints": 0,
+    "bankPoints": 0,
+    "giftPoints": 0,
+    "createdAt": "2025-12-02T11:16:09.123Z",
+    "updatedAt": "2025-12-02T11:16:10.259Z",
+    "inventory": {
+      "game": 1,
+      "solace": 2,
+      "axb": 1,
+      "luna": 1
+    },
+    "logs": [
+      {
+        "type": "system",
+        "date": "2025-12-02",
+        "note": "user-registered-oracle"
+      }
+    ]
+  },
+  "0xab95a2ae7b7b5ffa941c92b1e22a2e744246d101": {
+    "id": "0xab95a2ae7b7b5ffa941c92b1e22a2e744246d101",
+    "username": "kngocds",
+    "name": "kngocds",
+    "totalPoints": 0,
+    "bankPoints": 0,
+    "giftPoints": 0,
+    "createdAt": "2025-12-02T11:22:19.173Z",
+    "updatedAt": "2025-12-02T11:22:19.173Z",
+    "inventory": {
+      "common_pack": 1
+    },
+    "logs": [
+      {
+        "type": "system",
+        "date": "2025-12-02",
+        "note": "user-registered-oracle"
+      }
+    ]
+  },
+  "0xee702b80ed34a6d029e8bdf631d89c172745d90f": {
+    "id": "0xee702b80ed34a6d029e8bdf631d89c172745d90f",
+    "username": "tatatsxz",
+    "name": "tatatsxz",
+    "totalPoints": 0,
+    "bankPoints": 0,
+    "giftPoints": 0,
+    "createdAt": "2025-12-02T11:23:10.754Z",
+    "updatedAt": "2025-12-02T11:23:10.756Z",
+    "inventory": {
+      "common_pack": 1
+    },
+    "logs": [
+      {
+        "type": "system",
+        "date": "2025-12-02",
+        "note": "user-registered-oracle"
+      }
+    ]
+  },
+  "0x4a77ec92e096c60385d8bca702ff01f62645dabe": {
+    "id": "0x4a77ec92e096c60385d8bca702ff01f62645dabe",
+    "username": "dostovs",
+    "name": "dostovs",
+    "totalPoints": 0,
+    "bankPoints": 0,
+    "giftPoints": 0,
+    "createdAt": "2025-12-02T11:31:56.501Z",
+    "updatedAt": "2025-12-02T11:31:58.478Z",
+    "inventory": {
+      "game": 1,
+      "trust": 1,
+      "otto": 1,
+      "wint": 1,
+      "axr": 1
+    },
+    "logs": [
+      {
+        "type": "system",
+        "date": "2025-12-02",
+        "note": "user-registered-oracle"
+      }
+    ]
+  }
+}
