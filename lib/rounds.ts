@@ -19,8 +19,10 @@ export type RoundSnapshot = {
 
 const DATA_DIR = path.join(process.cwd(), 'data')
 const ROUNDS_FILE = path.join(DATA_DIR, 'rounds.json')
+const IS_VERCEL = !!process.env.VERCEL
 
 function ensureDir() {
+  if (IS_VERCEL) return
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true })
   }
@@ -59,6 +61,9 @@ export async function saveRounds(rounds: RoundSnapshot[]): Promise<void> {
   } catch (err) {
     console.warn('KV save failed, trying JSON fallback:', err)
   }
+
+  // If running on Vercel, avoid attempting to write local files (read-only filesystem).
+  if (IS_VERCEL) return
 
   try {
     ensureDir()

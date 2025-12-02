@@ -76,6 +76,43 @@ export default function MyPacksPage() {
     } finally { setOpening(false) }
   }
 
+  async function openAll(packType: string) {
+    if (!user?.id) return alert('Please login first')
+    const count = packs[packType] || 0
+    if (count < 1) return alert('No packs to open')
+    setOpening(true)
+    try {
+      let totalNewCards: string[] = []
+      for (let i = 0; i < count; i++) {
+        const res = await fetch('/api/users/openPack', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id).toLowerCase() },
+          body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType })
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          console.warn('Open pack failed on iteration', i, data)
+          break
+        }
+        totalNewCards = totalNewCards.concat(data.newCards || [])
+      }
+      alert(`Opened ${totalNewCards.length} card(s) from ${count} pack(s).`)
+      await loadPacks()
+      try {
+        const meRes = await fetch(`/api/users/me?userId=${encodeURIComponent(user.id)}`)
+        if (meRes.ok) {
+          const meData = await meRes.json()
+          if (meData?.user) {
+            localStorage.setItem('flipflop-user', JSON.stringify(meData.user))
+          }
+        }
+      } catch {}
+    } catch (e) {
+      console.error(e)
+      alert('Connection error while opening packs')
+    } finally { setOpening(false) }
+  }
+
   if (!user) {
     return (
       <div className="app">
@@ -133,7 +170,7 @@ export default function MyPacksPage() {
                     <div style={{ fontWeight: 800, marginBottom: 8, color: 'white' }}>{type.toUpperCase()} PACK</div>
                     <div style={{ marginBottom: 12, color: '#94a3b8' }}>{count} pack(s)</div>
                     <button className="btn" style={{ marginBottom: 8 }} onClick={() => openPack(type)} disabled={opening}>Open One</button>
-                    <button className="btn ghost" onClick={() => alert('Open later to implement bulk open or transfer')}>Open Later</button>
+                    <button className="btn ghost" onClick={() => openAll(type)} disabled={opening}>Open All ({count})</button>
                   </div>
                 ))}
               </div>

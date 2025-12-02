@@ -61,6 +61,7 @@ export default function Inventory() {
           <a className="tab" href="/arena">ARENA</a>
           <a className="tab" href="/guide">GUIDE</a>
           <a className="tab active" href="/inventory">INVENTORY</a>
+            <a className="tab" href="/my-packs">MY PACKS</a>
           <a className="tab" href="/leaderboard">LEADERBOARD</a>
           <a className="tab" href="/history">HISTORY</a>
           <a className="tab" href="/profile">PROFILE</a>

@@ -1430,6 +1430,7 @@ async function saveNextRoundPicks(e?: any) {
           <a className="tab" href="/arena">ARENA ROYALE</a>
           <a className="tab" href="/guide">GUIDE</a>
           <a className="tab" href="/inventory">INVENTORY</a>
+          <a className="tab" href="/my-packs">MY PACKS</a>
           <a className="tab" href="/leaderboard">LEADERBOARD</a>
           <a className="tab" href="/history">HISTORY</a>
           <a className="tab" href="/profile">PROFILE</a>
