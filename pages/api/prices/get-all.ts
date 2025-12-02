@@ -18,8 +18,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const r = await fetch(`${ORACLE_URL}/api/prices/get-all`)
       if (r.ok) {
         const data = await r.json()
-        // Expecting an array of price objects from Oracle
-        return res.status(200).json({ ok: true, prices: Array.isArray(data) ? data : [] })
+        // Oracle may return either an array or an object { ok: true, prices: [...] }
+        const prices = Array.isArray(data)
+          ? data
+          : Array.isArray((data as any)?.prices)
+            ? (data as any).prices
+            : []
+        return res.status(200).json({ ok: true, prices })
       }
     }
 
