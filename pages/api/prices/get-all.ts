@@ -12,40 +12,40 @@ const MOCK_PRICES = [
   { tokenId: 'aristoitle', symbol: 'SFACY', pLive: 0.0003, p0: 0.00027, changePct: 11.11, fdv: 3000000, source: 'fallback' },
 ]
 
+const extractPairAddress = (input?: string | null) => {
+  if (!input) return undefined
+  const m = String(input).match(/0x[a-fA-F0-9]{40}/)
+  return m ? m[0].toLowerCase() : undefined
+}
+
+const buildUnmatched = (prices: any[]) => {
+  const byId = new Map<string, any>()
+  const bySymbol = new Map<string, any>()
+  const byPair = new Map<string, any>()
+
+  for (const p of prices || []) {
+    if (p?.tokenId) byId.set(String(p.tokenId).toLowerCase(), p)
+    if (p?.symbol) bySymbol.set(String(p.symbol).toLowerCase(), p)
+    const pair = extractPairAddress(p?.dexUrl || p?.pair || p?.dexscreenerUrl)
+    if (pair) byPair.set(pair, p)
+  }
+
+  const unmatched: { id: string; symbol: string; pair?: string | undefined }[] = []
+  for (const t of TOKENS) {
+    const id = String(t.id || '').toLowerCase()
+    const sym = String(t.symbol || '').toLowerCase()
+    const tokenPair = t.dexscreenerPair
+    const matched = byId.has(id) || bySymbol.has(sym) || (tokenPair && byPair.has(tokenPair))
+    if (!matched) unmatched.push({ id: t.id, symbol: t.symbol, pair: tokenPair })
+  }
+
+  return unmatched
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     // prevent CDN/edge caching so clients always receive fresh prices
     res.setHeader('Cache-Control', 'no-store, max-age=0')
-
-    const extractPairAddress = (input?: string | null) => {
-      if (!input) return undefined
-      const m = String(input).match(/0x[a-fA-F0-9]{40}/)
-      return m ? m[0].toLowerCase() : undefined
-    }
-
-    const buildUnmatched = (prices: any[]) => {
-      const byId = new Map<string, any>()
-      const bySymbol = new Map<string, any>()
-      const byPair = new Map<string, any>()
-
-      for (const p of prices || []) {
-        if (p?.tokenId) byId.set(String(p.tokenId).toLowerCase(), p)
-        if (p?.symbol) bySymbol.set(String(p.symbol).toLowerCase(), p)
-        const pair = extractPairAddress(p?.dexUrl || p?.pair || p?.dexscreenerUrl)
-        if (pair) byPair.set(pair, p)
-      }
-
-      const unmatched: { id: string; symbol: string; pair?: string | undefined }[] = []
-      for (const t of TOKENS) {
-        const id = String(t.id || '').toLowerCase()
-        const sym = String(t.symbol || '').toLowerCase()
-        const tokenPair = t.dexscreenerPair
-        const matched = byId.has(id) || bySymbol.has(sym) || (tokenPair && byPair.has(tokenPair))
-        if (!matched) unmatched.push({ id: t.id, symbol: t.symbol, pair: tokenPair })
-      }
-
-      return unmatched
-    }
 
     // Oracle varsa Oracle'dan çek
     if (ORACLE_URL) {
