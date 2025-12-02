@@ -96,6 +96,12 @@ export async function getUser(address: string): Promise<UserRecord | null> {
   }
 
   // Local fallback for development (no Oracle configured)
+  // Skip local fallback in production (Vercel has read-only filesystem)
+  if (process.env.NODE_ENV === 'production') {
+    console.error('Oracle not configured in production')
+    return null
+  }
+
   try {
     const fs = await import('fs')
     const path = require('path')
@@ -136,6 +142,11 @@ export async function updateUser(address: string, updates: any) {
   }
 
   // Local fallback for development: persist in data/local-users.json
+  // Skip local fallback in production (Vercel has read-only filesystem)
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Oracle not configured in production. Cannot use local fallback.')
+  }
+
   try {
     const fs = await import('fs')
     const path = require('path')
