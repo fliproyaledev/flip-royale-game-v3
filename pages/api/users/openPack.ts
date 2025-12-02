@@ -57,6 +57,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(400).json({ ok: false, error: `No ${packType} packs to open` })
         }
 
+        // Initialize inventory if needed
+        user.inventory = user.inventory || {}
+
         // decrement one pack from whichever key exists (prefer packKey1)
         if (user.inventory[packKey1] && user.inventory[packKey1] > 0) {
             user.inventory[packKey1] -= 1
