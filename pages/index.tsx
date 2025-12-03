@@ -1756,7 +1756,10 @@ async function saveNextRoundPicks(e?: any) {
                   const baseline = p.startPrice || (price ? price.p0 : 0)
                   const current = price ? price.pLive : 0
 
-                  const points = price ? calcPoints(baseline, current, p.dir, p.duplicateIndex, boost.level, boostActive) : 0
+                  // Locked kartlar için sabit puan, unlocked için canlı hesapla
+                  const points = (p.locked && p.pointsLocked !== undefined) 
+                    ? p.pointsLocked 
+                    : (price ? calcPoints(baseline, current, p.dir, p.duplicateIndex, boost.level, boostActive) : 0)
 
                   return (
                     <div key={index} style={{
