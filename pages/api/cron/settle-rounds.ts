@@ -1,9 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { kv } from "@vercel/kv"; // Redis'i ekledik
+import { kv } from "@vercel/kv";
 import {
-  loadUsers,
-  saveUsers,
-  creditGamePoints,
+  getUser,
+  updateUser,
   type RoundPick,
   type UserRecord,
   type RoundHistoryEntry
@@ -13,6 +12,8 @@ import { TOKEN_MAP } from "../../../lib/tokens";
 import { saveDailyRoundSummary, type DailyRoundSummary } from "../../../lib/history";
 
 const CRON_SECRET = process.env.CRON_SECRET;
+const ORACLE_URL = process.env.ORACLE_URL;
+const ORACLE_SECRET = process.env.ORACLE_SECRET;
 
 // ---------------- UTILITY FUNCTIONS ----------------
 
@@ -82,15 +83,32 @@ export default async function handler(
   try {
     console.log("🔒 [CRON] Finalizing Round & Saving Stats...");
     
+    if (!ORACLE_URL || !ORACLE_SECRET) {
+      return res.status(500).json({ ok: false, error: "Oracle not configured" });
+    }
+    
     const today = utcDayKey();
     
-    // --- 1. GLOBAL ROUND SAYAÇ MANTIĞI (YENİ) ---
-    // Global sayacı 1 artır. Bu, "Dünya Saati"dir.
+    // --- 1. GLOBAL ROUND SAYAÇ MANTIĞI ---
     const newGlobalRound = await kv.incr("GLOBAL_ROUND_COUNTER");
     console.log(`🌎 [CRON] Global Round Incremented to #${newGlobalRound}`);
-    // ---------------------------------------------
 
-    const users = await loadUsers();
+    // --- 2. ORACLE'DAN TÜM KULLANICILAR ---
+    const usersResponse = await fetch(`${ORACLE_URL}/api/users/all`, {
+      headers: {
+        'Authorization': `Bearer ${ORACLE_SECRET}`
+      }
+    });
+
+    if (!usersResponse.ok) {
+      throw new Error(`Failed to fetch users from Oracle: ${usersResponse.statusText}`);
+    }
+
+    const usersData = await usersResponse.json();
+    const allUsers: UserRecord[] = usersData.users || [];
+    
+    console.log(`📊 [CRON] Loaded ${allUsers.length} users from Oracle`);
+
     const settledUsers: string[] = [];
     const errors: any[] = [];
 
@@ -101,8 +119,9 @@ export default async function handler(
     const tokenPerformance: Record<string, number> = {}; 
 
     // Fiyat Snapshot
+    // Fiyat Snapshot - tüm token ID'lerini topla
     const allTokenIds = new Set<string>();
-    Object.values(users).forEach((user: UserRecord) => {
+    allUsers.forEach((user: UserRecord) => {
       user.activeRound?.forEach(p => p && allTokenIds.add(p.tokenId));
       user.nextRound?.forEach(p => p && allTokenIds.add(p.tokenId));
     });
@@ -118,10 +137,13 @@ export default async function handler(
       })
     );
 
-    // Kullanıcıları İşle
-    for (const uid in users) {
-      const user = users[uid];
-      if (!user) continue;
+    // --- 3. HER KULLANICI İÇİN İŞLE ---
+    for (const user of allUsers) {
+      const uid = user.wallet || user.id || "";
+      if (!uid) {
+        errors.push({ userId: "unknown", error: "Missing wallet address" });
+        continue;
+      }
 
       if (!Array.isArray(user.activeRound)) user.activeRound = [];
       if (!Array.isArray(user.nextRound)) user.nextRound = Array(5).fill(null);
@@ -191,7 +213,21 @@ export default async function handler(
         }
 
         if (totalPoints !== 0) {
-          creditGamePoints(user, totalPoints, `flip-round-${today}`, today);
+          // Puanları bankaya ekle (creditGamePoints yerine manuel)
+          const oldBankPoints = user.bankPoints ?? 0;
+          const newBankPoints = oldBankPoints + totalPoints;
+          user.bankPoints = newBankPoints;
+          user.totalPoints = (user.totalPoints || 0) + totalPoints;
+
+          // Log ekle
+          const logEntry = {
+            source: `flip-round-${today}` as const,
+            amount: totalPoints,
+            date: today,
+            meta: {}
+          };
+          user.pointsLog = user.pointsLog || [];
+          user.pointsLog.push(logEntry);
         }
 
         if (historyItems.length > 0) {
@@ -231,9 +267,28 @@ export default async function handler(
         user.lastSettledDay = today;
         user.updatedAt = new Date().toISOString();
 
-        settledUsers.push(user.id);
+        // Oracle'a kaydet
+        const updateResponse = await fetch(`${ORACLE_URL}/api/users/update`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${ORACLE_SECRET}`
+          },
+          body: JSON.stringify({
+            address: uid,
+            userData: user
+          })
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error(`Failed to update user ${uid}: ${updateResponse.statusText}`);
+        }
+
+        settledUsers.push(uid);
+        console.log(`✅ [CRON] User ${uid} fully settled`);
 
       } catch (err: any) {
+        console.error(`❌ [CRON] Error settling user ${uid}:`, err);
         errors.push({ uid, error: err.message });
       }
     }
@@ -254,16 +309,15 @@ export default async function handler(
         topPlayer: dailyTopPlayer,
         bestToken: bestTokenSymbol !== '-' ? { symbol: bestTokenSymbol, changePct: 0 } : null
     };
-    await saveDailyRoundSummary(dailySummary); 
-
-    await saveUsers(users);
+    await saveDailyRoundSummary(dailySummary);
 
     return res.status(200).json({
       ok: true,
       date: today,
       newGlobalRound, 
       settledCount: settledUsers.length,
-      globalStats: dailySummary
+      globalStats: dailySummary,
+      errors: errors.length > 0 ? errors : undefined
     });
 
   } catch (err: any) {
