@@ -1368,20 +1368,25 @@ async function saveNextRoundPicks(e?: any) {
 
     if (pick && !pick.locked) {
       try {
-        // Kullanıcıdan imza iste
-        const messageToSign = `Flip Royale: Lock Card\nToken: ${pick.tokenId}\nRound: ${currentRound}\nDate: ${new Date().toISOString().split('T')[0]}`;
+        // O anki puanı hesapla
+        const priceData = prices[pick.tokenId]
+        let currentPoints = 0;
+        if (priceData) {
+          const p0 = pick.startPrice || priceData.p0
+          const pNow = priceData.pLive
+          currentPoints = calcPoints(p0, pNow, pick.dir, pick.duplicateIndex, boost.level, boostActive)
+        }
+
+        // Kullanıcıdan imza iste (puanı da göster)
+        const pointsText = currentPoints > 0 ? `+${currentPoints}` : currentPoints.toString();
+        const messageToSign = `Flip Royale: Lock Card\nToken: ${pick.tokenId}\nRound: ${currentRound}\nCurrent Points: ${pointsText}\nDate: ${new Date().toISOString().split('T')[0]}`;
         const signature = await signMessageAsync({ message: messageToSign });
 
         // İmzayı aldıktan sonra kilitle
         pick.locked = true
 
-        // O anki fiyatı ve puanı dondur
-        const priceData = prices[pick.tokenId]
+        // Puanı ve fiyatı dondur
         if (priceData) {
-          const p0 = pick.startPrice || priceData.p0
-          const pNow = priceData.pLive
-          const currentPoints = calcPoints(p0, pNow, pick.dir, pick.duplicateIndex, boost.level, boostActive)
-
           pick.pointsLocked = currentPoints
           pick.pLock = priceData.p0
         }

@@ -90,8 +90,11 @@ export default async function handler(
     const today = utcDayKey();
     
     // --- 1. GLOBAL ROUND SAYAÇ MANTIĞI ---
-    const newGlobalRound = await kv.incr("GLOBAL_ROUND_COUNTER");
-    console.log(`🌎 [CRON] Global Round Incremented to #${newGlobalRound}`);
+    // Round counter'ı sıfırdan başlat (her gün 0, 1, 2, 3...)
+    const currentCounter = await kv.get("GLOBAL_ROUND_COUNTER") || 0;
+    const newGlobalRound = typeof currentCounter === 'number' ? currentCounter + 1 : 1;
+    await kv.set("GLOBAL_ROUND_COUNTER", newGlobalRound);
+    console.log(`🌎 [CRON] Global Round Set to #${newGlobalRound}`);
 
     // --- 2. ORACLE'DAN TÜM KULLANICILAR ---
     const usersResponse = await fetch(`${ORACLE_URL}/api/users/all`, {
