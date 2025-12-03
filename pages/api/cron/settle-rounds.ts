@@ -64,9 +64,20 @@ export default async function handler(
 ) {
   if (req.method !== "GET") return res.status(405).json({ ok: false, error: "GET only" });
 
-  const { key } = req.query;
+  // Vercel Cron sends secret via Authorization header: "Bearer <secret>"
+  // Manual calls can use ?key=<secret> query parameter
+  let providedKey = req.query.key as string;
+  
+  // Check Authorization header if query param not present
+  if (!providedKey) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      providedKey = authHeader.substring(7);
+    }
+  }
+
   if (!CRON_SECRET) return res.status(500).json({ ok: false, error: "Server Error: CRON_SECRET not set" });
-  if (key !== CRON_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  if (providedKey !== CRON_SECRET) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
   try {
     console.log("🔒 [CRON] Finalizing Round & Saving Stats...");

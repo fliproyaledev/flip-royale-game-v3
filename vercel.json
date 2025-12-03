@@ -9,5 +9,11 @@
   ],
   "env": {
     "PRICE_POLL_INTERVAL_MS": "60000"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/settle-rounds",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }
