@@ -139,9 +139,9 @@ export default async function handler(
 
     // --- 3. HER KULLANICI İÇİN İŞLE ---
     for (const user of allUsers) {
-      const uid = user.wallet || user.id || "";
+      const uid = user.id;
       if (!uid) {
-        errors.push({ userId: "unknown", error: "Missing wallet address" });
+        errors.push({ userId: "unknown", error: "Missing user ID" });
         continue;
       }
 
@@ -213,21 +213,11 @@ export default async function handler(
         }
 
         if (totalPoints !== 0) {
-          // Puanları bankaya ekle (creditGamePoints yerine manuel)
-          const oldBankPoints = user.bankPoints ?? 0;
-          const newBankPoints = oldBankPoints + totalPoints;
-          user.bankPoints = newBankPoints;
-          user.totalPoints = (user.totalPoints || 0) + totalPoints;
-
-          // Log ekle
-          const logEntry = {
-            source: `flip-round-${today}` as const,
-            amount: totalPoints,
-            date: today,
-            meta: {}
-          };
-          user.pointsLog = user.pointsLog || [];
-          user.pointsLog.push(logEntry);
+          // Puanları bankaya ekle
+          if (totalPoints > 0) {
+            user.totalPoints = (user.totalPoints || 0) + totalPoints;
+          }
+          user.bankPoints = (user.bankPoints || 0) + totalPoints;
         }
 
         if (historyItems.length > 0) {

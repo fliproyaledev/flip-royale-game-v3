@@ -5,8 +5,8 @@
   "devFiles": [],
   "ampDevFiles": [],
   "lowPriorityFiles": [
-    "static/QfSsQaPoVdCmYVf70Ibh6/_buildManifest.js",
-    "static/QfSsQaPoVdCmYVf70Ibh6/_ssgManifest.js"
+    "static/o_v9IT0msv88U4VzvlENM/_buildManifest.js",
+    "static/o_v9IT0msv88U4VzvlENM/_ssgManifest.js"
   ],
   "rootMainFiles": [],
   "pages": {
@@ -14,7 +14,7 @@
       "static/chunks/webpack-4aaffebafd15c20b.js",
       "static/chunks/framework-6c8598519c693321.js",
       "static/chunks/main-e9a4e4ae37deaffb.js",
-      "static/chunks/pages/index-22d9bbf0ac2dbdfa.js"
+      "static/chunks/pages/index-630bf9a5cda2b34f.js"
     ],
     "/_app": [
       "static/chunks/webpack-4aaffebafd15c20b.js",
@@ -57,7 +57,7 @@
       "static/chunks/webpack-4aaffebafd15c20b.js",
       "static/chunks/framework-6c8598519c693321.js",
       "static/chunks/main-e9a4e4ae37deaffb.js",
-      "static/chunks/pages/inventory-ea9204cbfa5eb428.js"
+      "static/chunks/pages/inventory-f662c54e19e4f816.js"
     ],
     "/leaderboard": [
       "static/chunks/webpack-4aaffebafd15c20b.js",
@@ -69,13 +69,13 @@
       "static/chunks/webpack-4aaffebafd15c20b.js",
       "static/chunks/framework-6c8598519c693321.js",
       "static/chunks/main-e9a4e4ae37deaffb.js",
-      "static/chunks/pages/my-packs-1cff579264d5452c.js"
+      "static/chunks/pages/my-packs-fafbbd2fa07cdc2d.js"
     ],
     "/prices": [
       "static/chunks/webpack-4aaffebafd15c20b.js",
       "static/chunks/framework-6c8598519c693321.js",
       "static/chunks/main-e9a4e4ae37deaffb.js",
-      "static/chunks/pages/prices-ad520d4331385e03.js"
+      "static/chunks/pages/prices-b8508c89cbacd252.js"
     ],
     "/profile": [
       "static/chunks/webpack-4aaffebafd15c20b.js",
