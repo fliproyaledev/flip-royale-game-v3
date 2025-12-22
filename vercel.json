@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": [
+    "iad1"
+  ],
+  "env": {
+    "PRICE_POLL_INTERVAL_MS": "60000"
+  },
+  "crons": [
+    {
+      "path": "/api/cron/settle-rounds",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

@@ -1,0 +1,241 @@
+/* styles/invite.module.css */
+/* Invite page styling - dark theme matching game aesthetic */
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+  padding: 20px;
+}
+
+.card {
+  background: rgba(20, 20, 35, 0.95);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+              0 0 40px rgba(255, 215, 0, 0.1);
+}
+
+.logo {
+  margin-bottom: 24px;
+}
+
+.crown {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+  letter-spacing: 2px;
+}
+
+.subtitle {
+  color: #888;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.inputGroup {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.codeInput {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  border-radius: 12px;
+  padding: 16px 20px;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  letter-spacing: 4px;
+  transition: all 0.3s ease;
+}
+
+.codeInput:focus {
+  outline: none;
+  border-color: #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+.codeInput::placeholder {
+  color: #555;
+  letter-spacing: 2px;
+}
+
+.validateBtn {
+  background: rgba(255, 215, 0, 0.2);
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  border-radius: 12px;
+  padding: 16px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffd700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.validateBtn:hover:not(:disabled) {
+  background: rgba(255, 215, 0, 0.3);
+}
+
+.validateBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #ff4444;
+  font-size: 14px;
+  margin: 12px 0;
+  padding: 10px;
+  background: rgba(255, 68, 68, 0.1);
+  border-radius: 8px;
+}
+
+.inviteInfo {
+  background: rgba(0, 255, 100, 0.1);
+  border: 1px solid rgba(0, 255, 100, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.validCode {
+  color: #00ff64;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.freepackNote {
+  color: #ffd700;
+  font-size: 14px;
+  margin: 0;
+}
+
+.connectBtn,
+.joinBtn {
+  width: 100%;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 16px;
+}
+
+.connectBtn {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: none;
+  color: #fff;
+}
+
+.connectBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+}
+
+.joinBtn {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  border: none;
+  color: #000;
+}
+
+.joinBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+}
+
+.joinBtn:disabled,
+.connectBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.walletInfo {
+  margin-top: 16px;
+}
+
+.connected {
+  color: #888;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.footer {
+  color: #555;
+  font-size: 12px;
+  margin-top: 24px;
+  line-height: 1.6;
+}
+
+/* Success state */
+.successBox {
+  padding: 20px 0;
+}
+
+.successIcon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.successBox h2 {
+  color: #00ff64;
+  font-size: 24px;
+  margin: 0 0 8px 0;
+}
+
+.successBox p {
+  color: #888;
+  margin: 8px 0;
+}
+
+.giftNote {
+  color: #ffd700 !important;
+  font-size: 16px !important;
+  font-weight: 600;
+}
+
+.redirect {
+  color: #555 !important;
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .card {
+    padding: 24px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .inputGroup {
+    flex-direction: column;
+  }
+
+  .codeInput {
+    font-size: 16px;
+  }
+}
