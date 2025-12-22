@@ -193,64 +193,15 @@ export default function Home() {
       if (data.exists) {
         loginUser(data.user)
       } else {
-        setIsRegistering(true)
+        // Enforce Invite-Only: Redirect new users to invite page
+        window.location.href = '/invite'
       }
     } catch (e) {
       console.error("Auth check failed", e)
     }
   }
 
-  async function handleRegister() {
-    console.log("Register button clicked")
-    if (!regUsername || regUsername.trim().length < 3) {
-      setRegError('Username must be at least 3 characters.')
-      return
-    }
-
-    if (!/^[a-zA-Z0-9_]+$/.test(regUsername)) {
-      setRegError('Username can only contain letters, numbers, and underscores.')
-      return
-    }
-
-    if (!address) {
-      console.error("No address found")
-      return
-    }
-
-    setIsRegisteringLoading(true)
-    setRegError('')
-
-    try {
-      console.log("Requesting signature...")
-      const messageToSign = `Flip Royale: Create Account\nUsername: ${regUsername}\nAddress: ${address}`
-      await signMessageAsync({ message: messageToSign })
-      console.log("Signature received")
-
-      console.log("Calling register API...")
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, username: regUsername })
-      })
-
-      const data = await res.json()
-      console.log("Register API response:", data)
-
-      if (data.ok) {
-        // Treat explicit registration as a brand new user
-        // Backend may or may not send isNewUser flag, so we force true here
-        loginUser(data.user, true)
-        setIsRegistering(false)
-      } else {
-        setRegError(data.error || 'Registration failed')
-      }
-    } catch (e) {
-      console.error("Registration error", e)
-      setRegError('Registration failed or cancelled. Check console.')
-    } finally {
-      setIsRegisteringLoading(false)
-    }
-  }
+  // Removed handleRegister - Registration is now handled via /invite page only
 
   function loginUser(userData: any, isNewUser = false) {
     console.log('[LOGIN] loginUser called:', { isNewUser, userId: userData.id });
@@ -1577,7 +1528,7 @@ export default function Home() {
             boxShadow: '0 10px 30px rgba(0,0,0,0.25)'
           }}>
             <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#e0f2fe' }}>
-              Global Movers · Beta #1
+              Global Movers · Beta #{activeRoundDisplay}
             </div>
 
             <div>
@@ -2747,47 +2698,7 @@ export default function Home() {
       }
 
       {/* Registration Modal */}
-      {isRegistering && (
-        <div className="modal-backdrop">
-          <div className="modal" style={{ maxWidth: 400 }}>
-            <div className="modal-header">
-              <h3 style={{ color: 'white', margin: 0 }}>Create Account</h3>
-            </div>
-            <div style={{ padding: 20 }}>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', marginBottom: 8, fontSize: 14 }}>Username</label>
-                <input
-                  type="text"
-                  value={regUsername}
-                  onChange={(e) => setRegUsername(e.target.value)}
-                  placeholder="Enter username"
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    borderRadius: 8,
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    background: 'rgba(0,0,0,0.2)',
-                    color: 'white',
-                    fontSize: 16
-                  }}
-                />
-                {regError && <div style={{ color: '#fca5a5', fontSize: 13, marginTop: 8 }}>{regError}</div>}
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  className="btn primary"
-                  style={{ flex: 1, opacity: isRegisteringLoading ? 0.7 : 1, cursor: isRegisteringLoading ? 'wait' : 'pointer' }}
-                  onClick={handleRegister}
-                  disabled={isRegisteringLoading}
-                >
-                  {isRegisteringLoading ? 'Signing...' : 'Register'}
-                </button>
-                <button className="btn" style={{ flex: 1 }} onClick={() => { disconnect(); setIsRegistering(false); }}>Cancel</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Registration Modal Removed - Use /invite */}
       {/* Welcome Gift Modal */}
       {showWelcomeGift && (
         <div className="modal-backdrop">
