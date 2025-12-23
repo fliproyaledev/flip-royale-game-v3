@@ -11,12 +11,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-        const { code, userId } = req.body
+        const { code, userId, username } = req.body
 
         if (!code) {
             return res.status(400).json({ ok: false, error: 'Invite code is required' })
         }
-
         if (!userId) {
             return res.status(400).json({ ok: false, error: 'User ID (wallet address) is required' })
         }
@@ -45,9 +44,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const now = new Date().toISOString()
         const invite = result.invite!
 
+        // Determine name and username status
+        const initialName = username && /^[a-zA-Z0-9_]{3,15}$/.test(username) ? username : 'Player'
+        const hasChanged = initialName !== 'Player'
+
         const userData: any = existingUser ? { ...existingUser } : {
             id: cleanUserId,
-            name: 'Player',
+            name: initialName,
+            username: initialName,
+            hasChangedUsername: hasChanged,
             totalPoints: 0,
             bankPoints: 0,
             giftPoints: 0,

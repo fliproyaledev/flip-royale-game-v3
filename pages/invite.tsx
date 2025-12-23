@@ -9,6 +9,7 @@ import styles from '../styles/invite.module.css'
 export default function InvitePage() {
     const router = useRouter()
     const [code, setCode] = useState('')
+    const [username, setUsername] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [success, setSuccess] = useState(false)
@@ -111,7 +112,8 @@ export default function InvitePage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     code: code.toUpperCase(),
-                    userId: walletAddress
+                    userId: walletAddress,
+                    username: username
                 })
             })
 
@@ -178,6 +180,21 @@ export default function InvitePage() {
                                 >
                                     {loading ? '...' : 'Check'}
                                 </button>
+                            </div>
+
+                            <div className={styles.inputGroup} style={{ marginTop: 12 }}>
+                                <input
+                                    type="text"
+                                    className={styles.codeInput}
+                                    placeholder="USERNAME (OPTIONAL)"
+                                    value={username}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15)
+                                        setUsername(val)
+                                    }}
+                                    disabled={loading}
+                                    style={{ fontSize: 16 }}
+                                />
                             </div>
 
                             {error && <p className={styles.error}>{error}</p>}

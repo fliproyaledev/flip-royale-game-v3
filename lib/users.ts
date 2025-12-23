@@ -61,6 +61,8 @@ export type UserRecord = {
   roundHistory?: RoundHistoryEntry[]
   // Invite & Referral system fields
   inviteCodeUsed?: string           // Hangi kod ile girdi
+  username?: string                 // Custom username (display name)
+  hasChangedUsername?: boolean      // 1 kerelik isim değiştirme hakkını kullandı mı?
   inviteType?: 'waitlist' | 'referral' | 'admin_bypass'
   referredBy?: string | null        // Referans veren user ID
   referralCode?: string | null      // Kendi referans kodu (1 paket sonra)

@@ -6,9 +6,9 @@ import fs from 'fs';
 // ÖNEMLİ: Canlı sunucuda (Vercel) kod üretmek için buraya canlı site adresinizi yazın.
 // Örnek: 'https://flip-royale-v3.vercel.app/api/admin/create-invite'
 // Localde test ediyorsanız localhost kalabilir.
-const API_URL = 'http://www.fliproyale.xyz/api/admin/create-invite';
+const API_URL = 'https://www.fliproyale.xyz/api/admin/create-invite';
 const ADMIN_WALLET = '0xbe94fBD02dbfe3695fACEa5101e3B83991dD7911'; // Replace with a wallet in your env.ADMIN_WALLETS
-const COUNT = 50; // How many codes to generate
+const COUNT = 100; // How many codes to generate
 
 async function generateCodes() {
     console.log(`Generating ${COUNT} waitlist codes...`);

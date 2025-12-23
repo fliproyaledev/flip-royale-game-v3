@@ -11,6 +11,7 @@ type User = {
   username: string
   name?: string
   walletAddress?: string
+  hasChangedUsername?: boolean
   createdAt: string | number
   lastLogin: string | number
   avatar?: string
@@ -41,6 +42,33 @@ export default function Profile() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [tempName, setTempName] = useState('')
+
+  const saveName = async () => {
+    if (!user || !tempName.trim()) return
+    if (tempName.length < 3) return alert("Username must be at least 3 characters.")
+
+    try {
+      const res = await fetch('/api/users/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, username: tempName })
+      })
+      const data = await res.json()
+      if (data.ok) {
+        const updatedUser = { ...user, username: tempName, name: tempName, hasChangedUsername: true }
+        setUser(updatedUser)
+        setIsEditingName(false)
+        try { localStorage.setItem('flipflop-user', JSON.stringify(updatedUser)) } catch { }
+      } else {
+        alert(data.error || 'Failed to update username')
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Connection error')
+    }
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -187,7 +215,36 @@ export default function Profile() {
                   </label>
                 </div>
               </div>
-              <div><div className="muted" style={{ marginBottom: 4 }}>Username</div><div style={{ fontSize: 16, fontWeight: 600 }}>{displayName}</div></div>
+              <div>
+                <div className="muted" style={{ marginBottom: 4 }}>Username</div>
+
+                {user.hasChangedUsername ? (
+                  <div style={{ fontSize: 16, fontWeight: 600 }}>{displayName} <span className="badge" style={{ fontSize: 10, opacity: 0.7 }}>VERIFIED</span></div>
+                ) : isEditingName ? (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      value={tempName}
+                      onChange={(e) => setTempName(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15))}
+                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'white', borderRadius: 6, padding: '4px 8px', width: 140 }}
+                    />
+                    <button className="btn primary" onClick={saveName} disabled={loading} style={{ padding: '4px 8px', fontSize: 12 }}>Save</button>
+                    <button className="btn ghost" onClick={() => setIsEditingName(false)} style={{ padding: '4px 8px', fontSize: 12 }}>Cancel</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 16, fontWeight: 600 }}>{displayName}</div>
+                    <button
+                      className="btn ghost"
+                      onClick={() => { setTempName(user.username || ''); setIsEditingName(true) }}
+                      style={{ padding: '2px 6px', fontSize: 10, height: 'auto' }}
+                      title="You can change your username once."
+                    >
+                      ✏️ Edit
+                    </button>
+                  </div>
+                )}
+              </div>
               <div><div className="muted" style={{ marginBottom: 4 }}>Member Since</div><div style={{ fontSize: 16, fontWeight: 600 }}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</div></div>
             </div>
           </div>

@@ -77,7 +77,7 @@ export default function Guide() {
 
         <h3>Getting Started</h3>
         <ul>
-          <li><b>Create Your Profile</b>: Go to the PLAY page, register with a username and wallet address. New players start with <b>10,000 gift points</b> (for packs & Arena Royale rooms only).</li>
+          <li><b>Create Your Profile</b>: Go to the PLAY page, register with a username and wallet address. New players start with <b>10,000 gift points</b>.</li>
           <li><b>Understanding Cards</b>: Each card represents a cryptocurrency token on Base network. Cards are tied to specific token trading pairs on Dexscreener.</li>
           <li><b>Opening Packs</b>: Use your packs to get new cards. You can view all your cards in the INVENTORY page.</li>
         </ul>
@@ -114,22 +114,7 @@ export default function Guide() {
           <li><b>View Your History</b>: Check the HISTORY page to see all your past rounds and performance.</li>
         </ul>
 
-        <h3>⚔️ Arena Mode (1v1 Duels)</h3>
-        <ul>
-          <li><b>How It Works</b>: Challenge other players in head-to-head matches!</li>
-          <li><b>Entry Fee</b>: Each Arena match costs <b>2,500 points</b> to enter.</li>
-          <li><b>Daily Rooms</b>: 25 new rooms are created automatically every day at 00:00 UTC. Rooms are numbered "Room 1", "Room 2", etc.</li>
-          <li><b>Joining a Room</b>:
-            <ul>
-              <li>Browse available rooms on the ARENA page</li>
-              <li>Click "Join Room" and pay 2,500 points</li>
-              <li>Both players select 5 cards and choose UP/DOWN for each</li>
-            </ul>
-          </li>
-          <li><b>Refund Policy</b>: If you create a room and no one joins, you can cancel and get your 2,500 points refunded.</li>
-          <li><b>Scoring</b>: Same rules as PLAY mode. Lock cards to secure your score, or wait for 00:00 UTC settlement.</li>
-          <li><b>Winning</b>: After settlement, the player with higher total points wins and receives <b>+5,000 points</b>. In case of a draw, both players get their 2,500 points back.</li>
-        </ul>
+
 
         <h3>💡 Pro Tips</h3>
         <ul>
@@ -143,11 +128,10 @@ export default function Guide() {
         <h3>📱 Pages Overview</h3>
         <ul>
           <li><b>PLAY</b>: Main game mode - select cards, make predictions, and earn points</li>
-          <li><b>ARENA</b>: 1v1 duels with other players</li>
           <li><b>INVENTORY</b>: View all your cards and packs</li>
-          <li><b>LEADERBOARD</b>: See top players and daily rankings</li>
+          <li><b>LEADERBOARD</b>: Weekly competition! Top 3 players every week share the prize pool.</li>
           <li><b>HISTORY</b>: Review your past rounds and performance</li>
-          <li><b>PROFILE</b>: Manage your account and view stats</li>
+          <li><b>PROFILE</b>: Manage your account, change your username (one-time), and view stats</li>
         </ul>
       </div>
     </div>
