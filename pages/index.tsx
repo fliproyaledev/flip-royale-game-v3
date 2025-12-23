@@ -2293,7 +2293,7 @@ export default function Home() {
                       loadUserData(); // Puanı güncelle
                       setPurchasedPack({ type: 'common', count: buyQty }); // ✨ MODALI AÇ
                     }}
-                    price={0.1 * buyQty} // Fiyatı adetle çarpıyoruz
+                    price={10 * buyQty} // Fiyatı adetle çarpıyoruz
                     packType="common"
                     compact={true}
                   />
@@ -2354,7 +2354,7 @@ export default function Home() {
                       loadUserData();
                       setPurchasedPack({ type: 'rare', count: rareBuyQty }); // ✨ MODALI AÇ
                     }}
-                    price={1.0 * rareBuyQty}
+                    price={25 * rareBuyQty}
                     packType="rare"
                     compact={true}
                   />
