@@ -173,14 +173,53 @@ export default function MyPacksPage() {
               <div style={{ padding: 24 }}>You have no unopened packs.</div>
             ) : (
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                {Object.entries(packs).map(([type, count]) => (
-                  <div key={type} style={{ width: 220, padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{ fontWeight: 800, marginBottom: 8, color: 'white' }}>{type.toUpperCase()} PACK</div>
-                    <div style={{ marginBottom: 12, color: '#94a3b8' }}>{count} pack(s)</div>
-                    <button className="btn" style={{ marginBottom: 8 }} onClick={() => openPack(type)} disabled={opening}>Open One</button>
-                    <button className="btn ghost" onClick={() => openAll(type)} disabled={opening}>Open All ({count})</button>
-                  </div>
-                ))}
+                {Object.entries(packs).map(([type, count]) => {
+                  // Determine image source based on type
+                  const isRare = type.toLowerCase().includes('rare')
+                  const imgSrc = isRare ? '/rare-pack.jpg' : '/common-pack.jpg'
+                  const color = isRare ? '#fbbf24' : '#94a3b8'
+                  const borderColor = isRare ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.1)'
+                  const bgGradient = isRare
+                    ? 'linear-gradient(180deg, rgba(30,27,75,0.8), rgba(23,37,84,0.6))'
+                    : 'linear-gradient(180deg, rgba(15,23,42,0.8), rgba(11,19,36,0.6))'
+
+                  return (
+                    <div key={type} style={{
+                      width: 240,
+                      padding: 12,
+                      borderRadius: 16,
+                      background: bgGradient,
+                      border: `1px solid ${borderColor}`,
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12
+                    }}>
+                      {/* Image Container */}
+                      <div style={{ width: '100%', aspectRatio: '2/3', borderRadius: 12, overflow: 'hidden', position: 'relative', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <img src={imgSrc} alt={`${type} Pack`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 8, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
+                          <div style={{ color: 'white', fontWeight: 800, textAlign: 'center', textShadow: '0 2px 4px black' }}>{count}x</div>
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontWeight: 900, fontSize: 16, color: color, textTransform: 'uppercase', letterSpacing: 0.5 }}>{type} PACK</div>
+                      </div>
+
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <button className="btn" style={{ fontSize: 14, padding: '8px 16px' }} onClick={() => openPack(type)} disabled={opening}>
+                          Open One
+                        </button>
+                        {count > 1 && (
+                          <button className="btn ghost" style={{ fontSize: 12 }} onClick={() => openAll(type)} disabled={opening}>
+                            Open All ({count})
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
 
