@@ -72,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Hediye paket ver (waitlist veya admin bypass için)
         if (invite.givesFreepack) {
             userData.inventory = userData.inventory || {}
-            userData.inventory.common = (userData.inventory.common || 0) + 1
+            userData.inventory.common_pack = (userData.inventory.common_pack || 0) + 1
             userData.logs = userData.logs || []
             userData.logs.push({
                 type: 'system',

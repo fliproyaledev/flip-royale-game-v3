@@ -143,8 +143,8 @@ export default function InvitePage() {
             <div className={styles.container}>
                 <div className={styles.card}>
                     <div className={styles.logo}>
-                        <span className={styles.crown}>👑</span>
-                        <h1 className={styles.title}>FLIP ROYALE</h1>
+                        <img src="/logo.png" alt="Flip Royale" style={{ width: 120, height: 'auto', marginBottom: 16 }} />
+                        {/* <h1 className={styles.title}>FLIP ROYALE</h1> */}
                     </div>
 
                     {success ? (
