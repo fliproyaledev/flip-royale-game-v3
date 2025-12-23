@@ -77,7 +77,6 @@ export default function Guide() {
 
         <h3>Getting Started</h3>
         <ul>
-          <li><b>Create Your Profile</b>: Go to the PLAY page, register with a username and wallet address. New players start with <b>10,000 gift points</b>.</li>
           <li><b>Understanding Cards</b>: Each card represents a cryptocurrency token on Base network. Cards are tied to specific token trading pairs on Dexscreener.</li>
           <li><b>Opening Packs</b>: Use your packs to get new cards. You can view all your cards in the INVENTORY page.</li>
         </ul>
@@ -110,7 +109,6 @@ export default function Guide() {
         <ul>
           <li><b>Automatic Settlement</b>: At 00:00 UTC, all unlocked cards are automatically scored based on their 24h price change.</li>
           <li><b>Point Protection</b>: Your total points never decrease! Negative rounds are logged in your history but don't reduce your total score. Only positive points are added.</li>
-          <li><b>Daily Bonuses</b>: Top 20 players each day receive bonus points distributed by rank. Check the LEADERBOARD to see your ranking and bonuses.</li>
           <li><b>View Your History</b>: Check the HISTORY page to see all your past rounds and performance.</li>
         </ul>
 
