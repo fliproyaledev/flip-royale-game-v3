@@ -5,7 +5,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { createInviteCode, listInviteCodes } from '../../../lib/invites'
 
 // Admin cüzdan adresleri - bunları env'den almak daha güvenli olur
-const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || '').toLowerCase().split(',').filter(Boolean)
+const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || '').toLowerCase().split(',').map(w => w.trim()).filter(Boolean)
 
 function isAdmin(address: string): boolean {
     if (!address) return false
@@ -19,7 +19,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const adminWallet = (req.headers['x-admin-wallet'] as string || '').toLowerCase()
 
     if (!isAdmin(adminWallet) && process.env.NODE_ENV !== 'development') {
-        return res.status(403).json({ ok: false, error: 'Unauthorized: Admin access required' })
+        const received = adminWallet ? `${adminWallet.substring(0, 6)}...` : 'empty';
+        return res.status(403).json({ ok: false, error: `Unauthorized: Admin access required. Your wallet: ${adminWallet} (Env has ${ADMIN_WALLETS.length} admins)` })
     }
 
     // GET: Kodları listele
