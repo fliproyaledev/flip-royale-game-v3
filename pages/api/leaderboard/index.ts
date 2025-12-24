@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { loadUsers } from '../../../lib/users'
+import { getAllUsers } from '../../../lib/users'
 
 export default async function handler(
   req: NextApiRequest,
@@ -11,7 +11,7 @@ export default async function handler(
 
   try {
     // 1. Tüm kullanıcıları veritabanından çek
-    const usersMap = await loadUsers()
+    const usersMap = await getAllUsers()
     const usersArray = Object.values(usersMap)
 
     // Support optional timeframe query: 'all' | 'daily' | 'weekly'

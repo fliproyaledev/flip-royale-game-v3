@@ -9,9 +9,9 @@ async function main() {
 
     // Treasury adresi - platformun gelir cüzdanı
     // ⚠️ BUNU KENDİ CÜZDAN ADRESİNLE DEĞİŞTİR!
-    const TREASURY = process.env.TREASURY_ADDRESS || "0xYOUR_TREASURY_ADDRESS";
+    const TREASURY = process.env.TREASURY_ADDRESS || "0x59749215DA9aedc456B173146c0890Af87F6E6f4";
 
-    if (TREASURY === "0xYOUR_TREASURY_ADDRESS") {
+    if (TREASURY === "0x59749215DA9aedc456B173146c0890Af87F6E6f4") {
         throw new Error("Please set TREASURY_ADDRESS in .env file!");
     }
 
