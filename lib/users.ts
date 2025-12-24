@@ -85,6 +85,7 @@ export type UserRecord = {
 
 // 1. KULLANICIYI GETİR (Oracle'dan)
 export async function getUser(address: string): Promise<UserRecord | null> {
+  // ... (keep existing body) ...
   const clean = String(address).toLowerCase()
 
   // If ORACLE_URL is configured, proxy to Oracle
@@ -128,6 +129,50 @@ export async function getUser(address: string): Promise<UserRecord | null> {
   } catch (e) {
     console.warn('Local getUser fallback failed:', e)
     return null
+  }
+}
+
+// 1.5. TÜM KULLANICILARI GETİR (Oracle'dan)
+export async function getAllUsers(): Promise<Record<string, UserRecord>> {
+  // Oracle Mode
+  if (ORACLE_URL) {
+    try {
+      const res = await fetch(`${ORACLE_URL}/api/users/all`, {
+        headers: {
+          'Authorization': `Bearer ${ORACLE_SECRET}`
+        }
+      });
+
+      if (!res.ok) {
+        console.error('Oracle GetAllUsers Failed:', await res.text());
+        return {};
+      }
+
+      const data = await res.json();
+      const usersArray: UserRecord[] = data.users || [];
+
+      // Convert Array to Record map
+      const map: Record<string, UserRecord> = {};
+      usersArray.forEach(u => {
+        if (u.id) map[u.id.toLowerCase()] = u;
+      });
+      return map;
+    } catch (e) {
+      console.error('Oracle getAllUsers error:', e);
+      return {};
+    }
+  }
+
+  // Local Fallback
+  try {
+    const fs = await import('fs')
+    const path = require('path')
+    const file = path.join(process.cwd(), 'data', 'local-users.json')
+    if (!fs.existsSync(file)) return {}
+    const raw = fs.readFileSync(file, 'utf-8')
+    return JSON.parse(raw || '{}') as Record<string, UserRecord>
+  } catch (e) {
+    return {}
   }
 }
 

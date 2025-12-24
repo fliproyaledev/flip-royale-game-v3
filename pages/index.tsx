@@ -6,6 +6,7 @@ import { useTheme } from '../lib/theme'
 import BuyButton from '../components/BuyButton'
 import { useSignMessage, useAccount, useDisconnect } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useToast } from '../lib/toast'
 
 type RoundPick = { tokenId: string; dir: 'UP' | 'DOWN'; duplicateIndex: number; locked: boolean; pLock?: number; pointsLocked?: number; startPrice?: number }
 
@@ -122,6 +123,7 @@ function calcPoints(pct: number, dir: 'UP' | 'DOWN', dup: number, boostLevel: 0 
 }
 
 export default function Home() {
+  const { toast } = useToast()
   const { theme } = useTheme()
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
@@ -1190,10 +1192,10 @@ export default function Home() {
         console.log("🎉 Kayıt Başarılı!");
         setNextRoundLoaded(true);
         setNextRoundSaved(true);
-        alert(`Picks saved successfully!`);
+        toast('Picks saved successfully!', 'success');
       } else {
         console.error("Sunucu Hatası:", data);
-        alert('Failed to save: ' + (data.error || 'Unknown error'));
+        toast('Failed to save: ' + (data.error || 'Unknown error'), 'error');
       }
 
     } catch (e) {
