@@ -1,4 +1,5 @@
 import { useEffect, useState, ChangeEvent } from 'react'
+import { useToast } from '../lib/toast'
 import { useRouter } from 'next/router'
 import Topbar from '../components/Topbar'
 import ThemeToggle from '../components/ThemeToggle'
@@ -36,6 +37,7 @@ type RoundHistory = {
 export default function Profile() {
   const router = useRouter()
   const { disconnect } = useDisconnect()
+  const { toast } = useToast()
 
   const [user, setUser] = useState<User | null>(null)
   const [history, setHistory] = useState<RoundHistory[]>([])
@@ -47,7 +49,7 @@ export default function Profile() {
 
   const saveName = async () => {
     if (!user || !tempName.trim()) return
-    if (tempName.length < 3) return alert("Username must be at least 3 characters.")
+    if (tempName.length < 3) return toast("Username must be at least 3 characters.", 'error')
 
     try {
       const res = await fetch('/api/users/update-profile', {
@@ -62,11 +64,11 @@ export default function Profile() {
         setIsEditingName(false)
         try { localStorage.setItem('flipflop-user', JSON.stringify(updatedUser)) } catch { }
       } else {
-        alert(data.error || 'Failed to update username')
+        toast(data.error || 'Failed to update username', 'error')
       }
     } catch (e) {
       console.error(e)
-      alert('Connection error')
+      toast('Connection error', 'error')
     }
   }
 
@@ -112,7 +114,7 @@ export default function Profile() {
     if (!file || !user) return
 
     if (file.size > 1 * 1024 * 1024) {
-      alert("File is too large. Please choose an image under 1MB.")
+      toast("File is too large. Please choose an image under 1MB.", 'error')
       return
     }
 
@@ -139,11 +141,11 @@ export default function Profile() {
             localStorage.setItem('flipflop-user', JSON.stringify({ ...parsed, avatar: base64data }))
           }
         } else {
-          alert("Failed to update avatar: " + (data.error || 'Unknown error'))
+          toast("Failed to update avatar: " + (data.error || 'Unknown error'), 'error')
         }
       } catch (error) {
         console.error("Avatar update error:", error)
-        alert("An error occurred while uploading.")
+        toast("An error occurred while uploading.", 'error')
       } finally {
         setIsUploading(false)
       }

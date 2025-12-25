@@ -780,7 +780,7 @@ export default function Home() {
   // useEffect(()=>{ try { localStorage.setItem('flipflop-points', String(points)) } catch {} },[points])
 
   async function buyMysteryPacks(packType: 'common' | 'rare' = 'common', isGift = false) {
-    if (!user) { alert('Please log in first.'); return }
+    if (!user) { toast('Please log in first.', 'error'); return }
 
     // First, get current points from server to ensure accuracy
     let currentPoints = points
@@ -818,7 +818,7 @@ export default function Home() {
     // Check with total available points (giftPoints + bankPoints)
     const totalAvailable = currentGiftPoints + currentPoints
     if (!isGift && totalAvailable < cost) {
-      alert(`Not enough points. You have ${totalAvailable.toLocaleString()} pts (${currentGiftPoints.toLocaleString()} gift + ${currentPoints.toLocaleString()} earned), need ${cost.toLocaleString()} pts for ${qty} ${packType} pack(s).`)
+      toast(`Not enough points. You have ${totalAvailable.toLocaleString()} pts (${currentGiftPoints.toLocaleString()} gift + ${currentPoints.toLocaleString()} earned), need ${cost.toLocaleString()} pts for ${qty} ${packType} pack(s).`, 'error')
       return
     }
 
@@ -846,13 +846,13 @@ export default function Home() {
             }
           }
         } catch { }
-        alert(errorMsg)
+        toast(errorMsg, 'error')
         return
       }
 
       const j = await r.json().catch(() => ({}))
       if (!r.ok || !j.ok) {
-        alert((j && j.error) || `Purchase failed: ${r.status} ${r.statusText}`)
+        toast((j && j.error) || `Purchase failed: ${r.status} ${r.statusText}`, 'error')
         return
       }
 
@@ -882,7 +882,7 @@ export default function Home() {
       }
     } catch (e: any) {
       console.error('Purchase error:', e)
-      alert(e?.message || 'Purchase failed. Please try again.')
+      toast(e?.message || 'Purchase failed. Please try again.', 'error')
     }
   }
 
@@ -2719,7 +2719,7 @@ export default function Home() {
                 className="btn"
                 onClick={async () => {
                   setShowWelcomeGift(false);
-                  if (!user?.id) { alert('Please login first'); return }
+                  if (!user?.id) { toast('Please login first', 'error'); return }
                   try {
                     const res = await fetch('/api/users/openPack', {
                       method: 'POST',
@@ -2728,7 +2728,7 @@ export default function Home() {
                     })
                     const data = await res.json().catch(() => ({}))
                     if (!res.ok) {
-                      alert(data.error || 'Failed to open welcome pack')
+                      toast(data.error || 'Failed to open welcome pack', 'error')
                       return
                     }
 
@@ -2739,7 +2739,7 @@ export default function Home() {
                     loadUserData()
                   } catch (e) {
                     console.error('Open welcome pack error', e)
-                    alert('Connection error while opening welcome pack')
+                    toast('Connection error while opening welcome pack', 'error')
                   }
                 }}
                 style={{
@@ -2813,7 +2813,7 @@ export default function Home() {
                 }}
                 onClick={async () => {
                   setPurchasedPack(null);
-                  if (!user?.id) { alert('Please login first'); return }
+                  if (!user?.id) { toast('Please login first', 'error'); return }
                   try {
                     const res = await fetch('/api/users/openPack', {
                       method: 'POST',
@@ -2824,7 +2824,7 @@ export default function Home() {
                     const data = await res.json().catch(() => ({}));
 
                     if (!res.ok) {
-                      alert(data.error || 'Failed to open pack on server')
+                      toast(data.error || 'Failed to open pack on server', 'error')
                       return
                     }
 
@@ -2833,7 +2833,7 @@ export default function Home() {
                     loadUserData();
                   } catch (e) {
                     console.error('Open pack error:', e)
-                    alert('Connection error while opening pack.');
+                    toast('Connection error while opening pack.', 'error')
                   }
                 }}
               >
