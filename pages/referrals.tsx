@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import styles from '../styles/referrals.module.css'
+import { useToast } from '../lib/toast'
 
 export default function ReferralsPage() {
     const [loading, setLoading] = useState(true)
@@ -13,6 +14,7 @@ export default function ReferralsPage() {
     const [referralData, setReferralData] = useState<any>(null)
     const [stats, setStats] = useState<any>(null)
     const [copied, setCopied] = useState(false)
+    const { toast } = useToast()
 
     // Cüzdan bağlantısını kontrol et
     useEffect(() => {
@@ -186,16 +188,16 @@ export default function ReferralsPage() {
                                             })
                                             const data = await res.json()
                                             if (data.ok) {
-                                                alert(`Claim request submitted for $${data.claimed.toFixed(2)}. Will be processed within 24-48 hours.`)
+                                                toast(`Claim request submitted for $${data.claimed.toFixed(2)}. Will be processed within 24-48 hours.`, 'success')
                                                 // Refresh stats
                                                 const statsRes = await fetch(`/api/referral/stats?userId=${walletAddress}`)
                                                 const statsData = await statsRes.json()
                                                 setStats(statsData.stats)
                                             } else {
-                                                alert(data.error || 'Claim failed')
+                                                toast(data.error || 'Claim failed', 'error')
                                             }
                                         } catch (e) {
-                                            alert('Claim failed. Please try again.')
+                                            toast('Claim failed. Please try again.', 'error')
                                         }
                                     }}
                                 >
