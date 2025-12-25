@@ -199,10 +199,70 @@ export async function updateUser(address: string, updates: any) {
 // LEGACY HELPER FUNCTIONS (Eski dosyaların hata vermemesi için)
 // ─────────────────────────────────────────────────────────────
 
-// ⚠️ UYARI: Bu fonksiyon eski 'loadUsers' yerine geçer ama artık boş döner.
+// KULLANICILARI GETİR (Oracle'dan toplu)
 export async function loadUsers(): Promise<Record<string, UserRecord>> {
-  console.warn("⚠️ loadUsers() called in Oracle mode. This function is deprecated.");
-  return {};
+  const oracleConfigured = Boolean(ORACLE_URL && ORACLE_SECRET)
+
+  // 1) Oracle backend'ini kullanarak tüm kullanıcıları çek
+  if (oracleConfigured) {
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ORACLE_SECRET}`
+      }
+
+      const res = await fetch(`${ORACLE_URL}/api/users/all`, {
+        method: 'GET',
+        headers,
+        cache: 'no-store'
+      })
+
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(`Oracle loadUsers() failed: ${res.status} ${body}`)
+      }
+
+      const data = await res.json()
+      const usersArray = Array.isArray(data.users) ? (data.users as UserRecord[]) : []
+      const map: Record<string, UserRecord> = {}
+
+      for (const user of usersArray) {
+        if (user && user.id) {
+          map[String(user.id).toLowerCase()] = user
+        }
+      }
+
+      return map
+    } catch (error) {
+      console.error('Oracle loadUsers() error:', error)
+      throw error
+    }
+  }
+
+  // 2) Oracle ayarı eksikse üretimde açık hata döndür
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Oracle not configured or unreachable in production; please set ORACLE_URL ve ORACLE_SECRET.')
+  }
+
+  if (ORACLE_URL && !ORACLE_SECRET) {
+    throw new Error('Oracle secret tanımlı değil (ORACLE_SECRET). Bu yüzden kullanıcı listesi çekilemiyor.')
+  }
+
+  // 3) Local fallback (development): data/local-users.json dosyasından oku
+  const fs = await import('fs')
+  const path = require('path')
+
+  try {
+    const file = path.join(process.cwd(), 'data', 'local-users.json')
+    if (!fs.existsSync(file)) return {}
+    const raw = fs.readFileSync(file, 'utf-8')
+    if (!raw) return {}
+    const map = JSON.parse(raw || '{}') as Record<string, UserRecord>
+    return map
+  } catch (e) {
+    console.warn('Local loadUsers() fallback failed:', e)
+    return {}
+  }
 }
 
 export async function saveUsers(map: Record<string, UserRecord>): Promise<void> {

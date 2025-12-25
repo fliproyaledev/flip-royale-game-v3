@@ -16,4 +16,8 @@ A cryptocurrency prediction game built on Next.js where players predict token pr
 
 Private project - All rights reserved
 
+## 🔌 Veri Kaynağı (Leaderboard)
+- Üretimde `ORACLE_URL` ve `ORACLE_SECRET` ayarları mevcutsa liderlik tablosu verileri doğrudan Oracle backend'inden `/api/users/all` ile çekilir.
+- Bu iki değişken yoksa üretimde hata fırlatılır; geliştirme ortamında ise sadece `data/local-users.json` dosyası yedek veri kaynağı olarak kullanılır.
+
 
