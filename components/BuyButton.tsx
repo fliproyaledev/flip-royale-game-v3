@@ -7,6 +7,7 @@ import {
   VIRTUAL_TOKEN_ADDRESS,
   PACK_TYPES
 } from '../lib/contracts/packShop';
+import { useNotify } from './Notification';
 
 // ERC20 ABI
 const ERC20_ABI = [
@@ -58,6 +59,7 @@ export default function BuyButton({
 }) {
   const [status, setStatus] = useState<'idle' | 'approving' | 'buying' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const notify = useNotify();
 
   const { address } = useAccount();
   const priceWei = parseUnits(price.toString(), 18);
@@ -165,14 +167,14 @@ export default function BuyButton({
   }
 
   const handleBuy = async () => {
-    if (!address) return alert('Please connect wallet');
+    if (!address) return notify('Please connect wallet', { tone: 'warning' });
     if (isGift) { onSuccess?.(); return; }
 
     setError(null);
 
     // Check balance
     if (balance && balance < priceWei) {
-      return alert(`Insufficient VIRTUAL. Have: ${formatUnits(balance, 18)}, Need: ${price}`);
+      return notify(`Insufficient VIRTUAL. Have: ${formatUnits(balance, 18)}, Need: ${price}`, { tone: 'warning' });
     }
 
     const currentAllowance = allowance || BigInt(0);

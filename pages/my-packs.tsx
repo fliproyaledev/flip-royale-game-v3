@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Topbar from '../components/Topbar'
 import { TOKENS, getTokenById } from '../lib/tokens'
+import { useNotify } from '../components/Notification'
 
 function getGradientColor(index: number) {
   const colors = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#06b6d4', '#f97316', '#ef4444', '#8b5cf6', '#ec4899', '#3b82f6']
@@ -24,6 +25,7 @@ export default function MyPacksPage() {
   const [opening, setOpening] = useState(false)
   const [showMysteryResults, setShowMysteryResults] = useState<{ open: boolean; cards: string[] }>({ open: false, cards: [] })
   const router = useRouter()
+  const notify = useNotify()
 
   useEffect(() => {
     const saved = localStorage.getItem('flipflop-user')
@@ -70,7 +72,7 @@ export default function MyPacksPage() {
   }
 
   async function openPack(packType: string) {
-    if (!user?.id) return alert('Please login first')
+    if (!user?.id) return notify('Please login first', { tone: 'warning' })
     setOpening(true)
     try {
       const res = await fetch('/api/users/openPack', {
@@ -79,7 +81,7 @@ export default function MyPacksPage() {
         body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType })
       })
       const data = await res.json()
-      if (!res.ok) return alert(data?.error || 'Failed to open pack')
+      if (!res.ok) return notify(data?.error || 'Failed to open pack', { tone: 'error' })
       // show results then reload packs using modal
       setShowMysteryResults({ open: true, cards: data.newCards || [] })
       await loadPacks()
@@ -87,14 +89,14 @@ export default function MyPacksPage() {
       try { localStorage.setItem('flipflop-user', JSON.stringify(data.user)) } catch { }
     } catch (e) {
       console.error(e)
-      alert('Connection error')
+      notify('Connection error', { tone: 'error' })
     } finally { setOpening(false) }
   }
 
   async function openAll(packType: string) {
-    if (!user?.id) return alert('Please login first')
+    if (!user?.id) return notify('Please login first', { tone: 'warning' })
     const count = packs[packType] || 0
-    if (count < 1) return alert('No packs to open')
+    if (count < 1) return notify('No packs to open', { tone: 'warning' })
     setOpening(true)
     try {
       let totalNewCards: string[] = []
@@ -124,7 +126,7 @@ export default function MyPacksPage() {
       } catch { }
     } catch (e) {
       console.error(e)
-      alert('Connection error while opening packs')
+      notify('Connection error while opening packs', { tone: 'error' })
     } finally { setOpening(false) }
   }
 

@@ -6,6 +6,7 @@ import { useTheme } from '../lib/theme'
 import BuyButton from '../components/BuyButton'
 import { useSignMessage, useAccount, useDisconnect } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useNotify } from '../components/Notification'
 
 type RoundPick = { tokenId: string; dir: 'UP' | 'DOWN'; duplicateIndex: number; locked: boolean; pLock?: number; pointsLocked?: number; startPrice?: number }
 
@@ -126,6 +127,7 @@ export default function Home() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
   const { signMessageAsync } = useSignMessage()
+  const notify = useNotify()
 
   const [isRegistering, setIsRegistering] = useState(false)
   const [isRegisteringLoading, setIsRegisteringLoading] = useState(false)
@@ -778,7 +780,7 @@ export default function Home() {
   // useEffect(()=>{ try { localStorage.setItem('flipflop-points', String(points)) } catch {} },[points])
 
   async function buyMysteryPacks(packType: 'common' | 'rare' = 'common', isGift = false) {
-    if (!user) { alert('Please log in first.'); return }
+    if (!user) { notify('Please log in first.', { tone: 'warning' }); return }
 
     // First, get current points from server to ensure accuracy
     let currentPoints = points
@@ -816,7 +818,7 @@ export default function Home() {
     // Check with total available points (giftPoints + bankPoints)
     const totalAvailable = currentGiftPoints + currentPoints
     if (!isGift && totalAvailable < cost) {
-      alert(`Not enough points. You have ${totalAvailable.toLocaleString()} pts (${currentGiftPoints.toLocaleString()} gift + ${currentPoints.toLocaleString()} earned), need ${cost.toLocaleString()} pts for ${qty} ${packType} pack(s).`)
+      notify(`Not enough points. You have ${totalAvailable.toLocaleString()} pts (${currentGiftPoints.toLocaleString()} gift + ${currentPoints.toLocaleString()} earned), need ${cost.toLocaleString()} pts for ${qty} ${packType} pack(s).`, { tone: 'warning' })
       return
     }
 
@@ -844,13 +846,13 @@ export default function Home() {
             }
           }
         } catch { }
-        alert(errorMsg)
+        notify(errorMsg, { tone: 'error' })
         return
       }
 
       const j = await r.json().catch(() => ({}))
       if (!r.ok || !j.ok) {
-        alert((j && j.error) || `Purchase failed: ${r.status} ${r.statusText}`)
+        notify((j && j.error) || `Purchase failed: ${r.status} ${r.statusText}`, { tone: 'error' })
         return
       }
 
@@ -880,7 +882,7 @@ export default function Home() {
       }
     } catch (e: any) {
       console.error('Purchase error:', e)
-      alert(e?.message || 'Purchase failed. Please try again.')
+      notify(e?.message || 'Purchase failed. Please try again.', { tone: 'error' })
     }
   }
 
@@ -1114,7 +1116,7 @@ export default function Home() {
       // Auto-save will handle persistence via useEffect
       closeModal()
     } else {
-      alert('All slots are filled! Remove a card first.')
+      notify('All slots are filled! Remove a card first.', { tone: 'warning' })
     }
   }
 
@@ -1129,18 +1131,18 @@ export default function Home() {
   async function saveNextRoundPicks(e?: any) {
     // 1. Kullanıcı Kontrolü
     if (!user?.id) {
-      alert("Please login first.");
+      notify('Please login first.', { tone: 'warning' })
       return;
     }
 
     // 2. Kart Seçimi Kontrolü
     if (!Array.isArray(nextRound) || nextRound.length !== 5) {
-      alert('Invalid picks data.');
+      notify('Invalid picks data.', { tone: 'error' })
       return;
     }
     const filledCount = nextRound.filter(p => p !== null).length;
     if (filledCount === 0) {
-      alert('Please select at least one card.');
+      notify('Please select at least one card.', { tone: 'warning' })
       return;
     }
 
@@ -1190,10 +1192,10 @@ export default function Home() {
         console.log("🎉 Kayıt Başarılı!");
         setNextRoundLoaded(true);
         setNextRoundSaved(true);
-        alert(`Picks saved successfully!`);
+        notify('Picks saved successfully!', { tone: 'success' })
       } else {
         console.error("Sunucu Hatası:", data);
-        alert('Failed to save: ' + (data.error || 'Unknown error'));
+        notify('Failed to save: ' + (data.error || 'Unknown error'), { tone: 'error' });
       }
 
     } catch (e) {
@@ -2717,7 +2719,7 @@ export default function Home() {
                 className="btn"
                 onClick={async () => {
                   setShowWelcomeGift(false);
-                  if (!user?.id) { alert('Please login first'); return }
+                  if (!user?.id) { notify('Please login first', { tone: 'warning' }); return }
                   try {
                     const res = await fetch('/api/users/openPack', {
                       method: 'POST',
@@ -2726,7 +2728,7 @@ export default function Home() {
                     })
                     const data = await res.json().catch(() => ({}))
                     if (!res.ok) {
-                      alert(data.error || 'Failed to open welcome pack')
+                      notify(data.error || 'Failed to open welcome pack', { tone: 'error' })
                       return
                     }
 
@@ -2737,7 +2739,7 @@ export default function Home() {
                     loadUserData()
                   } catch (e) {
                     console.error('Open welcome pack error', e)
-                    alert('Connection error while opening welcome pack')
+                    notify('Connection error while opening welcome pack', { tone: 'error' })
                   }
                 }}
                 style={{
@@ -2811,7 +2813,7 @@ export default function Home() {
                 }}
                 onClick={async () => {
                   setPurchasedPack(null);
-                  if (!user?.id) { alert('Please login first'); return }
+                  if (!user?.id) { notify('Please login first', { tone: 'warning' }); return }
                   try {
                     const res = await fetch('/api/users/openPack', {
                       method: 'POST',
@@ -2822,7 +2824,7 @@ export default function Home() {
                     const data = await res.json().catch(() => ({}));
 
                     if (!res.ok) {
-                      alert(data.error || 'Failed to open pack on server')
+                      notify(data.error || 'Failed to open pack on server', { tone: 'error' })
                       return
                     }
 
@@ -2831,7 +2833,7 @@ export default function Home() {
                     loadUserData();
                   } catch (e) {
                     console.error('Open pack error:', e)
-                    alert('Connection error while opening pack.');
+                    notify('Connection error while opening pack.', { tone: 'error' })
                   }
                 }}
               >
