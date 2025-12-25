@@ -17,6 +17,7 @@ type ItemResult = {
 type DayResult = {
   dayKey: string
   total: number
+  roundNumber?: number
   userId?: string
   userName?: string
   items: ItemResult[]
@@ -101,7 +102,20 @@ const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
 
       <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontSize: 13, color: 'var(--muted-inv)', fontWeight: 600, letterSpacing: 1 }}>ROUND ENDED</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {day.roundNumber && (
+              <span style={{
+                background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                color: 'white',
+                padding: '4px 10px',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 800,
+                boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
+              }}>ROUND #{day.roundNumber}</span>
+            )}
+            <div style={{ fontSize: 13, color: 'var(--muted-inv)', fontWeight: 600, letterSpacing: 1 }}>ENDED</div>
+          </div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>{formattedDate}</div>
         </div>
 
