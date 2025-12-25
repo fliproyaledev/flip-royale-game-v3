@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Topbar from '../components/Topbar'
 import ThemeToggle from '../components/ThemeToggle'
 import { useDisconnect } from 'wagmi'
+import { useNotify } from '../components/Notification'
 
 const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
@@ -36,6 +37,7 @@ type RoundHistory = {
 export default function Profile() {
   const router = useRouter()
   const { disconnect } = useDisconnect()
+  const notify = useNotify()
 
   const [user, setUser] = useState<User | null>(null)
   const [history, setHistory] = useState<RoundHistory[]>([])
@@ -47,7 +49,7 @@ export default function Profile() {
 
   const saveName = async () => {
     if (!user || !tempName.trim()) return
-    if (tempName.length < 3) return alert("Username must be at least 3 characters.")
+    if (tempName.length < 3) return notify('Username must be at least 3 characters.', { tone: 'warning' })
 
     try {
       const res = await fetch('/api/users/update-profile', {
@@ -62,11 +64,11 @@ export default function Profile() {
         setIsEditingName(false)
         try { localStorage.setItem('flipflop-user', JSON.stringify(updatedUser)) } catch { }
       } else {
-        alert(data.error || 'Failed to update username')
+        notify(data.error || 'Failed to update username', { tone: 'error' })
       }
     } catch (e) {
       console.error(e)
-      alert('Connection error')
+      notify('Connection error', { tone: 'error' })
     }
   }
 
@@ -112,7 +114,7 @@ export default function Profile() {
     if (!file || !user) return
 
     if (file.size > 1 * 1024 * 1024) {
-      alert("File is too large. Please choose an image under 1MB.")
+      notify('File is too large. Please choose an image under 1MB.', { tone: 'warning' })
       return
     }
 
@@ -139,11 +141,11 @@ export default function Profile() {
             localStorage.setItem('flipflop-user', JSON.stringify({ ...parsed, avatar: base64data }))
           }
         } else {
-          alert("Failed to update avatar: " + (data.error || 'Unknown error'))
+          notify('Failed to update avatar: ' + (data.error || 'Unknown error'), { tone: 'error' })
         }
       } catch (error) {
         console.error("Avatar update error:", error)
-        alert("An error occurred while uploading.")
+        notify('An error occurred while uploading.', { tone: 'error' })
       } finally {
         setIsUploading(false)
       }
