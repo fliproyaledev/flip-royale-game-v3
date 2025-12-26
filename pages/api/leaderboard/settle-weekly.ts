@@ -63,15 +63,16 @@ export default async function handler(
 
             let weekSum = 0
             for (const entry of u.roundHistory) {
-                const dayKey = entry.dayKey || entry.date || entry.baseDay
-                if (!dayKey) continue
+                // RoundHistoryEntry has 'date' property (string)
+                const entryDateStr = entry.date
+                if (!entryDateStr) continue
 
-                const entryDate = new Date(dayKey)
+                const entryDate = new Date(entryDateStr)
                 if (isNaN(entryDate.getTime())) continue
 
                 // Bu entry geçen hafta içinde mi?
                 if (entryDate >= startOfWeek && entryDate <= endOfWeek) {
-                    weekSum += (entry.totalPoints ?? entry.total ?? 0)
+                    weekSum += entry.totalPoints || 0
                 }
             }
 
