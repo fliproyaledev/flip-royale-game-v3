@@ -30,7 +30,7 @@ export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<LeaderboardEntry | null>(null)
-  const [timeframe, setTimeframe] = useState<'all' | 'daily'>('all')
+  const [timeframe, setTimeframe] = useState<'all' | 'daily' | 'weekly'>('all')
   const [mounted, setMounted] = useState(false)
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
 
@@ -257,8 +257,9 @@ export default function LeaderboardPage() {
           </div>
 
           <div style={{ display: 'flex', background: theme === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.1)', padding: 4, borderRadius: 12 }}>
-            <button onClick={() => setTimeframe('all')} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: timeframe === 'all' ? (theme === 'light' ? 'white' : 'rgba(255,255,255,0.2)') : 'transparent', color: theme === 'light' ? (timeframe === 'all' ? '#0f172a' : '#ffffff') : 'white', fontWeight: 700, cursor: 'pointer', boxShadow: timeframe === 'all' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}>All Time</button>
-            <button onClick={() => setTimeframe('daily')} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: timeframe === 'daily' ? (theme === 'light' ? 'white' : 'rgba(255,255,255,0.2)') : 'transparent', color: theme === 'light' ? (timeframe === 'daily' ? '#0f172a' : '#ffffff') : 'white', fontWeight: 700, cursor: 'pointer', boxShadow: timeframe === 'daily' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}>Today</button>
+            <button onClick={() => setTimeframe('all')} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: timeframe === 'all' ? (theme === 'light' ? 'white' : 'rgba(255,255,255,0.2)') : 'transparent', color: theme === 'light' ? (timeframe === 'all' ? '#0f172a' : '#64748b') : 'white', fontWeight: 700, cursor: 'pointer', boxShadow: timeframe === 'all' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}>All Time</button>
+            <button onClick={() => setTimeframe('weekly')} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: timeframe === 'weekly' ? (theme === 'light' ? 'white' : 'rgba(255,255,255,0.2)') : 'transparent', color: theme === 'light' ? (timeframe === 'weekly' ? '#0f172a' : '#64748b') : 'white', fontWeight: 700, cursor: 'pointer', boxShadow: timeframe === 'weekly' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}>Weekly</button>
+            <button onClick={() => setTimeframe('daily')} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: timeframe === 'daily' ? (theme === 'light' ? 'white' : 'rgba(255,255,255,0.2)') : 'transparent', color: theme === 'light' ? (timeframe === 'daily' ? '#0f172a' : '#64748b') : 'white', fontWeight: 700, cursor: 'pointer', boxShadow: timeframe === 'daily' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}>Today</button>
           </div>
         </div>
 
