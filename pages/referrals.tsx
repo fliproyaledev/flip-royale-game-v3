@@ -194,11 +194,11 @@ export default function ReferralsPage() {
                                         <span className={styles.statLabel}>Total Referrals</span>
                                     </div>
                                     <div className={styles.statCard}>
-                                        <span className={styles.statValue}>${(stats.totalCommissionEarned || 0).toFixed(2)}</span>
+                                        <span className={styles.statValue}>{(stats.totalCommissionEarned || 0).toFixed(2)} VIRTUAL</span>
                                         <span className={styles.statLabel}>Total Earned</span>
                                     </div>
                                     <div className={styles.statCard}>
-                                        <span className={styles.statValue}>${(stats.pendingCommission || 0).toFixed(2)}</span>
+                                        <span className={styles.statValue}>{(stats.pendingCommission || 0).toFixed(2)} VIRTUAL</span>
                                         <span className={styles.statLabel}>Pending</span>
                                     </div>
                                 </div>

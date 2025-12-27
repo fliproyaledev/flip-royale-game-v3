@@ -2298,6 +2298,7 @@ export default function Home() {
                     price={10 * buyQty} // Fiyatı adetle çarpıyoruz
                     packType="common"
                     compact={true}
+                    referrerAddress={user?.referredBy}
                   />
                 </div>
               </div>
@@ -2359,6 +2360,7 @@ export default function Home() {
                     price={25 * rareBuyQty}
                     packType="rare"
                     compact={true}
+                    referrerAddress={user?.referredBy}
                   />
                 </div>
               </div>
