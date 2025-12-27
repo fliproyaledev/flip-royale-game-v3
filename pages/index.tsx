@@ -1116,7 +1116,7 @@ export default function Home() {
       // Auto-save will handle persistence via useEffect
       closeModal()
     } else {
-      alert('All slots are filled! Remove a card first.')
+      toast('All slots are filled! Remove a card first.', 'error')
     }
   }
 
@@ -1131,18 +1131,18 @@ export default function Home() {
   async function saveNextRoundPicks(e?: any) {
     // 1. Kullanıcı Kontrolü
     if (!user?.id) {
-      alert("Please login first.");
+      toast("Please login first.", 'error');
       return;
     }
 
     // 2. Kart Seçimi Kontrolü
     if (!Array.isArray(nextRound) || nextRound.length !== 5) {
-      alert('Invalid picks data.');
+      toast('Invalid picks data.', 'error');
       return;
     }
     const filledCount = nextRound.filter(p => p !== null).length;
     if (filledCount === 0) {
-      alert('Please select at least one card.');
+      toast('Please select at least one card.', 'info');
       return;
     }
 

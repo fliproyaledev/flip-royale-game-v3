@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
+import { useToast } from '../lib/toast';
 import {
   PACK_SHOP_ADDRESS,
   PACK_SHOP_ABI,
@@ -59,6 +60,7 @@ export default function BuyButton({
   const [status, setStatus] = useState<'idle' | 'approving' | 'buying' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
 
+  const { toast } = useToast();
   const { address } = useAccount();
   const priceWei = parseUnits(price.toString(), 18);
   const packTypeNum = packType === 'rare' ? PACK_TYPES.RARE : PACK_TYPES.COMMON;
@@ -165,14 +167,18 @@ export default function BuyButton({
   }
 
   const handleBuy = async () => {
-    if (!address) return alert('Please connect wallet');
+    if (!address) {
+      toast('Please connect wallet', 'error')
+      return
+    }
     if (isGift) { onSuccess?.(); return; }
 
     setError(null);
 
     // Check balance
     if (balance && balance < priceWei) {
-      return alert(`Insufficient VIRTUAL. Have: ${formatUnits(balance, 18)}, Need: ${price}`);
+      toast(`Insufficient VIRTUAL. Have: ${formatUnits(balance, 18)}, Need: ${price}`, 'error');
+      return;
     }
 
     const currentAllowance = allowance || BigInt(0);
