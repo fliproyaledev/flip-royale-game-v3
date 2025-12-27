@@ -52,6 +52,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Oracle modunda da komisyon hesapla (local user data'dan)
       await processReferralCommission(userId.toLowerCase(), packType || 'common', count || 1);
 
+      // CRITICAL FIX: Update local state even when using Oracle so we know the user purchased packs
+      // This is needed for the Referral System unlock check
+      try {
+        const clean = String(userId).toLowerCase()
+        let user = await getUser(clean)
+        if (!user) {
+          user = {
+            id: clean,
+            name: 'Player',
+            totalPoints: 0,
+            bankPoints: 0,
+            giftPoints: 0,
+            inventory: {},
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            logs: [],
+            packsPurchased: 0
+          }
+        }
+
+        const qty = Number(count) || 1
+        const validatedPackType = packType === 'rare' ? 'rare' : 'common'
+        const packKey1 = `${validatedPackType}_pack`
+        const packKey2 = `${validatedPackType}`
+
+        // Update inventory
+        user.inventory = user.inventory || {}
+        if (user.inventory[packKey1] !== undefined) {
+          user.inventory[packKey1] = (user.inventory[packKey1] || 0) + qty
+        } else {
+          user.inventory[packKey2] = (user.inventory[packKey2] || 0) + qty
+        }
+
+        // Update purchased count
+        user.packsPurchased = (user.packsPurchased || 0) + qty
+        user.updatedAt = new Date().toISOString()
+
+        await updateUser(clean, user)
+        console.log(`[Oracle] Synced local state for ${clean}: +${qty} ${validatedPackType} packs`)
+      } catch (err) {
+        console.error('[Oracle] Failed to sync local state:', err)
+        // Don't fail the request since Oracle succeeded
+      }
+
       return res.status(200).json({ ok: true, ...data });
     }
 

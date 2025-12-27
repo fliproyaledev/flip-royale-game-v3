@@ -25,7 +25,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Kullanıcının paket satın alıp almadığını kontrol et
-        const packsPurchased = user.packsPurchased || 0
+        let packsPurchased = user.packsPurchased || 0
+
+        // Fallback: Eğer sayaç 0 ise ama envanterde kart/paket var mı kontrol et
+        if (packsPurchased === 0) {
+            let hasProofOfPurchase = false
+
+            // Check for packs
+            if (user.inventory) {
+                const hasCommonPack = (user.inventory.common_pack || 0) > 0 || (user.inventory.common || 0) > 0
+                const hasRarePack = (user.inventory.rare_pack || 0) > 0 || (user.inventory.rare || 0) > 0
+
+                if (hasCommonPack || hasRarePack) {
+                    hasProofOfPurchase = true
+                }
+
+                // Check for any card in inventory (token IDs like 'VIRTUAL', 'AIXBT', etc.)
+                // Cards are stored as tokenId: count pairs
+                for (const key of Object.keys(user.inventory)) {
+                    // Skip pack keys, check if any card has count > 0
+                    if (!key.includes('pack') && !['common', 'rare'].includes(key)) {
+                        if ((user.inventory[key] || 0) > 0) {
+                            hasProofOfPurchase = true
+                            break
+                        }
+                    }
+                }
+            }
+
+            // Check for active cards or round history as proof
+            if ((user as any).activeCards && (user as any).activeCards.length > 0) {
+                hasProofOfPurchase = true
+            }
+            if (user.roundHistory && user.roundHistory.length > 0) {
+                hasProofOfPurchase = true
+            }
+            // Check for total points > 0 (only possible if they played)
+            if ((user.totalPoints || 0) > 0) {
+                hasProofOfPurchase = true
+            }
+
+            if (hasProofOfPurchase) {
+                // Kullanıcının geçmişte satın aldığının kanıtı var, sayacı düzelt
+                packsPurchased = 1
+                // Veritabanını arka planda güncelle
+                updateUser(cleanUserId, { ...user, packsPurchased: 1 }).catch(console.error)
+            }
+        }
 
         if (packsPurchased < 1) {
             return res.status(200).json({
