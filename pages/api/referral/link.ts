@@ -38,7 +38,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Referral kodunu bul
         // Referral kodları "referral" tipinde olup createdBy alanında referrer'ın wallet adresini içerir
         const { getKV } = await import('../../../lib/kv')
-        const invitesStore = await getKV('fliproyale:invites') || { codes: {} }
+        const invitesData = await getKV('fliproyale:invites')
+        const invitesStore = (invitesData && typeof invitesData === 'object' && 'codes' in invitesData)
+            ? (invitesData as { codes: Record<string, any> })
+            : { codes: {} as Record<string, any> }
 
         let referrerAddress: string | null = null
 
@@ -65,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Referrer'ın istatistiklerini güncelle
         const referrer = await getUser(referrerAddress)
         if (referrer) {
-            referrer.totalReferrals = (referrer.totalReferrals || 0) + 1
+            (referrer as any).totalReferrals = ((referrer as any).totalReferrals || 0) + 1
             referrer.updatedAt = new Date().toISOString()
             await updateUser(referrerAddress, referrer)
         }
