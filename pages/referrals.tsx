@@ -7,6 +7,9 @@ import Link from 'next/link'
 import styles from '../styles/referrals.module.css'
 import { useToast } from '../lib/toast'
 import Topbar from '../components/Topbar'
+import { useContractRead } from 'wagmi'
+import { PACK_SHOP_ADDRESS, PACK_SHOP_ABI } from '../lib/contracts/packShop'
+import { formatUnits } from 'viem'
 
 export default function ReferralsPage() {
     const [loading, setLoading] = useState(true)
@@ -17,6 +20,15 @@ export default function ReferralsPage() {
     const [stats, setStats] = useState<any>(null)
     const [copied, setCopied] = useState(false)
     const { toast } = useToast()
+
+    // On-chain earnings from smart contract
+    const { data: onChainEarnings } = useContractRead({
+        address: PACK_SHOP_ADDRESS as `0x${string}`,
+        abi: PACK_SHOP_ABI,
+        functionName: 'totalEarnedByReferrer',
+        args: [walletAddress as `0x${string}`],
+        enabled: Boolean(walletAddress),
+    })
 
     // Cüzdan bağlantısını kontrol et
     useEffect(() => {
@@ -62,7 +74,7 @@ export default function ReferralsPage() {
                 const codeData = await codeRes.json()
                 setReferralData(codeData)
 
-                // İstatistikleri al
+                // İstatistikleri al (sadece referral sayısı için)
                 const statsRes = await fetch(`/api/referral/stats?userId=${walletAddress}`)
                 const statsData = await statsRes.json()
                 setStats(statsData.stats)
@@ -95,9 +107,15 @@ export default function ReferralsPage() {
         if (referralData?.code) {
             navigator.clipboard.writeText(referralData.shareUrl || referralData.code)
             setCopied(true)
+            toast('Link copied to clipboard!', 'success')
             setTimeout(() => setCopied(false), 2000)
         }
     }
+
+    // Format on-chain earnings
+    const formattedEarnings = onChainEarnings
+        ? parseFloat(formatUnits(onChainEarnings as bigint, 18)).toFixed(2)
+        : '0.00'
 
     if (loading) {
         return (
@@ -184,64 +202,39 @@ export default function ReferralsPage() {
                             )}
                         </div>
 
-                        {/* İstatistikler */}
-                        {stats && (
-                            <div className={styles.statsSection}>
-                                <h2 className={styles.statsTitle}>Your Stats</h2>
-                                <div className={styles.statsGrid}>
-                                    <div className={styles.statCard}>
-                                        <span className={styles.statValue}>{stats.totalReferrals || 0}</span>
-                                        <span className={styles.statLabel}>Total Referrals</span>
-                                    </div>
-                                    <div className={styles.statCard}>
-                                        <span className={styles.statValue}>{(stats.totalCommissionEarned || 0).toFixed(2)} VIRTUAL</span>
-                                        <span className={styles.statLabel}>Total Earned</span>
-                                    </div>
-                                    <div className={styles.statCard}>
-                                        <span className={styles.statValue}>{(stats.pendingCommission || 0).toFixed(2)} VIRTUAL</span>
-                                        <span className={styles.statLabel}>Pending</span>
-                                    </div>
+                        {/* İstatistikler - Sadeleştirilmiş */}
+                        <div className={styles.statsSection}>
+                            <h2 className={styles.statsTitle}>Your Stats</h2>
+                            <div className={styles.statsGrid}>
+                                <div className={styles.statCard}>
+                                    <span className={styles.statValue}>{stats?.totalReferrals || 0}</span>
+                                    <span className={styles.statLabel}>Total Referrals</span>
                                 </div>
-
-                                {/* Claim Button */}
-                                {(stats.pendingCommission || 0) >= 1 && (
-                                    <button
-                                        className={styles.claimBtn}
-                                        onClick={async () => {
-                                            try {
-                                                const res = await fetch('/api/referral/claim', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ userId: walletAddress })
-                                                })
-                                                const data = await res.json()
-                                                if (data.ok) {
-                                                    toast(`Claim request submitted for $${data.claimed.toFixed(2)}. Will be processed within 24-48 hours.`, 'success')
-                                                    // Refresh stats
-                                                    const statsRes = await fetch(`/api/referral/stats?userId=${walletAddress}`)
-                                                    const statsData = await statsRes.json()
-                                                    setStats(statsData.stats)
-                                                } else {
-                                                    toast(data.error || 'Claim failed', 'error')
-                                                }
-                                            } catch (e) {
-                                                toast('Claim failed. Please try again.', 'error')
-                                            }
-                                        }}
-                                    >
-                                        💰 Claim {(stats.pendingCommission || 0).toFixed(2)} VIRTUAL
-                                    </button>
-                                )}
+                                <div className={styles.statCard}>
+                                    <span className={styles.statValue} style={{ color: '#10b981' }}>{formattedEarnings} VIRTUAL</span>
+                                    <span className={styles.statLabel}>Total Earned</span>
+                                </div>
                             </div>
-                        )}
+
+                            {/* On-chain bilgi notu */}
+                            <p style={{
+                                fontSize: 12,
+                                color: '#6b7280',
+                                textAlign: 'center',
+                                marginTop: 12,
+                                fontStyle: 'italic'
+                            }}>
+                                💡 Commissions are paid directly to your wallet during purchases
+                            </p>
+                        </div>
 
                         {/* Bilgi */}
                         <div className={styles.infoSection}>
                             <h3>How it works</h3>
                             <ul>
                                 <li>Share your referral code with friends</li>
-                                <li>When they join and buy packs, you earn <strong>10%</strong> commission</li>
-                                <li>Commissions are added to your pending balance</li>
+                                <li>When they buy packs, you earn <strong>10%</strong> commission</li>
+                                <li>Commissions are <strong>instant</strong> - sent directly to your wallet!</li>
                             </ul>
                         </div>
                     </div>
