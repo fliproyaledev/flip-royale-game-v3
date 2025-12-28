@@ -104,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 code: referralCode.code,
                 createdAt: referralCode.createdAt,
                 useCount: referralCode.useCount,
-                shareUrl: `${process.env.NEXT_PUBLIC_BASE_URL || ''}/invite?code=${referralCode.code}`
+                shareUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://fliproyale.xyz'}/invite?code=${referralCode.code}`
             })
         }
 
