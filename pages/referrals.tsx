@@ -19,6 +19,7 @@ export default function ReferralsPage() {
     const [referralData, setReferralData] = useState<any>(null)
     const [stats, setStats] = useState<any>(null)
     const [copied, setCopied] = useState(false)
+    const [copiedCode, setCopiedCode] = useState(false)
     const { toast } = useToast()
 
     // On-chain earnings from smart contract
@@ -103,12 +104,21 @@ export default function ReferralsPage() {
         }
     }
 
-    const copyCode = () => {
-        if (referralData?.code) {
-            navigator.clipboard.writeText(referralData.shareUrl || referralData.code)
+    const copyLink = () => {
+        if (referralData?.shareUrl) {
+            navigator.clipboard.writeText(referralData.shareUrl)
             setCopied(true)
             toast('Link copied to clipboard!', 'success')
             setTimeout(() => setCopied(false), 2000)
+        }
+    }
+
+    const copyCode = () => {
+        if (referralData?.code) {
+            navigator.clipboard.writeText(referralData.code)
+            setCopiedCode(true)
+            toast('Code copied to clipboard!', 'success')
+            setTimeout(() => setCopiedCode(false), 2000)
         }
     }
 
@@ -164,9 +174,14 @@ export default function ReferralsPage() {
                                     <p className={styles.label}>Your Referral Code</p>
                                     <div className={styles.codeBox}>
                                         <span className={styles.code}>{referralData.code}</span>
-                                        <button className={styles.copyBtn} onClick={copyCode}>
-                                            {copied ? '✓ Copied!' : '📋 Copy Link'}
-                                        </button>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button className={styles.copyBtn} onClick={copyCode}>
+                                                {copiedCode ? '✓ Copied!' : '📋 Copy Code'}
+                                            </button>
+                                            <button className={styles.copyBtn} onClick={copyLink}>
+                                                {copied ? '✓ Copied!' : '🔗 Copy Link'}
+                                            </button>
+                                        </div>
                                     </div>
                                     <p className={styles.shareUrl}>{referralData.shareUrl}</p>
                                 </>

@@ -171,49 +171,33 @@ export default function BuyButton({
 
   // Check if referrer needs to be set on-chain
   function needsReferrerSet(): boolean {
-    // DEBUG LOGS
-    console.log('🔍 needsReferrerSet check:');
-    console.log('  - referrerAddress (from DB):', referrerAddress);
-    console.log('  - onChainReferrer:', onChainReferrer);
-
     // If we have a referrer address from database but not set on-chain
     if (!referrerAddress) {
-      console.log('  ❌ No referrerAddress from DB, skipping setReferrer');
       return false;
     }
     if (!onChainReferrer) {
-      console.log('  ✓ onChainReferrer not loaded yet, will try to set');
       return true;
     }
     // Check if on-chain referrer is zero address
-    const isZeroAddress = onChainReferrer === '0x0000000000000000000000000000000000000000';
-    console.log('  - isZeroAddress:', isZeroAddress);
-    return isZeroAddress;
+    return onChainReferrer === '0x0000000000000000000000000000000000000000';
   }
 
   // Step 2: Set referrer if needed, then buy
   async function executeSetReferrerOrBuy() {
-    console.log('🚀 executeSetReferrerOrBuy called');
     const needsSet = needsReferrerSet();
-    console.log('  - needsReferrerSet():', needsSet);
-    console.log('  - referrerAddress:', referrerAddress);
 
     try {
       if (needsSet && referrerAddress) {
         setStatus('settingReferrer');
-        console.log('📝 Calling setReferrer with:', referrerAddress);
         await setReferrerAsync({
           args: [referrerAddress as `0x${string}`]
         });
-        console.log('  setReferrerAsync called, waiting for confirmation...');
         // Wait for transaction will call executeBuy
       } else {
-        console.log('⏭️ Skipping setReferrer, going directly to buyPack');
         // No referrer needed, buy directly
         executeBuy();
       }
     } catch (err: any) {
-      console.error('❌ SetReferrer error:', err);
       // If setReferrer fails, still try to buy
       executeBuy();
     }
