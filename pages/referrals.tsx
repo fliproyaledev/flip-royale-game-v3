@@ -229,7 +229,7 @@ export default function ReferralsPage() {
                                             }
                                         }}
                                     >
-                                        💰 Claim ${(stats.pendingCommission || 0).toFixed(2)}
+                                        💰 Claim {(stats.pendingCommission || 0).toFixed(2)} VIRTUAL
                                     </button>
                                 )}
                             </div>
