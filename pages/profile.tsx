@@ -25,6 +25,7 @@ type User = {
 
 type RoundHistory = {
   dayKey: string
+  roundNumber?: number
   items: Array<{
     symbol: string
     dir: 'UP' | 'DOWN'
@@ -94,11 +95,20 @@ export default function Profile() {
         if (j.ok && j.user) {
           setUser(j.user)
           if (Array.isArray(j.user.roundHistory)) {
-            const mappedHistory = j.user.roundHistory.map((h: any) => ({
-              dayKey: h.date,
-              totalPoints: h.totalPoints,
-              items: h.items || []
-            }))
+            // Map and sort by date descending (newest first)
+            const mappedHistory = j.user.roundHistory
+              .map((h: any) => ({
+                dayKey: h.date,
+                roundNumber: h.roundNumber,
+                totalPoints: h.totalPoints,
+                items: h.items || []
+              }))
+              .sort((a: any, b: any) => {
+                // Sort by date descending (newest first)
+                const dateA = new Date(a.dayKey).getTime()
+                const dateB = new Date(b.dayKey).getTime()
+                return dateB - dateA
+              })
             setHistory(mappedHistory)
           }
         }

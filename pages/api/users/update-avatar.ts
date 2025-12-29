@@ -1,6 +1,6 @@
 // pages/api/users/update-avatar.ts
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { loadUsers, saveUsers } from '../../../lib/users'
+import { getUser, updateUser } from '../../../lib/users'
 
 // Payload boyutu limiti (Next.js varsayılanı 4MB, bunu artırabiliriz gerekirse)
 export const config = {
@@ -26,20 +26,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ ok: false, error: 'Missing avatarData' })
     }
 
-    // 1. Kullanıcıları yükle
-    const usersMap = await loadUsers()
-    const user = usersMap[userId]
+    const cleanUserId = userId.toLowerCase()
+
+    // 1. Kullanıcıyı getir (Oracle'dan)
+    const user = await getUser(cleanUserId)
 
     if (!user) {
       return res.status(404).json({ ok: false, error: 'User not found' })
     }
 
-    // 2. Avatarı güncelle (Base64 string olarak kaydediyoruz)
+    // 2. Avatarı güncelle
     user.avatar = avatarData
-    usersMap[userId] = user
 
-    // 3. Kaydet
-    await saveUsers(usersMap)
+    // 3. Oracle'a kaydet (updateUser kullanıyoruz)
+    await updateUser(cleanUserId, user)
     console.log(`[API] Avatar updated for user: ${user.name || user.id}`)
 
     return res.status(200).json({ ok: true, avatar: user.avatar })
