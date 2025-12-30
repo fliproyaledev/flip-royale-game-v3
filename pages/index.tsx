@@ -21,6 +21,7 @@ type RoundResult = {
 type DayResult = {
   dayKey: string
   total: number
+  totalPoints?: number
   userId?: string // User who participated
   userName?: string // User name
   walletAddress?: string // Wallet address
@@ -2209,36 +2210,83 @@ export default function Home() {
                 Complete a round to see your recent performance.
               </div>
             ) : (
-              recentRounds.map((round, idx) => (
-                <div key={idx} style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  borderRadius: 16,
-                  padding: 20,
-                  marginBottom: 16,
-                  border: '1px solid rgba(255,255,255,0.1)'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 16
+              recentRounds.map((round, idx) => {
+                const roundTotal = round.total || round.totalPoints || 0
+                const items = round.items || []
+                return (
+                  <div key={idx} style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    borderRadius: 16,
+                    padding: 20,
+                    marginBottom: 16,
+                    border: '1px solid rgba(255,255,255,0.1)'
                   }}>
                     <div style={{
-                      fontSize: 18,
-                      fontWeight: 700,
-                      color: 'white'
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 12
                     }}>
-                      Beta round {round.roundNumber}
+                      <div style={{
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: 'white'
+                      }}>
+                        Beta round {round.roundNumber}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{
+                          fontSize: 14,
+                          color: 'rgba(255,255,255,0.7)'
+                        }}>
+                          {round.dayKey}
+                        </div>
+                        <div style={{
+                          fontSize: 16,
+                          fontWeight: 700,
+                          color: roundTotal >= 0 ? '#10b981' : '#ef4444'
+                        }}>
+                          {roundTotal >= 0 ? '+' : ''}{roundTotal.toLocaleString()} pts
+                        </div>
+                      </div>
                     </div>
-                    <div style={{
-                      fontSize: 14,
-                      color: 'rgba(255,255,255,0.7)'
-                    }}>
-                      {round.dayKey}
-                    </div>
+                    {items.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {items.map((item: any, i: number) => {
+                          const token = getTokenById(item.tokenId)
+                          const itemPoints = item.points || 0
+                          return (
+                            <div key={i} style={{
+                              background: 'rgba(0,0,0,0.2)',
+                              padding: '6px 12px',
+                              borderRadius: 8,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              fontSize: 13
+                            }}>
+                              <span style={{ color: item.dir === 'UP' ? '#10b981' : '#ef4444' }}>
+                                {item.dir === 'UP' ? '▲' : '▼'}
+                              </span>
+                              <span style={{ fontWeight: 600, color: 'white' }}>
+                                ${token?.symbol || item.symbol || item.tokenId}
+                              </span>
+                              {item.duplicateIndex > 1 && (
+                                <span style={{ fontSize: 10, background: '#f59e0b', color: 'black', padding: '1px 4px', borderRadius: 4 }}>
+                                  x{item.duplicateIndex}
+                                </span>
+                              )}
+                              <span style={{ color: itemPoints >= 0 ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                                {itemPoints >= 0 ? '+' : ''}{itemPoints}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>
