@@ -8,12 +8,34 @@ export default function LitepaperPage() {
 
     useEffect(() => {
         setMounted(true)
-        try {
-            const saved = localStorage.getItem('flipflop-user')
-            if (saved) {
-                setUser(JSON.parse(saved))
+
+        async function loadUser() {
+            try {
+                const saved = localStorage.getItem('flipflop-user')
+                if (saved) {
+                    const parsed = JSON.parse(saved)
+                    // Fetch current data from API
+                    const res = await fetch(`/api/users/me?userId=${encodeURIComponent(parsed.id)}`)
+                    const data = await res.json()
+                    if (data.ok && data.user) {
+                        setUser({
+                            ...parsed,
+                            ...data.user,
+                            totalPoints: data.user.totalPoints || 0
+                        })
+                    } else {
+                        setUser(parsed)
+                    }
+                }
+            } catch (e) {
+                // Fallback to localStorage
+                try {
+                    const saved = localStorage.getItem('flipflop-user')
+                    if (saved) setUser(JSON.parse(saved))
+                } catch { }
             }
-        } catch (e) { }
+        }
+        loadUser()
     }, [])
 
     if (!mounted) return null
