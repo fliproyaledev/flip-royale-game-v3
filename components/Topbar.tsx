@@ -4,7 +4,7 @@ import ThemeToggle from './ThemeToggle'
 const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
 type TopbarProps = {
-    activeTab?: 'play' | 'prices' | 'guide' | 'inventory' | 'my-packs' | 'leaderboard' | 'referrals' | 'history' | 'profile'
+    activeTab?: 'play' | 'prices' | 'guide' | 'inventory' | 'my-packs' | 'leaderboard' | 'referrals' | 'history' | 'litepaper' | 'profile'
     user?: {
         name?: string
         avatar?: string
@@ -52,6 +52,7 @@ export default function Topbar({ activeTab, user }: TopbarProps) {
                 <a className={`tab ${activeTab === 'leaderboard' ? 'active' : ''}`} href="/leaderboard">LEADERBOARD</a>
                 <a className={`tab ${activeTab === 'referrals' ? 'active' : ''}`} href="/referrals">REFERRALS</a>
                 <a className={`tab ${activeTab === 'history' ? 'active' : ''}`} href="/history">HISTORY</a>
+                <a className={`tab ${activeTab === 'litepaper' ? 'active' : ''}`} href="/litepaper">LITEPAPER</a>
                 <a className={`tab ${activeTab === 'profile' ? 'active' : ''}`} href="/profile">PROFILE</a>
             </nav>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>

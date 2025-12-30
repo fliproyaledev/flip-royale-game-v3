@@ -1383,6 +1383,7 @@ export default function Home() {
           <a className="tab" href="/leaderboard">LEADERBOARD</a>
           <a className="tab" href="/referrals">REFERRALS</a>
           <a className="tab" href="/history">HISTORY</a>
+          <a className="tab" href="/litepaper">LITEPAPER</a>
           <a className="tab" href="/profile">PROFILE</a>
         </nav>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>

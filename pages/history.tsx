@@ -236,9 +236,10 @@ export default function HistoryPage() {
               }))
               setHistory(mapped)
 
-              // Stats
+              // Stats - Only sum positive scores (matching leaderboard behavior)
               setTotalGames(mapped.length)
-              setTotalScore(mapped.reduce((acc: number, curr: any) => acc + curr.total, 0))
+              const positiveSum = mapped.reduce((acc: number, curr: any) => acc + (curr.total > 0 ? curr.total : 0), 0)
+              setTotalScore(positiveSum)
               setBestScore(mapped.length > 0 ? Math.max(...mapped.map((h: any) => h.total)) : 0)
             }
           }
