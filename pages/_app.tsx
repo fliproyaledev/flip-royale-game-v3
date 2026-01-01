@@ -27,6 +27,7 @@ export default function App({ Component, pageProps }: AppProps) {
             <Head>
               <title>FLIP ROYALE</title>
               <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <meta name="virtual-protocol-site-verification" content="32a70cf4dfb561e7918405e64f72e9eb" />
             </Head>
             <Component {...pageProps} />
           </ToastProvider>
