@@ -6,12 +6,14 @@ import Head from 'next/head'
 import Link from 'next/link'
 import styles from '../styles/referrals.module.css'
 import { useToast } from '../lib/toast'
+import { useTheme } from '../lib/theme'
 import Topbar from '../components/Topbar'
 import { useContractRead } from 'wagmi'
 import { PACK_SHOP_ADDRESS, PACK_SHOP_ABI } from '../lib/contracts/packShop'
 import { formatUnits } from 'viem'
 
 export default function ReferralsPage() {
+    const { theme } = useTheme()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [walletAddress, setWalletAddress] = useState<string | null>(null)
@@ -223,7 +225,7 @@ export default function ReferralsPage() {
                 <meta name="description" content="Earn rewards by referring friends to Flip Royale" />
             </Head>
 
-            <div style={{ minHeight: '100vh', background: '#020617' }}>
+            <div className="app" style={{ minHeight: '100vh' }}>
                 <Topbar activeTab="referrals" user={user} />
                 <div className={styles.container} style={{ paddingTop: 40 }}>
                     <div className={styles.card}>
