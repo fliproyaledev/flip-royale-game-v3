@@ -33,35 +33,63 @@ export default function ReferralsPage() {
 
     // Cüzdan bağlantısını kontrol et
     useEffect(() => {
-        // Local user'ı yükle
-        try {
-            const saved = localStorage.getItem('flipflop-user')
-            if (saved) {
-                const parsed = JSON.parse(saved)
-                setUser(parsed)
-                setWalletAddress(parsed.id || parsed.walletAddress)
-            }
-        } catch (e) { }
+        // Mounted kontrolü
+        let mounted = true
 
-        // Cüzdan kontrolü (yedek)
-        const checkWallet = async () => {
+        const initPage = async () => {
+            // Önce localStorage'dan user'ı kontrol et
+            let localUser = null
+            try {
+                const saved = localStorage.getItem('flipflop-user')
+                if (saved) {
+                    localUser = JSON.parse(saved)
+                }
+            } catch (e) { }
+
+            // Ethereum varsa gerçek cüzdan bağlantısını kontrol et
             if (typeof window !== 'undefined' && (window as any).ethereum) {
                 try {
                     const accounts = await (window as any).ethereum.request({
                         method: 'eth_accounts'
                     })
                     if (accounts.length > 0) {
+                        // Cüzdan gerçekten bağlı
                         const addr = accounts[0].toLowerCase()
-                        setWalletAddress(addr)
-                        if (!user) setUser({ id: addr }) // Geçici user
+                        if (mounted) {
+                            setWalletAddress(addr)
+                            setUser(localUser || { id: addr })
+                        }
+                    } else {
+                        // Cüzdan bağlı değil - localStorage user'ı temizle
+                        if (mounted) {
+                            setWalletAddress(null)
+                            setUser(null)
+                        }
                     }
                 } catch (e) {
                     console.error('Wallet check error:', e)
+                    // Hata durumunda localStorage'a güvenme
+                    if (mounted) {
+                        setWalletAddress(null)
+                        setUser(null)
+                    }
+                }
+            } else {
+                // Ethereum yok - cüzdan bağlı değil
+                if (mounted) {
+                    setWalletAddress(null)
+                    setUser(null)
                 }
             }
-            setLoading(false)
+
+            if (mounted) {
+                setLoading(false)
+            }
         }
-        checkWallet()
+
+        initPage()
+
+        return () => { mounted = false }
     }, [])
 
     // Referral verisini yükle
