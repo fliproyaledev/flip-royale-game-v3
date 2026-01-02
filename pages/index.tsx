@@ -7,6 +7,7 @@ import BuyButton from '../components/BuyButton'
 import { useSignMessage, useAccount, useDisconnect } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useToast } from '../lib/toast'
+import TokenGate from '../components/TokenGate'
 
 type RoundPick = { tokenId: string; dir: 'UP' | 'DOWN'; duplicateIndex: number; locked: boolean; pLock?: number; pointsLocked?: number; startPrice?: number }
 

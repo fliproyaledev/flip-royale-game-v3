@@ -71,7 +71,7 @@ export default function Guide() {
         </div>
       </header>
 
-      <div className="panel" style={{ maxWidth: 900 }}>
+      <div className="panel" style={{ maxWidth: 900, margin: '0 auto' }}>
         <h2>🎮 How to Play FLIP ROYALE</h2>
         <div className="sep"></div>
 

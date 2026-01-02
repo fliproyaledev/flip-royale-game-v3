@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import Head from 'next/head'
 import Topbar from '../components/Topbar'
+import { useTheme } from '../lib/theme'
 
 export default function LitepaperPage() {
+    const { theme } = useTheme()
     const [user, setUser] = useState<any>(null)
     const [mounted, setMounted] = useState(false)
 
@@ -73,7 +75,7 @@ export default function LitepaperPage() {
                             LITEPAPER
                         </h1>
                         <p style={{
-                            color: 'rgba(255,255,255,0.7)',
+                            color: theme === 'light' ? 'rgba(30,41,59,0.8)' : 'rgba(255,255,255,0.7)',
                             fontSize: 18,
                             maxWidth: 600,
                             margin: '0 auto'

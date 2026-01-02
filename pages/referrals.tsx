@@ -135,18 +135,56 @@ export default function ReferralsPage() {
         )
     }
 
-    // Cüzdan bağlı değilse - Topbar göster ve uyarı ver
+    // Cüzdan bağlı değilse - Genel program bilgisini göster
     if (!walletAddress) {
         return (
-            <div style={{ minHeight: '100vh', background: '#020617' }}>
-                <Topbar activeTab="referrals" user={user} />
-                <div className={styles.container} style={{ paddingTop: 40 }}>
-                    <div className={styles.card}>
-                        <h1 className={styles.title}>🔗 Referral Program</h1>
-                        <p className={styles.message}>Please connect your wallet to view your referral dashboard</p>
+            <>
+                <Head>
+                    <title>Referral Program - Flip Royale</title>
+                    <meta name="description" content="Earn rewards by referring friends to Flip Royale" />
+                </Head>
+                <div className="app">
+                    <Topbar activeTab="referrals" user={user} />
+                    <div className={styles.container} style={{ paddingTop: 40 }}>
+                        <div className={styles.card}>
+                            <h1 className={styles.title}>🔗 Referral Program</h1>
+
+                            <div style={{
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                borderRadius: 16,
+                                padding: 24,
+                                marginBottom: 24,
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ fontSize: 48, marginBottom: 16 }}>💰</div>
+                                <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12, color: '#10b981' }}>
+                                    Earn 10% Commission
+                                </h2>
+                                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, marginBottom: 0 }}>
+                                    On every card pack purchase made by users you refer!
+                                </p>
+                            </div>
+
+                            <div style={{ marginBottom: 24 }}>
+                                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: 'white' }}>How It Works</h3>
+                                <ul style={{ color: 'rgba(255,255,255,0.8)', fontSize: 15, lineHeight: 1.8, paddingLeft: 20 }}>
+                                    <li>Connect your wallet to generate your unique referral link</li>
+                                    <li>Share your link with friends</li>
+                                    <li>Earn 10% of their pack purchases instantly on-chain</li>
+                                    <li>Commissions are paid in VIRTUAL tokens</li>
+                                </ul>
+                            </div>
+
+                            <div style={{ textAlign: 'center' }}>
+                                <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>
+                                    Connect your wallet to get started
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </>
         )
     }
 
