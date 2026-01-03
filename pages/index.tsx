@@ -8,6 +8,7 @@ import { useSignMessage, useAccount, useDisconnect } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useToast } from '../lib/toast'
 import TokenGate from '../components/TokenGate'
+import RedeemCodeModal from '../components/RedeemCodeModal'
 
 type RoundPick = { tokenId: string; dir: 'UP' | 'DOWN'; duplicateIndex: number; locked: boolean; pLock?: number; pointsLocked?: number; startPrice?: number }
 
@@ -178,10 +179,27 @@ export default function Home() {
   const [rareBuyQty, setRareBuyQty] = useState<number>(1)
   const [showMysteryResults, setShowMysteryResults] = useState<{ open: boolean; cards: string[] }>({ open: false, cards: [] })
   const [globalHighlights, setGlobalHighlights] = useState<HighlightState>({ topGainers: [], topLosers: [] })
+  const [showRedeemModal, setShowRedeemModal] = useState(false)
 
   const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
   const boostActive = !!(boost.endAt && boost.endAt > Date.now())
+
+  // Capture referral code from URL parameter (?ref=CODE)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const refCode = urlParams.get('ref')
+      if (refCode) {
+        // Store referral code in localStorage for use during registration
+        localStorage.setItem('fliproyale-referral', refCode.toUpperCase())
+        console.log('[Referral] Captured referral code from URL:', refCode)
+        // Clean up URL without reload
+        const cleanUrl = window.location.pathname
+        window.history.replaceState({}, '', cleanUrl)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (isConnected && address && !user) {
@@ -197,15 +215,53 @@ export default function Home() {
       if (data.exists) {
         loginUser(data.user)
       } else {
-        // Enforce Invite-Only: Redirect new users to invite page
-        window.location.href = '/invite'
+        // Open Access: Auto-register new users without invite code
+        await autoRegisterUser(walletAddress)
       }
     } catch (e) {
       console.error("Auth check failed", e)
     }
   }
 
-  // Removed handleRegister - Registration is now handled via /invite page only
+  // Auto-register user without invite code (open access mode)
+  async function autoRegisterUser(walletAddress: string) {
+    try {
+      const cleanAddress = walletAddress.toLowerCase()
+
+      // Check for stored referral code from URL parameter
+      const storedReferral = localStorage.getItem('fliproyale-referral')
+
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: cleanAddress,
+          username: 'Player',
+          openAccess: true,
+          referralCode: storedReferral || null // Pass referral code if exists
+        })
+      })
+      const data = await res.json()
+      if (data.ok && data.user) {
+        // Clear the stored referral code after successful registration
+        if (storedReferral) {
+          localStorage.removeItem('fliproyale-referral')
+          console.log('[Referral] Applied referral code:', storedReferral)
+        }
+        // IMPORTANT: Don't show Welcome Gift for open access users (they don't get a pack)
+        loginUser(data.user, false)
+      } else {
+        console.error('Auto-register failed:', data.error)
+        // Fallback: redirect to invite if auto-register fails
+        window.location.href = '/invite'
+      }
+    } catch (e) {
+      console.error('Auto-register error:', e)
+      window.location.href = '/invite'
+    }
+  }
+
+  // Note: Invite page still works for referral codes and waitlist codes with free packs
 
   function loginUser(userData: any, isNewUser = false) {
     console.log('[LOGIN] loginUser called:', { isNewUser, userId: userData.id });
@@ -1389,7 +1445,38 @@ export default function Home() {
             <a className="tab" href="/litepaper">LITEPAPER</a>
             <a className="tab" href="/profile">PROFILE</a>
           </nav>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto', flexWrap: 'nowrap' }}>
+            {/* Redeem Code Button - Only visible when logged in */}
+            {user && (
+              <button
+                onClick={() => setShowRedeemModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 14px',
+                  background: theme === 'light' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(251, 191, 36, 0.2)',
+                  border: `1px solid ${theme === 'light' ? 'rgba(251, 191, 36, 0.4)' : 'rgba(251, 191, 36, 0.3)'}`,
+                  borderRadius: 10,
+                  color: theme === 'light' ? '#b45309' : '#fbbf24',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = theme === 'light' ? 'rgba(251, 191, 36, 0.25)' : 'rgba(251, 191, 36, 0.3)'
+                  e.currentTarget.style.transform = 'scale(1.02)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = theme === 'light' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(251, 191, 36, 0.2)'
+                  e.currentTarget.style.transform = 'scale(1)'
+                }}
+              >
+                <span style={{ fontSize: 16 }}>🎁</span>
+                <span>Redeem</span>
+              </button>
+            )}
             <ThemeToggle />
             <a
               href="https://x.com/fliproyale"
@@ -2919,6 +3006,17 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Redeem Code Modal */}
+      <RedeemCodeModal
+        isOpen={showRedeemModal}
+        onClose={() => setShowRedeemModal(false)}
+        userId={user?.id || ''}
+        onSuccess={() => {
+          loadUserData() // Reload to show new pack
+          toast('🎁 Code Redeemed! Check My Packs for your free pack!')
+        }}
+      />
     </TokenGate>
   )
 }

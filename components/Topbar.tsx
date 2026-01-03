@@ -1,11 +1,15 @@
+import { useState } from 'react'
 import { useTheme } from '../lib/theme'
 import ThemeToggle from './ThemeToggle'
+import RedeemCodeModal from './RedeemCodeModal'
+import { useToast } from '../lib/toast'
 
 const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
 type TopbarProps = {
     activeTab?: 'play' | 'prices' | 'guide' | 'inventory' | 'my-packs' | 'leaderboard' | 'referrals' | 'history' | 'litepaper' | 'profile'
     user?: {
+        id?: string
         name?: string
         avatar?: string
         totalPoints?: number
@@ -15,6 +19,8 @@ type TopbarProps = {
 
 export default function Topbar({ activeTab, user }: TopbarProps) {
     const { theme } = useTheme()
+    const { toast } = useToast()
+    const [showRedeemModal, setShowRedeemModal] = useState(false)
 
     const handleLogout = () => {
         try { localStorage.removeItem('flipflop-user') } catch { }
@@ -55,7 +61,39 @@ export default function Topbar({ activeTab, user }: TopbarProps) {
                 <a className={`tab ${activeTab === 'litepaper' ? 'active' : ''}`} href="/litepaper">LITEPAPER</a>
                 <a className={`tab ${activeTab === 'profile' ? 'active' : ''}`} href="/profile">PROFILE</a>
             </nav>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto', flexWrap: 'nowrap' }}>
+                {/* Redeem Code Button - Only visible when logged in */}
+                {user && (
+                    <button
+                        onClick={() => setShowRedeemModal(true)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '8px 14px',
+                            background: theme === 'light' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(251, 191, 36, 0.2)',
+                            border: `1px solid ${theme === 'light' ? 'rgba(251, 191, 36, 0.4)' : 'rgba(251, 191, 36, 0.3)'}`,
+                            borderRadius: 10,
+                            color: theme === 'light' ? '#b45309' : '#fbbf24',
+                            fontSize: 13,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            whiteSpace: 'nowrap'
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.background = theme === 'light' ? 'rgba(251, 191, 36, 0.25)' : 'rgba(251, 191, 36, 0.3)'
+                            e.currentTarget.style.transform = 'scale(1.02)'
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.background = theme === 'light' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(251, 191, 36, 0.2)'
+                            e.currentTarget.style.transform = 'scale(1)'
+                        }}
+                    >
+                        <span style={{ fontSize: 16 }}>🎁</span>
+                        <span>Redeem</span>
+                    </button>
+                )}
                 <ThemeToggle />
                 <a
                     href="https://x.com/fliproyale"
@@ -143,6 +181,20 @@ export default function Topbar({ activeTab, user }: TopbarProps) {
                     </a>
                 )}
             </div>
+
+            {/* Redeem Code Modal - Globally accessible when logged in */}
+            {user && (
+                <RedeemCodeModal
+                    isOpen={showRedeemModal}
+                    onClose={() => setShowRedeemModal(false)}
+                    userId={user.id || ''}
+                    onSuccess={() => {
+                        // Reload the page to update inventory
+                        toast('🎁 Code Redeemed! Check My Packs for your free pack!')
+                        setTimeout(() => window.location.reload(), 1500)
+                    }}
+                />
+            )}
         </header>
     )
 }
