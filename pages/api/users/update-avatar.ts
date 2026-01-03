@@ -2,11 +2,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getUser, updateUser } from '../../../lib/users'
 
-// Payload boyutu limiti (Next.js varsayılanı 4MB, bunu artırabiliriz gerekirse)
+// Payload size limit increased for base64-encoded images
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '512kb',
+      sizeLimit: '4mb', // Increased from 512kb to 4mb for avatar images
     },
   },
 }

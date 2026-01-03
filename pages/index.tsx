@@ -2919,9 +2919,15 @@ export default function Home() {
                 Pack Purchased!
               </h3>
 
-              <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 24px 0' }}>
+              <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 12px 0' }}>
                 You have successfully added <b>{purchasedPack.count} {purchasedPack.type.toUpperCase()}</b> Pack(s) to your inventory.
               </p>
+
+              {purchasedPack.count > 1 && (
+                <p style={{ color: '#fbbf24', fontSize: 13, margin: '0 0 24px 0', fontWeight: 600 }}>
+                  💡 "OPEN NOW" will open ONE pack. Find the rest in My Packs!
+                </p>
+              )}
 
               <div style={{
                 width: 140,
@@ -2953,7 +2959,6 @@ export default function Home() {
                     boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
                   }}
                   onClick={async () => {
-                    setPurchasedPack(null);
                     if (!user?.id) { toast('Please login first', 'error'); return }
                     try {
                       const res = await fetch('/api/users/openPack', {
@@ -2970,7 +2975,14 @@ export default function Home() {
                       }
 
                       const cards = data.newCards || data.cards || data.tokens || []
+
+                      // Close the purchase modal AFTER successful pack opening
+                      setPurchasedPack(null);
+
+                      // Show pack results
                       setShowMysteryResults({ open: true, cards })
+
+                      // Reload user data to reflect updated inventory
                       loadUserData();
                     } catch (e) {
                       console.error('Open pack error:', e)
