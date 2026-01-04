@@ -2979,6 +2979,16 @@ export default function Home() {
                       // Close the purchase modal AFTER successful pack opening
                       setPurchasedPack(null);
 
+                      // Update localStorage with new inventory to prevent pack duplication bug
+                      if (data.user) {
+                        try {
+                          localStorage.setItem('flipflop-user', JSON.stringify(data.user))
+                          setUser(data.user) // Update state immediately
+                        } catch (e) {
+                          console.error('Failed to update localStorage:', e)
+                        }
+                      }
+
                       // Show pack results
                       setShowMysteryResults({ open: true, cards })
 
