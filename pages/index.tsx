@@ -2926,11 +2926,9 @@ export default function Home() {
                 You have successfully added <b>{purchasedPack.count} {purchasedPack.type.toUpperCase()}</b> Pack(s) to your inventory.
               </p>
 
-              {purchasedPack.count > 1 && (
-                <p style={{ color: '#fbbf24', fontSize: 13, margin: '0 0 24px 0', fontWeight: 600 }}>
-                  💡 "OPEN NOW" will open ONE pack. Find the rest in My Packs!
-                </p>
-              )}
+              <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 24px 0', fontStyle: 'italic' }}>
+                Your packs are safe in your inventory.
+              </p>
 
               <div style={{
                 width: 140,
@@ -2961,70 +2959,29 @@ export default function Home() {
                     cursor: 'pointer',
                     boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
                   }}
-                  onClick={async () => {
-                    if (!user?.id) { toast('Please login first', 'error'); return }
-                    try {
-                      const res = await fetch('/api/users/openPack', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id).toLowerCase() },
-                        body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType: purchasedPack.type })
-                      });
-
-                      const data = await res.json().catch(() => ({}));
-
-                      if (!res.ok) {
-                        toast(data.error || 'Failed to open pack on server', 'error')
-                        return
-                      }
-
-                      const cards = data.newCards || data.cards || data.tokens || []
-
-                      // Close the purchase modal AFTER successful pack opening
-                      setPurchasedPack(null);
-
-                      // Update localStorage with new inventory to prevent pack duplication bug
-                      if (data.user) {
-                        try {
-                          localStorage.setItem('flipflop-user', JSON.stringify(data.user))
-                          setUser(data.user) // Update state immediately
-                        } catch (e) {
-                          console.error('Failed to update localStorage:', e)
-                        }
-                      }
-
-                      // Show pack results
-                      setShowMysteryResults({ open: true, cards })
-
-                      // Reload user data to reflect updated inventory
-                      loadUserData();
-                    } catch (e) {
-                      console.error('Open pack error:', e)
-                      toast('Connection error while opening pack.', 'error')
-                    }
+                  onClick={() => {
+                    setPurchasedPack(null);
+                    window.location.href = '/my-packs';
                   }}
                 >
-                  OPEN NOW!
+                  GO TO MY PACKS & OPEN
                 </button>
 
                 <button
                   className="btn"
                   style={{
-                    background: 'transparent',
-                    color: '#94a3b8',
+                    background: 'rgba(255,255,255,0.1)',
                     padding: '12px',
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: 600,
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 12,
+                    color: 'rgba(255,255,255,0.7)',
+                    border: 'none',
+                    borderRadius: 10,
                     cursor: 'pointer'
                   }}
-                  onClick={() => {
-                    setPurchasedPack(null);
-                    // Redirect to My Packs page so users can manage unopened packs there
-                    window.location.href = '/my-packs';
-                  }}
+                  onClick={() => setPurchasedPack(null)}
                 >
-                  View My Packs
+                  Close
                 </button>
               </div>
             </div>
