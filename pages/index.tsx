@@ -947,6 +947,8 @@ export default function Home() {
   function addMysteryToInventory() {
     if (!showMysteryResults.open) return
     setShowMysteryResults({ open: false, cards: [] })
+    // Sync data immediately when closing modal
+    loadUserData()
   }
   async function snapshotGlobalHighlights() {
     try {
@@ -1091,10 +1093,11 @@ export default function Home() {
 
       if (!userId) return
 
-      const r = await fetch(`/api/users/me?userId=${encodeURIComponent(userId)}`)
+      const r = await fetch(`/api/users/me?userId=${encodeURIComponent(userId)}&_t=${Date.now()}`)
       const data = await r.json()
 
       if (data.ok && data.user) {
+        try { localStorage.setItem('flipflop-user', JSON.stringify(data.user)) } catch { }
         setUser(data.user)
 
         // --- HISTORY (GEÇMİŞ) GÜNCELLEMESİ ---
