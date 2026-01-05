@@ -66,38 +66,50 @@ export default async function handler(
             return res.status(400).json({ success: false, error: 'This code cannot be redeemed here' })
         }
 
-        // Kod zaten kullanıldı mı?
-        if (invite.usedBy) {
-            return res.status(400).json({ success: false, error: 'Code already used' })
+        // Kod kullanım limiti kontrolü (topluluk kodları için)
+        if (invite.maxUses !== undefined && invite.useCount >= invite.maxUses) {
+            return res.status(400).json({ success: false, error: 'This code has reached its usage limit' })
         }
 
-        // Kullanıcı daha önce kod kullandı mı? (Sadece bu redeem sistemi için)
-        if ((user as any).redeemedWaitlistCode) {
-            return res.status(400).json({ success: false, error: 'You have already redeemed a code' })
+        // Kullanıcı BU KODU daha önce kullandı mı? (Farklı kodları kullanabilir)
+        const redeemedCodes: string[] = (user as any).redeemedWaitlistCodes || []
+        if (redeemedCodes.includes(cleanCode)) {
+            return res.status(400).json({ success: false, error: 'You have already used this code' })
         }
 
         // Kodu kullanıldı olarak işaretle
-        invite.usedBy = cleanUserId
-        invite.usedAt = new Date().toISOString()
         invite.useCount = (invite.useCount || 0) + 1
+        // Tek kullanımlık kodlar için usedBy ayarla
+        if (invite.maxUses === undefined || invite.maxUses === 1) {
+            invite.usedBy = cleanUserId
+            invite.usedAt = new Date().toISOString()
+        }
 
         // KV'ye kaydet
         await setKV(INVITES_KEY, JSON.stringify(invites))
 
-        // Kullanıcıya Common Pack ver
+        // Pack tipini belirle (varsayılan: common)
+        const packType = invite.packType || 'common'
+        const packKey = packType === 'rare' ? 'rare_pack' : 'common_pack'
+
+        // Kullanıcıya Pack ver
         const inventory = user.inventory || {}
-        inventory.common_pack = (inventory.common_pack || 0) + 1
+        inventory[packKey] = (inventory[packKey] || 0) + 1
+
+        // Kullanılan kodları kaydet (array olarak)
+        const updatedRedeemedCodes = [...redeemedCodes, cleanCode]
 
         await updateUser(cleanUserId, {
             inventory,
-            redeemedWaitlistCode: cleanCode,
-            redeemedAt: new Date().toISOString()
+            redeemedWaitlistCodes: updatedRedeemedCodes,
+            lastRedeemedAt: new Date().toISOString()
         })
 
+        const packName = packType === 'rare' ? 'Rare Pack' : 'Common Pack'
         return res.status(200).json({
             success: true,
-            message: 'Code redeemed! You received 1 Common Pack!',
-            packType: 'common'
+            message: `Code redeemed! You received 1 ${packName}!`,
+            packType
         })
 
     } catch (error) {

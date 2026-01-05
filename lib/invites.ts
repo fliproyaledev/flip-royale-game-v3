@@ -21,6 +21,7 @@ export type InviteCode = {
     usedAt: string | null
     maxUses?: number            // Referral kodları için sınırsız (undefined)
     useCount: number            // Kaç kez kullanıldı
+    packType?: 'common' | 'rare' // Hediye pack tipi (varsayılan: common)
 }
 
 export type InviteCodesStore = {
@@ -79,6 +80,7 @@ export async function createInviteCode(params: {
     givesFreepack?: boolean
     maxUses?: number
     customCode?: string
+    packType?: 'common' | 'rare'  // Hediye pack tipi
 }): Promise<InviteCode> {
     const store = await loadInviteCodes()
 
@@ -99,7 +101,8 @@ export async function createInviteCode(params: {
         usedBy: null,
         usedAt: null,
         maxUses: params.type === 'referral' ? undefined : (params.maxUses ?? 1),
-        useCount: 0
+        useCount: 0,
+        packType: params.packType || 'common'
     }
 
     store.codes[code] = inviteCode

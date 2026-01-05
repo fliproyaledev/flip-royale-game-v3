@@ -12,25 +12,25 @@ import 'dotenv/config'
 const API_URL = 'https://www.fliproyale.xyz/api/admin/create-invite'
 const ADMIN_WALLET = '0xbe94fBD02dbfe3695fACEa5101e3B83991dD7911'
 
-// Topluluk kodları tanımları
+// Topluluk kodları tanımları - FLIP + 3 harf formatı
 const COMMUNITY_CODES = [
     // 10 kişilik kodlar (4 tane)
-    { code: 'COMMUNITY10A', limit: 10, name: 'Community 10 - A' },
-    { code: 'COMMUNITY10B', limit: 10, name: 'Community 10 - B' },
-    { code: 'COMMUNITY10C', limit: 10, name: 'Community 10 - C' },
-    { code: 'COMMUNITY10D', limit: 10, name: 'Community 10 - D' },
+    { code: 'FLIPACE', limit: 10, name: '10 Kişilik - ACE' },
+    { code: 'FLIPBET', limit: 10, name: '10 Kişilik - BET' },
+    { code: 'FLIPCAP', limit: 10, name: '10 Kişilik - CAP' },
+    { code: 'FLIPDEX', limit: 10, name: '10 Kişilik - DEX' },
 
     // 20 kişilik kod
-    { code: 'COMMUNITY20', limit: 20, name: 'Community 20' },
+    { code: 'FLIPEGO', limit: 20, name: '20 Kişilik - EGO' },
 
     // 25 kişilik kod
-    { code: 'COMMUNITY25', limit: 25, name: 'Community 25' },
+    { code: 'FLIPFOX', limit: 25, name: '25 Kişilik - FOX' },
 
     // 50 kişilik kod
-    { code: 'COMMUNITY50', limit: 50, name: 'Community 50' },
+    { code: 'FLIPGEM', limit: 50, name: '50 Kişilik - GEM' },
 
     // 100 kişilik kod
-    { code: 'COMMUNITY100', limit: 100, name: 'Community 100' },
+    { code: 'FLIPHUB', limit: 100, name: '100 Kişilik - HUB' },
 ]
 
 async function createCommunityCode(code: string, maxUses: number): Promise<boolean> {
