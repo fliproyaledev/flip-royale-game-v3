@@ -6,34 +6,92 @@ import Head from 'next/head'
 import Link from 'next/link'
 import styles from '../styles/referrals.module.css'
 import { useToast } from '../lib/toast'
+import { useTheme } from '../lib/theme'
+import Topbar from '../components/Topbar'
+import { useContractRead } from 'wagmi'
+import { PACK_SHOP_ADDRESS, PACK_SHOP_ABI } from '../lib/contracts/packShop'
+import { formatUnits } from 'viem'
 
 export default function ReferralsPage() {
+    const { theme } = useTheme()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [walletAddress, setWalletAddress] = useState<string | null>(null)
+    const [user, setUser] = useState<any>(null)
     const [referralData, setReferralData] = useState<any>(null)
     const [stats, setStats] = useState<any>(null)
     const [copied, setCopied] = useState(false)
+    const [copiedCode, setCopiedCode] = useState(false)
     const { toast } = useToast()
+
+    // On-chain earnings from smart contract
+    const { data: onChainEarnings } = useContractRead({
+        address: PACK_SHOP_ADDRESS as `0x${string}`,
+        abi: PACK_SHOP_ABI,
+        functionName: 'totalEarnedByReferrer',
+        args: [walletAddress as `0x${string}`],
+        enabled: Boolean(walletAddress),
+    })
 
     // Cüzdan bağlantısını kontrol et
     useEffect(() => {
-        const checkWallet = async () => {
+        // Mounted kontrolü
+        let mounted = true
+
+        const initPage = async () => {
+            // Önce localStorage'dan user'ı kontrol et
+            let localUser = null
+            try {
+                const saved = localStorage.getItem('flipflop-user')
+                if (saved) {
+                    localUser = JSON.parse(saved)
+                }
+            } catch (e) { }
+
+            // Ethereum varsa gerçek cüzdan bağlantısını kontrol et
             if (typeof window !== 'undefined' && (window as any).ethereum) {
                 try {
                     const accounts = await (window as any).ethereum.request({
                         method: 'eth_accounts'
                     })
                     if (accounts.length > 0) {
-                        setWalletAddress(accounts[0].toLowerCase())
+                        // Cüzdan gerçekten bağlı
+                        const addr = accounts[0].toLowerCase()
+                        if (mounted) {
+                            setWalletAddress(addr)
+                            setUser(localUser || { id: addr })
+                        }
+                    } else {
+                        // Cüzdan bağlı değil - localStorage user'ı temizle
+                        if (mounted) {
+                            setWalletAddress(null)
+                            setUser(null)
+                        }
                     }
                 } catch (e) {
                     console.error('Wallet check error:', e)
+                    // Hata durumunda localStorage'a güvenme
+                    if (mounted) {
+                        setWalletAddress(null)
+                        setUser(null)
+                    }
+                }
+            } else {
+                // Ethereum yok - cüzdan bağlı değil
+                if (mounted) {
+                    setWalletAddress(null)
+                    setUser(null)
                 }
             }
-            setLoading(false)
+
+            if (mounted) {
+                setLoading(false)
+            }
         }
-        checkWallet()
+
+        initPage()
+
+        return () => { mounted = false }
     }, [])
 
     // Referral verisini yükle
@@ -47,7 +105,7 @@ export default function ReferralsPage() {
                 const codeData = await codeRes.json()
                 setReferralData(codeData)
 
-                // İstatistikleri al
+                // İstatistikleri al (sadece referral sayısı için)
                 const statsRes = await fetch(`/api/referral/stats?userId=${walletAddress}`)
                 const statsData = await statsRes.json()
                 setStats(statsData.stats)
@@ -76,31 +134,87 @@ export default function ReferralsPage() {
         }
     }
 
-    const copyCode = () => {
-        if (referralData?.code) {
-            navigator.clipboard.writeText(referralData.shareUrl || referralData.code)
+    const copyLink = () => {
+        if (referralData?.shareUrl) {
+            navigator.clipboard.writeText(referralData.shareUrl)
             setCopied(true)
+            toast('Link copied to clipboard!', 'success')
             setTimeout(() => setCopied(false), 2000)
         }
     }
 
+    const copyCode = () => {
+        if (referralData?.code) {
+            navigator.clipboard.writeText(referralData.code)
+            setCopiedCode(true)
+            toast('Code copied to clipboard!', 'success')
+            setTimeout(() => setCopiedCode(false), 2000)
+        }
+    }
+
+    // Format on-chain earnings
+    const formattedEarnings = onChainEarnings
+        ? parseFloat(formatUnits(onChainEarnings as bigint, 18)).toFixed(2)
+        : '0.00'
+
     if (loading) {
         return (
-            <div className={styles.container}>
+            <div style={{ minHeight: '100vh', background: '#020617', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                 <div className={styles.loading}>Loading...</div>
             </div>
         )
     }
 
+    // Cüzdan bağlı değilse - Genel program bilgisini göster
     if (!walletAddress) {
         return (
-            <div className={styles.container}>
-                <div className={styles.card}>
-                    <h1 className={styles.title}>🔗 Referral Program</h1>
-                    <p className={styles.message}>Please connect your wallet to view your referral dashboard</p>
-                    <Link href="/" className={styles.backBtn}>← Back to Game</Link>
+            <>
+                <Head>
+                    <title>Referral Program - Flip Royale</title>
+                    <meta name="description" content="Earn rewards by referring friends to Flip Royale" />
+                </Head>
+                <div className="app">
+                    <Topbar activeTab="referrals" user={user} />
+                    <div className={styles.container} style={{ paddingTop: 40 }}>
+                        <div className={styles.card}>
+                            <h1 className={styles.title}>🔗 Referral Program</h1>
+
+                            <div style={{
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                borderRadius: 16,
+                                padding: 24,
+                                marginBottom: 24,
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ fontSize: 48, marginBottom: 16 }}>💰</div>
+                                <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12, color: '#10b981' }}>
+                                    Earn 10% Commission
+                                </h2>
+                                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, marginBottom: 0 }}>
+                                    On every card pack purchase made by users you refer!
+                                </p>
+                            </div>
+
+                            <div style={{ marginBottom: 24 }}>
+                                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12, color: 'white' }}>How It Works</h3>
+                                <ul style={{ color: 'rgba(255,255,255,0.8)', fontSize: 15, lineHeight: 1.8, paddingLeft: 20 }}>
+                                    <li>Connect your wallet to generate your unique referral link</li>
+                                    <li>Share your link with friends</li>
+                                    <li>Earn 10% of their pack purchases instantly on-chain</li>
+                                    <li>Commissions are paid in VIRTUAL tokens</li>
+                                </ul>
+                            </div>
+
+                            <div style={{ textAlign: 'center' }}>
+                                <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>
+                                    Connect your wallet to get started
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </>
         )
     }
 
@@ -111,110 +225,101 @@ export default function ReferralsPage() {
                 <meta name="description" content="Earn rewards by referring friends to Flip Royale" />
             </Head>
 
-            <div className={styles.container}>
-                <div className={styles.card}>
-                    <div className={styles.header}>
-                        <h1 className={styles.title}>🔗 Referral Program</h1>
-                        <Link href="/" className={styles.backLink}>← Back</Link>
-                    </div>
+            <div className="app" style={{ minHeight: '100vh' }}>
+                <Topbar activeTab="referrals" user={user} />
+                <div className={styles.container} style={{ paddingTop: 40 }}>
+                    <div className={styles.card}>
+                        <div className={styles.header}>
+                            <h1 className={styles.title}>🔗 Referral Program</h1>
+                        </div>
 
-                    {error && <p className={styles.error}>{error}</p>}
+                        {error && <p className={styles.error}>{error}</p>}
 
-                    {/* Referral Kodu Bölümü */}
-                    <div className={styles.codeSection}>
-                        {referralData?.hasReferralCode ? (
-                            <>
-                                <p className={styles.label}>Your Referral Code</p>
-                                <div className={styles.codeBox}>
-                                    <span className={styles.code}>{referralData.code}</span>
-                                    <button className={styles.copyBtn} onClick={copyCode}>
-                                        {copied ? '✓ Copied!' : '📋 Copy Link'}
+                        {/* Referral Kodu Bölümü */}
+                        <div className={styles.codeSection}>
+                            {referralData?.hasReferralCode ? (
+                                <>
+                                    <p className={styles.label}>Your Referral Code</p>
+                                    <div className={styles.codeBox}>
+                                        <span className={styles.code}>{referralData.code}</span>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button className={styles.copyBtn} onClick={copyCode}>
+                                                {copiedCode ? '✓ Copied!' : '📋 Copy Code'}
+                                            </button>
+                                            <button className={styles.copyBtn} onClick={copyLink}>
+                                                {copied ? '✓ Copied!' : '🔗 Copy Link'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p className={styles.shareUrl}>{referralData.shareUrl}</p>
+                                </>
+                            ) : referralData?.canGenerate ? (
+                                <div className={styles.generateSection}>
+                                    <p className={styles.message}>You can now generate your referral code!</p>
+                                    <button className={styles.generateBtn} onClick={generateCode}>
+                                        Generate Referral Code
                                     </button>
                                 </div>
-                                <p className={styles.shareUrl}>{referralData.shareUrl}</p>
-                            </>
-                        ) : referralData?.canGenerate ? (
-                            <div className={styles.generateSection}>
-                                <p className={styles.message}>You can now generate your referral code!</p>
-                                <button className={styles.generateBtn} onClick={generateCode}>
-                                    Generate Referral Code
-                                </button>
-                            </div>
-                        ) : (
-                            <div className={styles.lockedSection}>
-                                <p className={styles.lockedIcon}>🔒</p>
-                                <p className={styles.lockedMessage}>
-                                    Purchase at least 1 pack to unlock your referral code
-                                </p>
-                                <p className={styles.packCount}>
-                                    Packs purchased: {referralData?.packsPurchased || 0} / 1
-                                </p>
-                                <Link href="/" className={styles.shopBtn}>
-                                    Go to Shop →
-                                </Link>
-                            </div>
-                        )}
-                    </div>
+                            ) : (
+                                <div className={styles.lockedSection}>
+                                    <p className={styles.lockedIcon}>🔒</p>
+                                    <p className={styles.lockedMessage}>
+                                        Purchase at least 1 pack to unlock your referral code
+                                    </p>
+                                    <p className={styles.packCount}>
+                                        Packs purchased: {referralData?.packsPurchased || 0} / 1
+                                    </p>
+                                    <div style={{ marginTop: 15 }}>
+                                        <Link href="/" style={{
+                                            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                            padding: '10px 20px',
+                                            borderRadius: 8,
+                                            color: 'white',
+                                            fontWeight: 'bold',
+                                            textDecoration: 'none'
+                                        }}>
+                                            Go to Shop →
+                                        </Link>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
-                    {/* İstatistikler */}
-                    {stats && (
+                        {/* İstatistikler - Sadeleştirilmiş */}
                         <div className={styles.statsSection}>
                             <h2 className={styles.statsTitle}>Your Stats</h2>
                             <div className={styles.statsGrid}>
                                 <div className={styles.statCard}>
-                                    <span className={styles.statValue}>{stats.totalReferrals || 0}</span>
+                                    <span className={styles.statValue}>{stats?.totalReferrals || 0}</span>
                                     <span className={styles.statLabel}>Total Referrals</span>
                                 </div>
                                 <div className={styles.statCard}>
-                                    <span className={styles.statValue}>${(stats.totalCommissionEarned || 0).toFixed(2)}</span>
+                                    <span className={styles.statValue} style={{ color: '#10b981' }}>{formattedEarnings} VIRTUAL</span>
                                     <span className={styles.statLabel}>Total Earned</span>
-                                </div>
-                                <div className={styles.statCard}>
-                                    <span className={styles.statValue}>${(stats.pendingCommission || 0).toFixed(2)}</span>
-                                    <span className={styles.statLabel}>Pending</span>
                                 </div>
                             </div>
 
-                            {/* Claim Button */}
-                            {(stats.pendingCommission || 0) >= 1 && (
-                                <button
-                                    className={styles.claimBtn}
-                                    onClick={async () => {
-                                        try {
-                                            const res = await fetch('/api/referral/claim', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ userId: walletAddress })
-                                            })
-                                            const data = await res.json()
-                                            if (data.ok) {
-                                                toast(`Claim request submitted for $${data.claimed.toFixed(2)}. Will be processed within 24-48 hours.`, 'success')
-                                                // Refresh stats
-                                                const statsRes = await fetch(`/api/referral/stats?userId=${walletAddress}`)
-                                                const statsData = await statsRes.json()
-                                                setStats(statsData.stats)
-                                            } else {
-                                                toast(data.error || 'Claim failed', 'error')
-                                            }
-                                        } catch (e) {
-                                            toast('Claim failed. Please try again.', 'error')
-                                        }
-                                    }}
-                                >
-                                    💰 Claim ${(stats.pendingCommission || 0).toFixed(2)}
-                                </button>
-                            )}
+                            {/* On-chain bilgi notu */}
+                            <p style={{
+                                fontSize: 12,
+                                color: '#6b7280',
+                                textAlign: 'center',
+                                marginTop: 12,
+                                fontStyle: 'italic'
+                            }}>
+                                💡 Commissions are paid directly to your wallet during purchases
+                            </p>
                         </div>
-                    )}
 
-                    {/* Bilgi */}
-                    <div className={styles.infoSection}>
-                        <h3>How it works</h3>
-                        <ul>
-                            <li>Share your referral code with friends</li>
-                            <li>When they join and buy packs, you earn <strong>10%</strong> commission</li>
-                            <li>Commissions are added to your pending balance</li>
-                        </ul>
+                        {/* Bilgi */}
+                        <div className={styles.infoSection}>
+                            <h3>How it works</h3>
+                            <ul>
+                                <li>Share your referral code with friends</li>
+                                <li>When they buy packs, you earn <strong>10%</strong> commission</li>
+                                <li>Commissions are <strong>instant</strong> - sent directly to your wallet!</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>

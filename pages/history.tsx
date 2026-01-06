@@ -4,6 +4,7 @@ import { TOKENS, getTokenById } from '../lib/tokens'
 import Topbar from '../components/Topbar'
 import Link from 'next/link'
 import { useToast } from '../lib/toast'
+import { useTheme } from '../lib/theme'
 
 // --- TYPES ---
 type ItemResult = {
@@ -55,28 +56,30 @@ const MOCK_HISTORY: DayResult[] = [
 
 // --- COMPONENTS ---
 
-const StatBox = ({ label, value, sub, color }: { label: string, value: string, sub?: string, color?: string }) => (
+const StatBox = ({ label, value, sub, color, isLight }: { label: string, value: string, sub?: string, color?: string, isLight?: boolean }) => (
   <div style={{
-    background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
+    background: isLight
+      ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%)'
+      : 'linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
     borderRadius: 16,
     padding: '20px',
-    border: '1px solid rgba(255,255,255,0.05)',
+    border: isLight ? '1px solid rgba(30, 41, 59, 0.1)' : '1px solid rgba(255,255,255,0.05)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+    boxShadow: isLight ? '0 4px 20px rgba(0,0,0,0.08)' : '0 4px 20px rgba(0,0,0,0.2)',
     backdropFilter: 'blur(10px)',
     minWidth: '120px'
   }}>
-    <div style={{ color: 'var(--muted-inv)', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 600 }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 800, color: color || 'white', textShadow: color ? `0 0 20px ${color}40` : 'none' }}>{value}</div>
-    {sub && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>{sub}</div>}
+    <div style={{ color: isLight ? '#64748b' : 'var(--muted-inv)', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 600 }}>{label}</div>
+    <div style={{ fontSize: 24, fontWeight: 800, color: color || (isLight ? '#1e293b' : 'white'), textShadow: color ? `0 0 20px ${color}40` : 'none' }}>{value}</div>
+    {sub && <div style={{ fontSize: 12, color: isLight ? 'rgba(30,41,59,0.5)' : 'rgba(255,255,255,0.5)', marginTop: 4 }}>{sub}</div>}
   </div>
 )
 
-const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
+const RoundCard = ({ day, index, isLight }: { day: DayResult, index: number, isLight?: boolean }) => {
   const isWin = day.total >= 0;
   const dateObj = new Date(day.dayKey);
   const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -85,11 +88,12 @@ const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
     <div style={{
       marginBottom: 24,
       borderRadius: 20,
-      background: 'rgba(30, 41, 59, 0.6)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      background: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(30, 41, 59, 0.6)',
+      border: isLight ? '1px solid rgba(30, 41, 59, 0.1)' : '1px solid rgba(255,255,255,0.08)',
       overflow: 'hidden',
       transition: 'transform 0.2s ease',
-      position: 'relative'
+      position: 'relative',
+      boxShadow: isLight ? '0 4px 20px rgba(0,0,0,0.08)' : '0 4px 20px rgba(0,0,0,0.2)'
     }}>
       {/* Status Bar */}
       <div style={{
@@ -100,7 +104,7 @@ const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
         boxShadow: isWin ? '0 0 15px #10b98180' : '0 0 15px #ef444480'
       }} />
 
-      <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, borderBottom: isLight ? '1px solid rgba(30,41,59,0.08)' : '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {day.roundNumber && (
@@ -114,24 +118,24 @@ const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
                 boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
               }}>ROUND #{day.roundNumber}</span>
             )}
-            <div style={{ fontSize: 13, color: 'var(--muted-inv)', fontWeight: 600, letterSpacing: 1 }}>ENDED</div>
+            <div style={{ fontSize: 13, color: isLight ? '#64748b' : 'var(--muted-inv)', fontWeight: 600, letterSpacing: 1 }}>ENDED</div>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>{formattedDate}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: isLight ? '#1e293b' : 'white' }}>{formattedDate}</div>
         </div>
 
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 13, color: 'var(--muted-inv)', fontWeight: 600, letterSpacing: 1 }}>TOTAL SCORE</div>
+          <div style={{ fontSize: 13, color: isLight ? '#64748b' : 'var(--muted-inv)', fontWeight: 600, letterSpacing: 1 }}>TOTAL SCORE</div>
           <div style={{
             fontSize: 24,
             fontWeight: 900,
-            color: isWin ? '#34d399' : '#f87171',
-            textShadow: isWin ? '0 0 20px rgba(52, 211, 153, 0.3)' : '0 0 20px rgba(248, 113, 113, 0.3)'
+            color: isWin ? '#059669' : '#dc2626',
+            textShadow: isWin ? '0 0 20px rgba(5, 150, 105, 0.3)' : '0 0 20px rgba(220, 38, 38, 0.3)'
           }}>{isWin ? '+' : ''}{day.total.toLocaleString()}</div>
         </div>
       </div>
 
-      <div style={{ padding: 20, background: 'rgba(15, 23, 42, 0.4)' }}>
-        <div style={{ fontSize: 12, color: 'var(--muted-inv)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Battle Log</div>
+      <div style={{ padding: 20, background: isLight ? 'rgba(248, 250, 252, 0.8)' : 'rgba(15, 23, 42, 0.4)' }}>
+        <div style={{ fontSize: 12, color: isLight ? '#64748b' : 'var(--muted-inv)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Battle Log</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: 12 }}>
           {day.items.map((item, idx) => {
             const token = getTokenById(item.tokenId) || TOKENS[0];
@@ -141,11 +145,14 @@ const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                background: 'rgba(255,255,255,0.03)',
+                background: isLight ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.03)',
                 borderRadius: 12,
                 padding: '10px 4px',
-                border: `1px solid ${itemWin ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}`,
-                position: 'relative'
+                border: isLight
+                  ? `1px solid ${itemWin ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                  : `1px solid ${itemWin ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}`,
+                position: 'relative',
+                boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.04)' : 'none'
               }}>
                 {item.duplicateIndex > 1 && (
                   <div style={{
@@ -157,7 +164,7 @@ const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
                   }}>x{item.duplicateIndex}</div>
                 )}
 
-                <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', marginBottom: 8, border: '2px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', marginBottom: 8, border: isLight ? '2px solid rgba(30,41,59,0.1)' : '2px solid rgba(255,255,255,0.1)' }}>
                   <img
                     src={token.logo}
                     alt={token.symbol}
@@ -167,11 +174,11 @@ const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>{token.symbol}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: isLight ? '#1e293b' : 'white' }}>{token.symbol}</span>
                   <span style={{
                     fontSize: 10,
-                    color: item.dir === 'UP' ? '#34d399' : '#f87171',
-                    background: item.dir === 'UP' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(248, 113, 113, 0.1)',
+                    color: item.dir === 'UP' ? '#059669' : '#dc2626',
+                    background: item.dir === 'UP' ? 'rgba(5, 150, 105, 0.1)' : 'rgba(220, 38, 38, 0.1)',
                     padding: '1px 3px', borderRadius: 3
                   }}>{item.dir === 'UP' ? '▲' : '▼'}</span>
                 </div>
@@ -179,7 +186,7 @@ const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
                 <div style={{
                   fontSize: 13,
                   fontWeight: 800,
-                  color: itemWin ? '#34d399' : '#f87171'
+                  color: itemWin ? '#059669' : '#dc2626'
                 }}>
                   {itemWin ? '+' : ''}{item.points}
                 </div>
@@ -195,6 +202,8 @@ const RoundCard = ({ day, index }: { day: DayResult, index: number }) => {
 export default function HistoryPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { theme } = useTheme()
+  const isLight = theme === 'light'
 
   const [history, setHistory] = useState<DayResult[]>([])
   const [user, setUser] = useState<any>(null)
@@ -236,9 +245,10 @@ export default function HistoryPage() {
               }))
               setHistory(mapped)
 
-              // Stats
+              // Stats - Only sum positive scores (matching leaderboard behavior)
               setTotalGames(mapped.length)
-              setTotalScore(mapped.reduce((acc: number, curr: any) => acc + curr.total, 0))
+              const positiveSum = mapped.reduce((acc: number, curr: any) => acc + (curr.total > 0 ? curr.total : 0), 0)
+              setTotalScore(positiveSum)
               setBestScore(mapped.length > 0 ? Math.max(...mapped.map((h: any) => h.total)) : 0)
             }
           }
@@ -263,14 +273,14 @@ export default function HistoryPage() {
           <h1 style={{
             fontSize: 32,
             fontWeight: 900,
-            background: 'linear-gradient(to right, #fff, #94a3b8)',
+            background: isLight ? 'linear-gradient(to right, #1e293b, #475569)' : 'linear-gradient(to right, #fff, #94a3b8)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             marginBottom: 8,
             textTransform: 'uppercase',
             letterSpacing: 1
           }}>Battle Log</h1>
-          <p style={{ color: 'var(--muted-inv)', fontSize: 16 }}>Your daily performance archive</p>
+          <p style={{ color: isLight ? '#64748b' : 'var(--muted-inv)', fontSize: 16 }}>Your daily performance archive</p>
         </div>
 
         {loading ? (
@@ -283,15 +293,15 @@ export default function HistoryPage() {
           <>
             {/* Stats Overview */}
             <div style={{ display: 'flex', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
-              <StatBox label="Total Score" value={totalScore.toLocaleString()} color={totalScore >= 0 ? '#34d399' : '#f87171'} />
-              <StatBox label="Games Played" value={totalGames.toString()} />
-              <StatBox label="Best Round" value={bestScore > 0 ? `+${bestScore.toLocaleString()}` : bestScore.toLocaleString()} color="#fbbf24" />
+              <StatBox label="Total Score" value={totalScore.toLocaleString()} color={totalScore >= 0 ? '#059669' : '#dc2626'} isLight={isLight} />
+              <StatBox label="Games Played" value={totalGames.toString()} isLight={isLight} />
+              <StatBox label="Best Round" value={bestScore > 0 ? `+${bestScore.toLocaleString()}` : bestScore.toLocaleString()} color="#b45309" isLight={isLight} />
             </div>
 
             {/* History List */}
             <div>
               {history.slice().reverse().map((day, index) => (
-                <RoundCard key={index} day={day} index={index} />
+                <RoundCard key={index} day={day} index={index} isLight={isLight} />
               ))}
             </div>
 
@@ -304,14 +314,15 @@ export default function HistoryPage() {
           <div style={{
             textAlign: 'center',
             padding: '60px 20px',
-            background: 'rgba(30, 41, 59, 0.4)',
+            background: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(30, 41, 59, 0.4)',
             borderRadius: 24,
-            border: '1px dashed rgba(255,255,255,0.1)',
-            marginTop: 20
+            border: isLight ? '1px dashed rgba(30,41,59,0.2)' : '1px dashed rgba(255,255,255,0.1)',
+            marginTop: 20,
+            boxShadow: isLight ? '0 4px 20px rgba(0,0,0,0.08)' : 'none'
           }}>
             <div style={{ fontSize: 64, marginBottom: 24, opacity: 0.8 }}>⚔️</div>
-            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 12 }}>No Battles Yet</h3>
-            <p style={{ color: 'var(--muted-inv)', maxWidth: 400, margin: '0 auto 32px', lineHeight: 1.6 }}>
+            <h3 style={{ fontSize: 24, fontWeight: 700, color: isLight ? '#1e293b' : 'white', marginBottom: 12 }}>No Battles Yet</h3>
+            <p style={{ color: isLight ? '#64748b' : 'var(--muted-inv)', maxWidth: 400, margin: '0 auto 32px', lineHeight: 1.6 }}>
               You haven't participated in any daily rounds yet. Join the arena, pick your cards, and build your legacy!
             </p>
             <Link href="/" className="btn primary" style={{

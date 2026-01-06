@@ -7,6 +7,9 @@ import BuyButton from '../components/BuyButton'
 import { useSignMessage, useAccount, useDisconnect } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useToast } from '../lib/toast'
+import TokenGate from '../components/TokenGate'
+import RedeemCodeModal from '../components/RedeemCodeModal'
+import { signIn } from 'next-auth/react'
 
 type RoundPick = { tokenId: string; dir: 'UP' | 'DOWN'; duplicateIndex: number; locked: boolean; pLock?: number; pointsLocked?: number; startPrice?: number }
 
@@ -21,6 +24,7 @@ type RoundResult = {
 type DayResult = {
   dayKey: string
   total: number
+  totalPoints?: number
   userId?: string // User who participated
   userName?: string // User name
   walletAddress?: string // Wallet address
@@ -176,10 +180,41 @@ export default function Home() {
   const [rareBuyQty, setRareBuyQty] = useState<number>(1)
   const [showMysteryResults, setShowMysteryResults] = useState<{ open: boolean; cards: string[] }>({ open: false, cards: [] })
   const [globalHighlights, setGlobalHighlights] = useState<HighlightState>({ topGainers: [], topLosers: [] })
+  const [showRedeemModal, setShowRedeemModal] = useState(false)
+  const [xHandle, setXHandle] = useState<string | undefined>(undefined)
+
+  // Load xHandle from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('flipflop-user')
+      if (stored) {
+        const userData = JSON.parse(stored)
+        if (userData.xHandle) {
+          setXHandle(userData.xHandle)
+        }
+      }
+    } catch { }
+  }, [])
 
   const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
   const boostActive = !!(boost.endAt && boost.endAt > Date.now())
+
+  // Capture referral code from URL parameter (?ref=CODE)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const refCode = urlParams.get('ref')
+      if (refCode) {
+        // Store referral code in localStorage for use during registration
+        localStorage.setItem('fliproyale-referral', refCode.toUpperCase())
+        console.log('[Referral] Captured referral code from URL:', refCode)
+        // Clean up URL without reload
+        const cleanUrl = window.location.pathname
+        window.history.replaceState({}, '', cleanUrl)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (isConnected && address && !user) {
@@ -195,15 +230,53 @@ export default function Home() {
       if (data.exists) {
         loginUser(data.user)
       } else {
-        // Enforce Invite-Only: Redirect new users to invite page
-        window.location.href = '/invite'
+        // Open Access: Auto-register new users without invite code
+        await autoRegisterUser(walletAddress)
       }
     } catch (e) {
       console.error("Auth check failed", e)
     }
   }
 
-  // Removed handleRegister - Registration is now handled via /invite page only
+  // Auto-register user without invite code (open access mode)
+  async function autoRegisterUser(walletAddress: string) {
+    try {
+      const cleanAddress = walletAddress.toLowerCase()
+
+      // Check for stored referral code from URL parameter
+      const storedReferral = localStorage.getItem('fliproyale-referral')
+
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: cleanAddress,
+          username: 'Player',
+          openAccess: true,
+          referralCode: storedReferral || null // Pass referral code if exists
+        })
+      })
+      const data = await res.json()
+      if (data.ok && data.user) {
+        // Clear the stored referral code after successful registration
+        if (storedReferral) {
+          localStorage.removeItem('fliproyale-referral')
+          console.log('[Referral] Applied referral code:', storedReferral)
+        }
+        // IMPORTANT: Don't show Welcome Gift for open access users (they don't get a pack)
+        loginUser(data.user, false)
+      } else {
+        console.error('Auto-register failed:', data.error)
+        // Fallback: redirect to invite if auto-register fails
+        window.location.href = '/invite'
+      }
+    } catch (e) {
+      console.error('Auto-register error:', e)
+      window.location.href = '/invite'
+    }
+  }
+
+  // Note: Invite page still works for referral codes and waitlist codes with free packs
 
   function loginUser(userData: any, isNewUser = false) {
     console.log('[LOGIN] loginUser called:', { isNewUser, userId: userData.id });
@@ -889,6 +962,8 @@ export default function Home() {
   function addMysteryToInventory() {
     if (!showMysteryResults.open) return
     setShowMysteryResults({ open: false, cards: [] })
+    // Sync data immediately when closing modal
+    loadUserData()
   }
   async function snapshotGlobalHighlights() {
     try {
@@ -1033,10 +1108,11 @@ export default function Home() {
 
       if (!userId) return
 
-      const r = await fetch(`/api/users/me?userId=${encodeURIComponent(userId)}`)
+      const r = await fetch(`/api/users/me?userId=${encodeURIComponent(userId)}&_t=${Date.now()}`)
       const data = await r.json()
 
       if (data.ok && data.user) {
+        try { localStorage.setItem('flipflop-user', JSON.stringify(data.user)) } catch { }
         setUser(data.user)
 
         // --- HISTORY (GEÇMİŞ) GÜNCELLEMESİ ---
@@ -1361,1509 +1437,1646 @@ export default function Home() {
   const nextRoundDisplay = currentRound + 1
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <img src="/logo.png" alt="FLIP ROYALE" className="logo" onError={(e) => {
-            const target = e.currentTarget as HTMLImageElement
-            target.src = '/logo.svg'
-            target.onerror = () => {
-              target.style.display = 'none'
-              const parent = target.parentElement
-              if (parent) parent.innerHTML = '<span class="dot"></span> FLIP ROYALE'
-            }
-          }} />
-        </div>
-        <nav className="tabs">
-          <a className="tab active" href="/">FLIP ROYALE</a>
-          <a className="tab" href="/prices">PRICES</a>
-          <a className="tab" href="/guide">GUIDE</a>
-          <a className="tab" href="/inventory">INVENTORY</a>
-          <a className="tab" href="/my-packs">MY PACKS</a>
-          <a className="tab" href="/leaderboard">LEADERBOARD</a>
-          <a className="tab" href="/history">HISTORY</a>
-          <a className="tab" href="/profile">PROFILE</a>
-        </nav>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
-          <ThemeToggle />
-          <a
-            href="https://x.com/fliproyale"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: theme === 'light' ? 'rgba(10,44,33,0.1)' : 'rgba(255,255,255,0.1)',
-              border: `1px solid ${theme === 'light' ? 'rgba(10,44,33,0.2)' : 'rgba(255,255,255,0.2)'}`,
-              color: theme === 'light' ? '#0a2c21' : 'white',
-              textDecoration: 'none',
-              transition: 'all 0.3s',
-              cursor: 'pointer',
-              backdropFilter: 'blur(10px)',
-              boxShadow: theme === 'light' ? '0 2px 8px rgba(0,0,0,0.05)' : '0 2px 8px rgba(0,0,0,0.1)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = theme === 'light' ? 'rgba(10,44,33,0.15)' : 'rgba(255,255,255,0.15)'
-              e.currentTarget.style.transform = 'scale(1.05)'
-              e.currentTarget.style.boxShadow = theme === 'light' ? '0 4px 12px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.15)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = theme === 'light' ? 'rgba(10,44,33,0.1)' : 'rgba(255,255,255,0.1)'
-              e.currentTarget.style.transform = 'scale(1)'
-              e.currentTarget.style.boxShadow = theme === 'light' ? '0 2px 8px rgba(0,0,0,0.05)' : '0 2px 8px rgba(0,0,0,0.1)'
-            }}
-            title="Follow us on X"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style={{ display: 'block' }}>
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
-          </a>
-
-          {user ? (
-            <>
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                overflow: 'hidden',
-                border: '2px solid rgba(255,255,255,0.25)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-                background: 'rgba(255,255,255,0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <img
-                  src={user.avatar || DEFAULT_AVATAR}
-                  alt={user.username}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR
-                  }}
-                />
-              </div>
-
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-end',
-                gap: 4
-              }}>
-                <div style={{
-                  background: theme === 'light' ? 'rgba(0,207,163,0.25)' : 'rgba(0,207,163,0.15)',
-                  border: `1px solid ${theme === 'light' ? 'rgba(0,207,163,0.4)' : 'rgba(0,207,163,0.25)'}`,
-                  borderRadius: 10,
+    <TokenGate>
+      <div className="app">
+        <header className="topbar">
+          <div className="brand">
+            <img src="/logo.png" alt="FLIP ROYALE" className="logo" onError={(e) => {
+              const target = e.currentTarget as HTMLImageElement
+              target.src = '/logo.svg'
+              target.onerror = () => {
+                target.style.display = 'none'
+                const parent = target.parentElement
+                if (parent) parent.innerHTML = '<span class="dot"></span> FLIP ROYALE'
+              }
+            }} />
+          </div>
+          <nav className="tabs">
+            <a className="tab active" href="/">FLIP ROYALE</a>
+            <a className="tab" href="/prices">PRICES</a>
+            <a className="tab" href="/guide">GUIDE</a>
+            <a className="tab" href="/inventory">INVENTORY</a>
+            <a className="tab" href="/my-packs">MY PACKS</a>
+            <a className="tab" href="/leaderboard">LEADERBOARD</a>
+            <a className="tab" href="/referrals">REFERRALS</a>
+            <a className="tab" href="/history">HISTORY</a>
+            <a className="tab" href="/litepaper">LITEPAPER</a>
+            <a className="tab" href="/profile">PROFILE</a>
+          </nav>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto', flexWrap: 'nowrap' }}>
+            {/* Redeem Code Button - Only visible when logged in */}
+            {user && (
+              <button
+                onClick={() => setShowRedeemModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
                   padding: '8px 14px',
-                  fontSize: 15,
-                  fontWeight: 700,
-                  color: theme === 'light' ? '#059669' : '#86efac',
-                  textShadow: theme === 'light' ? 'none' : '0 1px 2px rgba(0,0,0,0.3)',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {earnedPoints.toLocaleString()} pts
-                </div>
-                {giftPoints > 0 && (
-                  <div style={{
-                    fontSize: 11,
-                    color: theme === 'light' ? 'rgba(10,44,33,0.6)' : 'rgba(255,255,255,0.5)',
-                    fontWeight: 500
-                  }}>
-                    Gift: {giftPoints.toLocaleString()} pts
-                  </div>
-                )}
-
-
-                <button
-                  onClick={handleLogout}
+                  background: theme === 'light' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(251, 191, 36, 0.2)',
+                  border: `1px solid ${theme === 'light' ? 'rgba(251, 191, 36, 0.4)' : 'rgba(251, 191, 36, 0.3)'}`,
+                  borderRadius: 10,
+                  color: theme === 'light' ? '#b45309' : '#fbbf24',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = theme === 'light' ? 'rgba(251, 191, 36, 0.25)' : 'rgba(251, 191, 36, 0.3)'
+                  e.currentTarget.style.transform = 'scale(1.02)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = theme === 'light' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(251, 191, 36, 0.2)'
+                  e.currentTarget.style.transform = 'scale(1)'
+                }}
+              >
+                <span style={{ fontSize: 16 }}>🎁</span>
+                <span>Redeem</span>
+              </button>
+            )}
+            {/* Connect X Button */}
+            {user && (
+              xHandle ? (
+                <div
                   style={{
-                    background: 'rgba(239,68,68,0.2)',
-                    border: '1px solid rgba(239,68,68,0.3)',
-                    color: '#fca5a5',
-                    padding: '4px 12px',
-                    borderRadius: 8,
-                    fontSize: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    background: 'rgba(34, 197, 94, 0.2)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    borderRadius: 10,
+                    color: '#86efac',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap'
+                  }}
+                  title={`Connected as @${xHandle}`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  <span>@{xHandle}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#22c55e">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                  </svg>
+                </div>
+              ) : (
+                <button
+                  onClick={() => signIn('twitter', { callbackUrl: '/auth/callback' })}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    background: theme === 'light' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.2)',
+                    border: `1px solid ${theme === 'light' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.3)'}`,
+                    borderRadius: 10,
+                    color: theme === 'light' ? '#1d4ed8' : '#93c5fd',
+                    fontSize: 13,
                     fontWeight: 600,
                     cursor: 'pointer',
-                    transition: 'all 0.3s',
-                    whiteSpace: 'nowrap',
-                    marginTop: 4
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(239,68,68,0.3)'
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = theme === 'light' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(59, 130, 246, 0.3)'
+                    e.currentTarget.style.transform = 'scale(1.02)'
                   }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(239,68,68,0.2)'
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = theme === 'light' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.2)'
+                    e.currentTarget.style.transform = 'scale(1)'
                   }}
                 >
-                  Logout
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  <span>Connect X</span>
                 </button>
-              </div>
-            </>
-          ) : (
-            mounted && <ConnectButton />
-          )}
-        </div>
-      </header>
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(220px, 250px) 1fr minmax(260px, 300px)',
-        gap: 16,
-        alignItems: 'start',
-        width: '100%'
-      }} className="main-grid">
-        {/* Left Sidebar: Global Movers (Swapped) */}
-        <aside style={{ position: 'sticky', top: 16, alignSelf: 'start', width: '100%' }}>
-          <div style={{
-            background: 'rgba(15,23,42,0.55)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 16,
-            padding: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.25)'
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#e0f2fe' }}>
-              Global Movers · Beta #{activeRoundDisplay}
-            </div>
-
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#bbf7d0', marginBottom: 8 }}>
-                Top Gainers
-              </div>
-              {gainersDisplay.map((entry, idx) => {
-                const tok = entry ? (getTokenById(entry.tokenId) || TOKENS[0]) : null
-                return (
-                  <div key={`gainer-${entry ? entry.tokenId : idx}`} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 10px',
-                    borderRadius: 10,
-                    background: 'rgba(34,197,94,0.12)',
-                    border: '1px solid rgba(34,197,94,0.25)',
-                    marginBottom: 6,
-                    opacity: entry ? 1 : 0.45
-                  }}>
-                    <span style={{ width: 16, fontSize: 11, fontWeight: 700, color: '#bbf7d0' }}>{idx + 1}</span>
-                    <div style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      background: 'rgba(255,255,255,0.06)',
-                      display: 'grid',
-                      placeItems: 'center'
-                    }}>
-                      {tok && <img src={tok.logo} alt={tok.symbol} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageFallback} />}
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontWeight: 700, color: '#ecfccb', fontSize: 13 }}>{tok ? tok.symbol : '—'}</span>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
-                        {entry ? `${entry.changePct >= 0 ? '▲' : '▼'} ${entry.changePct.toFixed(2)}%` : 'Awaiting data'}
-                      </span>
-                    </div>
-                    <span style={{ fontWeight: 700, color: '#bbf7d0', fontSize: 12 }}>
-                      {entry ? `${formatHighlightPoints(entry.points)} pts` : '—'}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#fecaca', marginBottom: 8 }}>
-                Top Losers
-              </div>
-              {losersDisplay.map((entry, idx) => {
-                const tok = entry ? (getTokenById(entry.tokenId) || TOKENS[0]) : null
-                return (
-                  <div key={`loser-${entry ? entry.tokenId : idx}`} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 10px',
-                    borderRadius: 10,
-                    background: 'rgba(248,113,113,0.12)',
-                    border: '1px solid rgba(248,113,113,0.25)',
-                    marginBottom: 6,
-                    opacity: entry ? 1 : 0.45
-                  }}>
-                    <span style={{ width: 16, fontSize: 11, fontWeight: 700, color: '#fecaca' }}>{idx + 1}</span>
-                    <div style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      background: 'rgba(255,255,255,0.06)',
-                      display: 'grid',
-                      placeItems: 'center'
-                    }}>
-                      {tok && <img src={tok.logo} alt={tok.symbol} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageFallback} />}
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontWeight: 700, color: '#fee2e2', fontSize: 13 }}>{tok ? tok.symbol : '—'}</span>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
-                        {entry ? `${entry.changePct >= 0 ? '▲' : '▼'} ${entry.changePct.toFixed(2)}%` : 'Awaiting data'}
-                      </span>
-                    </div>
-                    <span style={{ fontWeight: 700, color: '#fecaca', fontSize: 12 }}>
-                      {entry ? `${formatHighlightPoints(entry.points)} pts` : '—'}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </aside>
-
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Active Round Panel */}
-          <div className="panel">
-            <div className="row" style={{ alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
-              <h2 style={{
-                fontWeight: 900,
-                letterSpacing: 1,
-                textTransform: 'uppercase',
-                color: theme === 'light' ? '#0a2c21' : '#f8fafc',
-                textShadow: theme === 'light' ? 'none' : '0 3px 10px rgba(0,0,0,0.35)',
-                fontSize: 20,
-                margin: 0,
-                lineHeight: 1
-              }}>Active Round</h2>
-              <span className="badge" style={{
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 12,
-                letterSpacing: 0.5,
-                padding: '4px 8px',
-                borderRadius: 6,
-                alignSelf: 'center'
-              }}>
-                #{activeRoundDisplay}
-              </span>
-              {mounted && boostActive && (
-                <span className="badge" style={{
-                  background: 'rgba(0,207,163,.2)',
-                  borderColor: 'rgba(0,207,163,.3)',
-                  color: '#86efac',
-                  fontSize: 14
-                }}>
-                  Boost ends in: {formatRemaining(boost.endAt! - now)}
-                </span>
-              )}
-            </div>
-            <div className="sep"></div>
-
-            {/* CONDITIONAL CONTENT: FINALIZING OR CARDS */}
-            {isFinalizingWindow ? (
-              // --- FINALIZING GÖRÜNÜMÜ ---
-              <div style={{
+              )
+            )}
+            <ThemeToggle />
+            <a
+              href="https://x.com/fliproyale"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                minHeight: '250px',
-                background: 'rgba(0,0,0,0.2)',
-                borderRadius: 16,
-                border: '2px dashed rgba(255,255,255,0.1)',
-                textAlign: 'center',
-                padding: 20
-              }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem', animation: 'pulse 2s infinite' }}>⏳</div>
-                <h3 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: '0.5rem' }}>
-                  Round Finalizing...
-                </h3>
-                <p style={{ color: 'rgba(255,255,255,0.7)', maxWidth: '400px', lineHeight: 1.5 }}>
-                  Calculating global scores and sealing new prices.<br />
-                  Please wait for data consistency.
-                </p>
-              </div>
-            ) : (
-              // --- NORMAL KART GÖRÜNÜMÜ ---
-              <div className="picks" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(160px, 1fr))', gap: 14 }}>
-                {active.map((p, index) => {
-                  const tok = getTokenById(p.tokenId) || TOKENS[0]
-                  if (!tok) return null
-                  const price = prices[p.tokenId]
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: theme === 'light' ? 'rgba(10,44,33,0.1)' : 'rgba(255,255,255,0.1)',
+                border: `1px solid ${theme === 'light' ? 'rgba(10,44,33,0.2)' : 'rgba(255,255,255,0.2)'}`,
+                color: theme === 'light' ? '#0a2c21' : 'white',
+                textDecoration: 'none',
+                transition: 'all 0.3s',
+                cursor: 'pointer',
+                backdropFilter: 'blur(10px)',
+                boxShadow: theme === 'light' ? '0 2px 8px rgba(0,0,0,0.05)' : '0 2px 8px rgba(0,0,0,0.1)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = theme === 'light' ? 'rgba(10,44,33,0.15)' : 'rgba(255,255,255,0.15)'
+                e.currentTarget.style.transform = 'scale(1.05)'
+                e.currentTarget.style.boxShadow = theme === 'light' ? '0 4px 12px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.15)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = theme === 'light' ? 'rgba(10,44,33,0.1)' : 'rgba(255,255,255,0.1)'
+                e.currentTarget.style.transform = 'scale(1)'
+                e.currentTarget.style.boxShadow = theme === 'light' ? '0 2px 8px rgba(0,0,0,0.05)' : '0 2px 8px rgba(0,0,0,0.1)'
+              }}
+              title="Follow us on X"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style={{ display: 'block' }}>
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </a>
 
-                  const baseline = p.startPrice || (price ? price.p0 : 0)
-                  const current = price ? price.pLive : 0
-
-                  // Locked kartlar için sabit puan, unlocked için canlı hesapla
-                  const points = (p.locked && p.pointsLocked !== undefined)
-                    ? p.pointsLocked
-                    : (price ? calcPoints(price.changePct ?? 0, p.dir, p.duplicateIndex, boost.level, boostActive) : 0)
-
-                  return (
-                    <div key={index} style={{
-                      background: `linear-gradient(135deg, ${getGradientColor(index)}, ${getGradientColor(index + 1)})`,
-                      borderRadius: 18,
-                      padding: 14,
-                      position: 'relative',
-                      minHeight: 220,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      boxShadow: '0 8px 26px rgba(0,0,0,0.18), 0 3px 16px rgba(0,0,0,0.12)',
-                      transition: 'all 0.3s ease',
-                      transform: 'translateY(0)',
-                      cursor: 'pointer'
+            {user ? (
+              <>
+                <div style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  border: '2px solid rgba(255,255,255,0.25)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                  background: 'rgba(255,255,255,0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <img
+                    src={user.avatar || DEFAULT_AVATAR}
+                    alt={user.username}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR
                     }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)'
-                        e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.25), 0 6px 20px rgba(0,0,0,0.15)'
-                        e.currentTarget.style.border = '1px solid rgba(255,255,255,0.32)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)'
-                        e.currentTarget.style.boxShadow = '0 8px 26px rgba(0,0,0,0.18), 0 3px 16px rgba(0,0,0,0.12)'
-                        e.currentTarget.style.border = '1px solid rgba(255,255,255,0.2)'
-                      }}>
+                  />
+                </div>
 
-                      {p.locked && (
-                        <div style={{
-                          position: 'absolute',
-                          top: 10,
-                          right: 10,
-                          background: '#fbbf24',
-                          color: '#000',
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 14,
-                          fontWeight: 700,
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.25)'
-                        }}>
-                          🔒
-                        </div>
-                      )}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: 4
+                }}>
+                  <div style={{
+                    background: theme === 'light' ? 'rgba(0,207,163,0.25)' : 'rgba(0,207,163,0.15)',
+                    border: `1px solid ${theme === 'light' ? 'rgba(0,207,163,0.4)' : 'rgba(0,207,163,0.25)'}`,
+                    borderRadius: 10,
+                    padding: '8px 14px',
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: theme === 'light' ? '#059669' : '#86efac',
+                    textShadow: theme === 'light' ? 'none' : '0 1px 2px rgba(0,0,0,0.3)',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {earnedPoints.toLocaleString()} pts
+                  </div>
+                  {giftPoints > 0 && (
+                    <div style={{
+                      fontSize: 11,
+                      color: theme === 'light' ? 'rgba(10,44,33,0.6)' : 'rgba(255,255,255,0.5)',
+                      fontWeight: 500
+                    }}>
+                      Gift: {giftPoints.toLocaleString()} pts
+                    </div>
+                  )}
 
-                      {p.duplicateIndex > 1 && (
-                        <div style={{
-                          position: 'absolute',
-                          top: 10,
-                          left: 10,
-                          background: 'rgba(0,0,0,0.7)',
-                          color: 'white',
-                          padding: '3px 7px',
-                          borderRadius: 6,
-                          fontSize: 12,
-                          border: '1px solid rgba(255,255,255,0.3)',
-                          fontWeight: 600
-                        }}>
-                          dup x{p.duplicateIndex}
-                        </div>
-                      )}
 
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      background: 'rgba(239,68,68,0.2)',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      color: '#fca5a5',
+                      padding: '4px 12px',
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.3s',
+                      whiteSpace: 'nowrap',
+                      marginTop: 4
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(239,68,68,0.3)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(239,68,68,0.2)'
+                    }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              </>
+            ) : (
+              mounted && <ConnectButton />
+            )}
+          </div>
+        </header>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(220px, 250px) 1fr minmax(260px, 300px)',
+          gap: 16,
+          alignItems: 'start',
+          width: '100%'
+        }} className="main-grid">
+          {/* Left Sidebar: Global Movers (Swapped) */}
+          <aside style={{ position: 'sticky', top: 16, alignSelf: 'start', width: '100%' }}>
+            <div style={{
+              background: 'rgba(15,23,42,0.55)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 16,
+              padding: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.25)'
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#e0f2fe' }}>
+                Global Movers · Beta #{activeRoundDisplay}
+              </div>
+
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#bbf7d0', marginBottom: 8 }}>
+                  Top Gainers
+                </div>
+                {gainersDisplay.map((entry, idx) => {
+                  const tok = entry ? (getTokenById(entry.tokenId) || TOKENS[0]) : null
+                  return (
+                    <div key={`gainer-${entry ? entry.tokenId : idx}`} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 10px',
+                      borderRadius: 10,
+                      background: 'rgba(34,197,94,0.12)',
+                      border: '1px solid rgba(34,197,94,0.25)',
+                      marginBottom: 6,
+                      opacity: entry ? 1 : 0.45
+                    }}>
+                      <span style={{ width: 16, fontSize: 11, fontWeight: 700, color: '#bbf7d0' }}>{idx + 1}</span>
                       <div style={{
-                        width: 100,
-                        height: 100,
+                        width: 30,
+                        height: 30,
                         borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.15)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: '0 auto 14px',
-                        border: '2px solid rgba(255,255,255,0.22)',
-                        boxShadow: '0 10px 24px rgba(0,0,0,0.28)',
-                        position: 'relative',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'rgba(255,255,255,0.06)',
+                        display: 'grid',
+                        placeItems: 'center'
                       }}>
-                        <img
-                          src={tok.logo}
-                          alt={tok.symbol}
-                          style={{
-                            width: 92,
-                            height: 92,
-                            borderRadius: '50%',
-                            objectFit: 'cover',
-                            position: 'relative',
-                            zIndex: 2,
-                            border: '2px solid rgba(255,255,255,0.2)'
-                          }}
-                          onError={handleImageFallback}
-                        />
+                        {tok && <img src={tok.logo} alt={tok.symbol} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageFallback} />}
                       </div>
-
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{
-                          fontSize: 13,
-                          fontWeight: 900,
-                          color: 'white',
-                          textShadow: '0 2px 4px rgba(0,0,0,0.35)',
-                          marginBottom: 4,
-                          letterSpacing: 0.4
-                        }}>
-                          {tok.symbol}
-                        </div>
-                        <div style={{
-                          fontSize: 13,
-                          color: 'rgba(255,255,255,0.82)',
-                          marginBottom: 6,
-                          fontWeight: 600,
-                          letterSpacing: 0.6,
-                          textTransform: 'uppercase'
-                        }}>
-                          {tok.about}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 6, marginBottom: 8, justifyContent: 'center' }}>
-                          <button className={`btn ${p.dir === 'UP' ? 'btn-up active' : ''}`} style={{ fontSize: 13, padding: '6px 10px', fontWeight: 600 }}>
-                            ▲ UP
-                          </button>
-                          <button className={`btn ${p.dir === 'DOWN' ? 'btn-down active' : ''}`} style={{ fontSize: 13, padding: '6px 10px', fontWeight: 600 }}>
-                            ▼ DOWN
-                          </button>
-                        </div>
-
-                        {!p.locked ? (
-                          <button
-                            className="btn"
-                            style={{ fontSize: 13, padding: '6px 10px', marginBottom: 8, fontWeight: 600 }}
-                            onClick={() => toggleLock(index)}
-                          >
-                            Lock
-                          </button>
-                        ) : (
-                          <div style={{
-                            fontSize: 12,
-                            padding: '5px 9px',
-                            marginBottom: 8,
-                            fontWeight: 600,
-                            color: '#fbbf24',
-                            textAlign: 'center'
-                          }}>
-                            🔒 Locked
-                          </div>
-                        )}
-
-                        <div style={{
-                          background: 'rgba(0,0,0,0.25)',
-                          color: 'white',
-                          padding: '6px 10px',
-                          borderRadius: 8,
-                          fontSize: 13,
-                          fontWeight: 600,
-                          marginBottom: 4
-                        }}>
-                          {p.locked ? '🔒 Locked Points: ' : 'Live Points: '}
-                          {(() => {
-                            try {
-                              return points > 0 ? `+${points}` : points
-                            } catch {
-                              return 0
-                            }
-                          })()}
-                        </div>
-
-                        {p.duplicateIndex > 1 && (
-                          <div style={{
-                            background: 'rgba(0,0,0,0.2)',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: 6,
-                            fontSize: 12,
-                            fontWeight: 600
-                          }}>
-                            Applied: Boost x{boostActive && boost.level ? (boost.level === 100 ? 2 : 1.5) : 1}
-                          </div>
-                        )}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: 700, color: '#ecfccb', fontSize: 13 }}>{tok ? tok.symbol : '—'}</span>
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
+                          {entry ? `${entry.changePct >= 0 ? '▲' : '▼'} ${entry.changePct.toFixed(2)}%` : 'Awaiting data'}
+                        </span>
                       </div>
+                      <span style={{ fontWeight: 700, color: '#bbf7d0', fontSize: 12 }}>
+                        {entry ? `${formatHighlightPoints(entry.points)} pts` : '—'}
+                      </span>
                     </div>
                   )
                 })}
               </div>
-            )}
-          </div>
-          {/* --- YENİ KOD BİTİŞİ --- */}
-          {/* Next Round */}
-          {/* Next Round Panel */}
-          <div className="panel">
-            <div className="row" style={{ alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
-              <h2 style={{
-                fontWeight: 900,
-                letterSpacing: 1,
-                textTransform: 'uppercase',
-                color: theme === 'light' ? '#0a2c21' : '#f8fafc',
-                textShadow: theme === 'light' ? 'none' : '0 3px 10px rgba(0,0,0,0.35)',
-                fontSize: 20,
-                margin: 0,
-                lineHeight: 1
-              }}>Next Round</h2>
-              <span className="badge" style={{
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 12,
-                letterSpacing: 0.5,
-                padding: '4px 8px',
-                borderRadius: 6,
-                alignSelf: 'center'
-              }}>
-                #{nextRoundDisplay}
-              </span>
-            </div>
-            <div className="sep"></div>
 
-            {/* --- FİNALIZING KONTROLÜ BAŞLANGICI (NEXT ROUND) --- */}
-            {isFinalizingWindow ? (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '300px',
-                background: 'rgba(0,0,0,0.2)',
-                borderRadius: 16,
-                border: '2px dashed rgba(255,255,255,0.1)',
-                textAlign: 'center',
-                padding: 20,
-                opacity: 0.8
-              }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '1rem', filter: 'grayscale(1)' }}>🔒</div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fbbf24', marginBottom: '0.5rem' }}>
-                  Selections Locked
-                </h3>
-                <p style={{ color: 'rgba(255,255,255,0.6)', maxWidth: '400px', lineHeight: 1.5 }}>
-                  Next round preparation in progress.<br />
-                  Selections will reopen shortly.
-                </p>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#fecaca', marginBottom: 8 }}>
+                  Top Losers
+                </div>
+                {losersDisplay.map((entry, idx) => {
+                  const tok = entry ? (getTokenById(entry.tokenId) || TOKENS[0]) : null
+                  return (
+                    <div key={`loser-${entry ? entry.tokenId : idx}`} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 10px',
+                      borderRadius: 10,
+                      background: 'rgba(248,113,113,0.12)',
+                      border: '1px solid rgba(248,113,113,0.25)',
+                      marginBottom: 6,
+                      opacity: entry ? 1 : 0.45
+                    }}>
+                      <span style={{ width: 16, fontSize: 11, fontWeight: 700, color: '#fecaca' }}>{idx + 1}</span>
+                      <div style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'rgba(255,255,255,0.06)',
+                        display: 'grid',
+                        placeItems: 'center'
+                      }}>
+                        {tok && <img src={tok.logo} alt={tok.symbol} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={handleImageFallback} />}
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: 700, color: '#fee2e2', fontSize: 13 }}>{tok ? tok.symbol : '—'}</span>
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
+                          {entry ? `${entry.changePct >= 0 ? '▲' : '▼'} ${entry.changePct.toFixed(2)}%` : 'Awaiting data'}
+                        </span>
+                      </div>
+                      <span style={{ fontWeight: 700, color: '#fecaca', fontSize: 12 }}>
+                        {entry ? `${formatHighlightPoints(entry.points)} pts` : '—'}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
-            ) : (
-              /* --- NORMAL NEXT ROUND İÇERİĞİ --- */
-              <>
+            </div>
+          </aside>
+
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Active Round Panel */}
+            <div className="panel">
+              <div className="row" style={{ alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
+                <h2 style={{
+                  fontWeight: 900,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                  color: theme === 'light' ? '#0a2c21' : '#f8fafc',
+                  textShadow: theme === 'light' ? 'none' : '0 3px 10px rgba(0,0,0,0.35)',
+                  fontSize: 20,
+                  margin: 0,
+                  lineHeight: 1
+                }}>Active Round</h2>
+                <span className="badge" style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  alignSelf: 'center'
+                }}>
+                  #{activeRoundDisplay}
+                </span>
+                {mounted && boostActive && (
+                  <span className="badge" style={{
+                    background: 'rgba(0,207,163,.2)',
+                    borderColor: 'rgba(0,207,163,.3)',
+                    color: '#86efac',
+                    fontSize: 14
+                  }}>
+                    Boost ends in: {formatRemaining(boost.endAt! - now)}
+                  </span>
+                )}
+              </div>
+              <div className="sep"></div>
+
+              {/* CONDITIONAL CONTENT: FINALIZING OR CARDS */}
+              {isFinalizingWindow ? (
+                // --- FINALIZING GÖRÜNÜMÜ ---
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '250px',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: 16,
+                  border: '2px dashed rgba(255,255,255,0.1)',
+                  textAlign: 'center',
+                  padding: 20
+                }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem', animation: 'pulse 2s infinite' }}>⏳</div>
+                  <h3 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: '0.5rem' }}>
+                    Round Finalizing...
+                  </h3>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', maxWidth: '400px', lineHeight: 1.5 }}>
+                    Calculating global scores and sealing new prices.<br />
+                    Please wait for data consistency.
+                  </p>
+                </div>
+              ) : (
+                // --- NORMAL KART GÖRÜNÜMÜ ---
                 <div className="picks" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(160px, 1fr))', gap: 14 }}>
-                  {Array.from({ length: 5 }, (_, index) => {
-                    const p = nextRound[index]
+                  {active.map((p, index) => {
+                    const tok = getTokenById(p.tokenId) || TOKENS[0]
+                    if (!tok) return null
+                    const price = prices[p.tokenId]
 
-                    if (p) {
-                      const tok = getTokenById(p.tokenId) || TOKENS[0]
-                      if (!tok) return null
+                    const baseline = p.startPrice || (price ? price.p0 : 0)
+                    const current = price ? price.pLive : 0
 
-                      return (
-                        <div key={index} style={{
-                          background: `linear-gradient(135deg, ${getGradientColor(index)}, ${getGradientColor(index + 1)})`,
-                          borderRadius: 18,
-                          padding: 14,
-                          position: 'relative',
-                          minHeight: 220,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          border: '1px solid rgba(255,255,255,0.2)',
-                          boxShadow: '0 8px 26px rgba(0,0,0,0.18), 0 3px 16px rgba(0,0,0,0.12)',
-                          cursor: 'pointer'
+                    // Locked kartlar için sabit puan, unlocked için canlı hesapla
+                    const points = (p.locked && p.pointsLocked !== undefined)
+                      ? p.pointsLocked
+                      : (price ? calcPoints(price.changePct ?? 0, p.dir, p.duplicateIndex, boost.level, boostActive) : 0)
+
+                    return (
+                      <div key={index} style={{
+                        background: `linear-gradient(135deg, ${getGradientColor(index)}, ${getGradientColor(index + 1)})`,
+                        borderRadius: 18,
+                        padding: 14,
+                        position: 'relative',
+                        minHeight: 220,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        boxShadow: '0 8px 26px rgba(0,0,0,0.18), 0 3px 16px rgba(0,0,0,0.12)',
+                        transition: 'all 0.3s ease',
+                        transform: 'translateY(0)',
+                        cursor: 'pointer'
+                      }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)'
+                          e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.25), 0 6px 20px rgba(0,0,0,0.15)'
+                          e.currentTarget.style.border = '1px solid rgba(255,255,255,0.32)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)'
+                          e.currentTarget.style.boxShadow = '0 8px 26px rgba(0,0,0,0.18), 0 3px 16px rgba(0,0,0,0.12)'
+                          e.currentTarget.style.border = '1px solid rgba(255,255,255,0.2)'
                         }}>
-                          {p.duplicateIndex > 1 && (
+
+                        {p.locked && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 10,
+                            right: 10,
+                            background: '#fbbf24',
+                            color: '#000',
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 14,
+                            fontWeight: 700,
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.25)'
+                          }}>
+                            🔒
+                          </div>
+                        )}
+
+                        {p.duplicateIndex > 1 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 10,
+                            left: 10,
+                            background: 'rgba(0,0,0,0.7)',
+                            color: 'white',
+                            padding: '3px 7px',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            border: '1px solid rgba(255,255,255,0.3)',
+                            fontWeight: 600
+                          }}>
+                            dup x{p.duplicateIndex}
+                          </div>
+                        )}
+
+                        <div style={{
+                          width: 100,
+                          height: 100,
+                          borderRadius: '50%',
+                          background: 'rgba(255,255,255,0.15)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          margin: '0 auto 14px',
+                          border: '2px solid rgba(255,255,255,0.22)',
+                          boxShadow: '0 10px 24px rgba(0,0,0,0.28)',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}>
+                          <img
+                            src={tok.logo}
+                            alt={tok.symbol}
+                            style={{
+                              width: 92,
+                              height: 92,
+                              borderRadius: '50%',
+                              objectFit: 'cover',
+                              position: 'relative',
+                              zIndex: 2,
+                              border: '2px solid rgba(255,255,255,0.2)'
+                            }}
+                            onError={handleImageFallback}
+                          />
+                        </div>
+
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{
+                            fontSize: 13,
+                            fontWeight: 900,
+                            color: 'white',
+                            textShadow: '0 2px 4px rgba(0,0,0,0.35)',
+                            marginBottom: 4,
+                            letterSpacing: 0.4
+                          }}>
+                            {tok.symbol}
+                          </div>
+                          <div style={{
+                            fontSize: 13,
+                            color: 'rgba(255,255,255,0.82)',
+                            marginBottom: 6,
+                            fontWeight: 600,
+                            letterSpacing: 0.6,
+                            textTransform: 'uppercase'
+                          }}>
+                            {tok.about}
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 6, marginBottom: 8, justifyContent: 'center' }}>
+                            <button className={`btn ${p.dir === 'UP' ? 'btn-up active' : ''}`} style={{ fontSize: 13, padding: '6px 10px', fontWeight: 600 }}>
+                              ▲ UP
+                            </button>
+                            <button className={`btn ${p.dir === 'DOWN' ? 'btn-down active' : ''}`} style={{ fontSize: 13, padding: '6px 10px', fontWeight: 600 }}>
+                              ▼ DOWN
+                            </button>
+                          </div>
+
+                          {!p.locked ? (
+                            <button
+                              className="btn"
+                              style={{ fontSize: 13, padding: '6px 10px', marginBottom: 8, fontWeight: 600 }}
+                              onClick={() => toggleLock(index)}
+                            >
+                              Lock
+                            </button>
+                          ) : (
                             <div style={{
-                              position: 'absolute',
-                              top: 12,
-                              left: 12,
-                              background: 'rgba(0,0,0,0.7)',
-                              color: 'white',
-                              padding: '4px 8px',
-                              borderRadius: 6,
                               fontSize: 12,
-                              border: '1px solid rgba(255,255,255,0.3)',
-                              fontWeight: 600
+                              padding: '5px 9px',
+                              marginBottom: 8,
+                              fontWeight: 600,
+                              color: '#fbbf24',
+                              textAlign: 'center'
                             }}>
-                              dup x{p.duplicateIndex}
+                              🔒 Locked
                             </div>
                           )}
 
                           <div style={{
-                            width: 100,
-                            height: 100,
-                            borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.15)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 14px',
-                            border: '2px solid rgba(255,255,255,0.22)',
-                            boxShadow: '0 10px 24px rgba(0,0,0,0.28)',
-                            position: 'relative',
-                            overflow: 'hidden'
+                            background: 'rgba(0,0,0,0.25)',
+                            color: 'white',
+                            padding: '6px 10px',
+                            borderRadius: 8,
+                            fontSize: 13,
+                            fontWeight: 600,
+                            marginBottom: 4
                           }}>
-                            <img
-                              src={tok.logo}
-                              alt={tok.symbol}
-                              style={{
-                                width: 92,
-                                height: 92,
-                                borderRadius: '50%',
-                                objectFit: 'cover',
-                                position: 'relative',
-                                zIndex: 2,
-                                border: '2px solid rgba(255,255,255,0.2)'
-                              }}
-                              onError={handleImageFallback}
-                            />
+                            {p.locked ? '🔒 Locked Points: ' : 'Live Points: '}
+                            {(() => {
+                              try {
+                                return points > 0 ? `+${points}` : points
+                              } catch {
+                                return 0
+                              }
+                            })()}
                           </div>
 
-                          <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                            <div>
-                              <div style={{ fontSize: 16, fontWeight: 900, color: 'white', marginBottom: 4, textShadow: '0 2px 4px rgba(0,0,0,0.5)', letterSpacing: 0.5 }}>
-                                {tok.symbol}
-                              </div>
-                              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.82)', marginBottom: 8, lineHeight: 1.4, fontWeight: 600, letterSpacing: 0.4 }}>
-                                {tok.about}
-                              </div>
+                          {p.duplicateIndex > 1 && (
+                            <div style={{
+                              background: 'rgba(0,0,0,0.2)',
+                              color: 'white',
+                              padding: '4px 8px',
+                              borderRadius: 6,
+                              fontSize: 12,
+                              fontWeight: 600
+                            }}>
+                              Applied: Boost x{boostActive && boost.level ? (boost.level === 100 ? 2 : 1.5) : 1}
                             </div>
-
-                            <div style={{ marginBottom: 12 }}>
-                              <div style={{ display: 'flex', gap: 8, marginBottom: 10, justifyContent: 'center' }}>
-                                <button
-                                  className={`btn ${p.dir === 'UP' ? 'btn-up active' : ''}`}
-                                  style={{ fontSize: 13, padding: '8px 14px', fontWeight: 600 }}
-                                  onClick={() => {
-                                    const newNextRound = [...nextRound]
-                                    if (newNextRound[index]) {
-                                      newNextRound[index] = { ...newNextRound[index]!, dir: 'UP' }
-                                      setNextRound(newNextRound)
-                                      setNextRoundLoaded(true)
-                                      setNextRoundSaved(false)
-                                    }
-                                  }}
-                                >
-                                  ▲ UP
-                                </button>
-                                <button
-                                  className={`btn ${p.dir === 'DOWN' ? 'btn-down active' : ''}`}
-                                  style={{ fontSize: 13, padding: '8px 14px', fontWeight: 600 }}
-                                  onClick={() => {
-                                    const newNextRound = [...nextRound]
-                                    if (newNextRound[index]) {
-                                      newNextRound[index] = { ...newNextRound[index]!, dir: 'DOWN' }
-                                      setNextRound(newNextRound)
-                                      setNextRoundLoaded(true)
-                                      setNextRoundSaved(false)
-                                    }
-                                  }}
-                                >
-                                  ▼ DOWN
-                                </button>
-                              </div>
-
-                              <button
-                                className="btn"
-                                style={{ fontSize: 10, padding: '6px 12px', fontWeight: 600 }}
-                                onClick={() => removeFromNextRound(index)}
-                                disabled={nextRoundSaved}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
+                          )}
                         </div>
-                      )
-                    } else {
-                      // Empty slot
-                      return (
-                        <div key={index}
-                          onClick={() => !nextRoundSaved && setModalOpen({ open: true, type: 'select' })}
-                          style={{
-                            border: '2px dashed rgba(255,255,255,0.3)',
-                            background: 'rgba(255,255,255,0.05)',
-                            borderRadius: 20,
-                            padding: 24,
-                            cursor: nextRoundSaved ? 'not-allowed' : 'pointer',
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            {/* --- YENİ KOD BİTİŞİ --- */}
+            {/* Next Round */}
+            {/* Next Round Panel */}
+            <div className="panel">
+              <div className="row" style={{ alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
+                <h2 style={{
+                  fontWeight: 900,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                  color: theme === 'light' ? '#0a2c21' : '#f8fafc',
+                  textShadow: theme === 'light' ? 'none' : '0 3px 10px rgba(0,0,0,0.35)',
+                  fontSize: 20,
+                  margin: 0,
+                  lineHeight: 1
+                }}>Next Round</h2>
+                <span className="badge" style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  alignSelf: 'center'
+                }}>
+                  #{nextRoundDisplay}
+                </span>
+              </div>
+              <div className="sep"></div>
+
+              {/* --- FİNALIZING KONTROLÜ BAŞLANGICI (NEXT ROUND) --- */}
+              {isFinalizingWindow ? (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '300px',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: 16,
+                  border: '2px dashed rgba(255,255,255,0.1)',
+                  textAlign: 'center',
+                  padding: 20,
+                  opacity: 0.8
+                }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '1rem', filter: 'grayscale(1)' }}>🔒</div>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fbbf24', marginBottom: '0.5rem' }}>
+                    Selections Locked
+                  </h3>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', maxWidth: '400px', lineHeight: 1.5 }}>
+                    Next round preparation in progress.<br />
+                    Selections will reopen shortly.
+                  </p>
+                </div>
+              ) : (
+                /* --- NORMAL NEXT ROUND İÇERİĞİ --- */
+                <>
+                  <div className="picks" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(160px, 1fr))', gap: 14 }}>
+                    {Array.from({ length: 5 }, (_, index) => {
+                      const p = nextRound[index]
+
+                      if (p) {
+                        const tok = getTokenById(p.tokenId) || TOKENS[0]
+                        if (!tok) return null
+
+                        return (
+                          <div key={index} style={{
+                            background: `linear-gradient(135deg, ${getGradientColor(index)}, ${getGradientColor(index + 1)})`,
+                            borderRadius: 18,
+                            padding: 14,
+                            position: 'relative',
+                            minHeight: 220,
                             display: 'flex',
                             flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 12,
-                            minHeight: 240,
-                            transition: 'all 0.3s ease',
-                            opacity: nextRoundSaved ? 0.5 : 1
-                          }}
-                          onMouseEnter={(e) => {
-                            if (nextRoundSaved) return;
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                            e.currentTarget.style.border = '2px dashed rgba(255,255,255,0.5)';
-                          }}
-                          onMouseLeave={(e) => {
-                            if (nextRoundSaved) return;
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                            e.currentTarget.style.border = '2px dashed rgba(255,255,255,0.3)';
+                            justifyContent: 'space-between',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            boxShadow: '0 8px 26px rgba(0,0,0,0.18), 0 3px 16px rgba(0,0,0,0.12)',
+                            cursor: 'pointer'
+                          }}>
+                            {p.duplicateIndex > 1 && (
+                              <div style={{
+                                position: 'absolute',
+                                top: 12,
+                                left: 12,
+                                background: 'rgba(0,0,0,0.7)',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                fontSize: 12,
+                                border: '1px solid rgba(255,255,255,0.3)',
+                                fontWeight: 600
+                              }}>
+                                dup x{p.duplicateIndex}
+                              </div>
+                            )}
+
+                            <div style={{
+                              width: 100,
+                              height: 100,
+                              borderRadius: '50%',
+                              background: 'rgba(255,255,255,0.15)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              margin: '0 auto 14px',
+                              border: '2px solid rgba(255,255,255,0.22)',
+                              boxShadow: '0 10px 24px rgba(0,0,0,0.28)',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}>
+                              <img
+                                src={tok.logo}
+                                alt={tok.symbol}
+                                style={{
+                                  width: 92,
+                                  height: 92,
+                                  borderRadius: '50%',
+                                  objectFit: 'cover',
+                                  position: 'relative',
+                                  zIndex: 2,
+                                  border: '2px solid rgba(255,255,255,0.2)'
+                                }}
+                                onError={handleImageFallback}
+                              />
+                            </div>
+
+                            <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                              <div>
+                                <div style={{ fontSize: 16, fontWeight: 900, color: 'white', marginBottom: 4, textShadow: '0 2px 4px rgba(0,0,0,0.5)', letterSpacing: 0.5 }}>
+                                  {tok.symbol}
+                                </div>
+                                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.82)', marginBottom: 8, lineHeight: 1.4, fontWeight: 600, letterSpacing: 0.4 }}>
+                                  {tok.about}
+                                </div>
+                              </div>
+
+                              <div style={{ marginBottom: 12 }}>
+                                <div style={{ display: 'flex', gap: 8, marginBottom: 10, justifyContent: 'center' }}>
+                                  <button
+                                    className={`btn ${p.dir === 'UP' ? 'btn-up active' : ''}`}
+                                    style={{ fontSize: 13, padding: '8px 14px', fontWeight: 600 }}
+                                    onClick={() => {
+                                      const newNextRound = [...nextRound]
+                                      if (newNextRound[index]) {
+                                        newNextRound[index] = { ...newNextRound[index]!, dir: 'UP' }
+                                        setNextRound(newNextRound)
+                                        setNextRoundLoaded(true)
+                                        setNextRoundSaved(false)
+                                      }
+                                    }}
+                                  >
+                                    ▲ UP
+                                  </button>
+                                  <button
+                                    className={`btn ${p.dir === 'DOWN' ? 'btn-down active' : ''}`}
+                                    style={{ fontSize: 13, padding: '8px 14px', fontWeight: 600 }}
+                                    onClick={() => {
+                                      const newNextRound = [...nextRound]
+                                      if (newNextRound[index]) {
+                                        newNextRound[index] = { ...newNextRound[index]!, dir: 'DOWN' }
+                                        setNextRound(newNextRound)
+                                        setNextRoundLoaded(true)
+                                        setNextRoundSaved(false)
+                                      }
+                                    }}
+                                  >
+                                    ▼ DOWN
+                                  </button>
+                                </div>
+
+                                <button
+                                  className="btn"
+                                  style={{ fontSize: 10, padding: '6px 12px', fontWeight: 600 }}
+                                  onClick={() => removeFromNextRound(index)}
+                                  disabled={nextRoundSaved}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      } else {
+                        // Empty slot
+                        return (
+                          <div key={index}
+                            onClick={() => !nextRoundSaved && setModalOpen({ open: true, type: 'select' })}
+                            style={{
+                              border: '2px dashed rgba(255,255,255,0.3)',
+                              background: 'rgba(255,255,255,0.05)',
+                              borderRadius: 20,
+                              padding: 24,
+                              cursor: nextRoundSaved ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 12,
+                              minHeight: 240,
+                              transition: 'all 0.3s ease',
+                              opacity: nextRoundSaved ? 0.5 : 1
+                            }}
+                            onMouseEnter={(e) => {
+                              if (nextRoundSaved) return;
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                              e.currentTarget.style.border = '2px dashed rgba(255,255,255,0.5)';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (nextRoundSaved) return;
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                              e.currentTarget.style.border = '2px dashed rgba(255,255,255,0.3)';
+                            }}
+                          >
+                            <div style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: '50%',
+                              background: 'rgba(255,255,255,0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 22,
+                              color: 'white',
+                              border: '2px solid rgba(255,255,255,0.2)'
+                            }}>
+                              +
+                            </div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'white', textAlign: 'center' }}>
+                              Add Card
+                            </div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>
+                              Select from inventory
+                            </div>
+                          </div>
+                        )
+                      }
+                    })}
+                  </div>
+
+                  {/* Save Picks / Change Button */}
+                  <div style={{
+                    marginTop: 24,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 12,
+                    flexDirection: 'column'
+                  }}>
+                    {nextRoundSaved ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          border: '2px solid rgba(16, 185, 129, 0.5)',
+                          borderRadius: 12, padding: '12px 24px',
+                          color: '#86efac', fontSize: 16, fontWeight: 700
+                        }}>
+                          <span>✅</span><span>Picks Saved</span>
+                        </div>
+                        <button onClick={enableEditing} className="btn" style={{
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          border: '2px solid rgba(245, 158, 11, 0.5)',
+                          color: 'white', fontSize: 16, fontWeight: 700,
+                          padding: '14px 32px', borderRadius: 12, cursor: 'pointer',
+                          boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)',
+                          transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: 1.2,
+                          display: 'flex', alignItems: 'center', gap: 8
+                        }}>
+                          <span>✏️</span><span>Change</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => saveNextRoundPicks(e)}
+                          className="btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            border: '2px solid rgba(16, 185, 129, 0.5)',
+                            color: 'white', fontSize: 16, fontWeight: 700,
+                            padding: '14px 32px', borderRadius: 12, cursor: 'pointer',
+                            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)',
+                            transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: 1.2,
+                            display: 'flex', alignItems: 'center', gap: 8
                           }}
                         >
+                          <span>💾</span><span>Save Picks</span>
+                        </button>
+                        <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.7)', fontStyle: 'italic' }}>
+                          Click to save your selections
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+              {/* --- FİNALIZING KONTROLÜ BİTİŞİ (NEXT ROUND) --- */}
+            </div>
+
+            {/* Previous Rounds */}
+            <div className="panel">
+              <h2>Previous Rounds</h2>
+              <div className="sep"></div>
+
+              {recentRounds.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: 'rgba(255,255,255,0.6)',
+                  fontSize: 14
+                }}>
+                  Complete a round to see your recent performance.
+                </div>
+              ) : (
+                recentRounds.map((round, idx) => {
+                  const roundTotal = round.total || round.totalPoints || 0
+                  const items = round.items || []
+                  return (
+                    <div key={idx} style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      borderRadius: 16,
+                      padding: 20,
+                      marginBottom: 16,
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 12
+                      }}>
+                        <div style={{
+                          fontSize: 18,
+                          fontWeight: 700,
+                          color: 'white'
+                        }}>
+                          Beta round {round.roundNumber}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                           <div style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 22,
-                            color: 'white',
-                            border: '2px solid rgba(255,255,255,0.2)'
+                            fontSize: 14,
+                            color: 'rgba(255,255,255,0.7)'
                           }}>
-                            +
+                            {round.dayKey}
                           </div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: 'white', textAlign: 'center' }}>
-                            Add Card
-                          </div>
-                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>
-                            Select from inventory
+                          <div style={{
+                            fontSize: 16,
+                            fontWeight: 700,
+                            color: roundTotal >= 0 ? '#10b981' : '#ef4444'
+                          }}>
+                            {roundTotal >= 0 ? '+' : ''}{roundTotal.toLocaleString()} pts
                           </div>
                         </div>
-                      )
-                    }
+                      </div>
+                      {items.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {items.map((item: any, i: number) => {
+                            const token = getTokenById(item.tokenId)
+                            const itemPoints = item.points || 0
+                            return (
+                              <div key={i} style={{
+                                background: 'rgba(0,0,0,0.2)',
+                                padding: '6px 12px',
+                                borderRadius: 8,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                fontSize: 13
+                              }}>
+                                <span style={{ color: item.dir === 'UP' ? '#10b981' : '#ef4444' }}>
+                                  {item.dir === 'UP' ? '▲' : '▼'}
+                                </span>
+                                <span style={{ fontWeight: 600, color: 'white' }}>
+                                  ${token?.symbol || item.symbol || item.tokenId}
+                                </span>
+                                {item.duplicateIndex > 1 && (
+                                  <span style={{ fontSize: 10, background: '#f59e0b', color: 'black', padding: '1px 4px', borderRadius: 4 }}>
+                                    x{item.duplicateIndex}
+                                  </span>
+                                )}
+                                <span style={{ color: itemPoints >= 0 ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                                  {itemPoints >= 0 ? '+' : ''}{itemPoints}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Right Sidebar: Packs (Swapped & Resized) */}
+          <div className="panel" style={{ padding: 6, position: 'sticky', top: 16, alignSelf: 'start', background: 'linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.28))', display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            {/* COMMON PACK */}
+            <div style={{
+              padding: 6,
+              borderRadius: 12,
+              background: 'linear-gradient(180deg,#0f172a,#0b1324)',
+              boxShadow: '0 4px 12px rgba(0,0,0,.32), inset 0 0 0 1px rgba(255,255,255,.05)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6
+            }}>
+              <div className="text-force-light-gray" style={{ fontWeight: 900, letterSpacing: 0.5, fontSize: 13, textAlign: 'center', color: '#94a3b8' }}>COMMON PACK</div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                {/* Image (Resized to 110px) */}
+                <div style={{
+                  flex: '0 0 110px',
+                  height: 175,
+                  borderRadius: 10,
+                  background: 'linear-gradient(180deg,#1e293b,#0f172a)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}>
+                  <img src="/common-pack.jpg" alt="Common Pack" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+
+                {/* Controls & Buttons */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+
+                  {/* Top: Qty & Info */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '2px 4px' }}>
+                      <button onClick={() => setBuyQty(q => Math.max(1, q - 1))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, color: 'white', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>-</button>
+                      <div className="text-force-white" style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{buyQty}</div>
+                      <button onClick={() => setBuyQty(q => Math.min(10, q + 1))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, color: 'white', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>+</button>
+                    </div>
+                    <div className="text-force-light-gray" style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center', lineHeight: 1.2 }}>
+                      Standard rates
+                    </div>
+                  </div>
+
+                  {/* Bottom: Buttons (Stacked) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+
+                    <BuyButton
+                      userId={user?.id}
+                      onSuccess={() => {
+                        loadUserData(); // Puanı güncelle
+                        setPurchasedPack({ type: 'common', count: buyQty }); // ✨ MODALI AÇ
+                      }}
+                      price={10 * buyQty} // Fiyatı adetle çarpıyoruz
+                      packType="common"
+                      compact={true}
+                      referrerAddress={user?.referredBy}
+                      xHandle={xHandle}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* RARE PACK */}
+            <div style={{
+              padding: 6,
+              borderRadius: 12,
+              background: 'linear-gradient(180deg,#1e1b4b,#172554)',
+              boxShadow: '0 4px 12px rgba(0,0,0,.32), inset 0 0 0 1px rgba(251,191,36,0.15)',
+              border: '1px solid rgba(251,191,36,0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6
+            }}>
+              <div className="text-force-gold" style={{ fontWeight: 900, letterSpacing: 0.5, fontSize: 13, textAlign: 'center', color: '#fbbf24' }}>RARE PACK</div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                {/* Image (Resized to 110px) */}
+                <div style={{
+                  flex: '0 0 110px',
+                  height: 175,
+                  borderRadius: 10,
+                  background: 'linear-gradient(180deg,#312e81,#1e1b4b)',
+                  border: '1px solid rgba(251,191,36,0.2)',
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}>
+                  <img src="/rare-pack.jpg" alt="Rare Pack" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+
+                {/* Controls & Buttons */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+
+                  {/* Top: Qty & Info */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(251,191,36,0.1)', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(251,191,36,0.2)' }}>
+                      <button onClick={() => setRareBuyQty(q => Math.max(1, q - 1))} style={{ background: 'rgba(251,191,36,0.2)', border: 'none', borderRadius: 4, color: '#fbbf24', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>-</button>
+                      <div className="text-force-gold" style={{ fontWeight: 700, fontSize: 13, color: '#fbbf24' }}>{rareBuyQty}</div>
+                      <button onClick={() => setRareBuyQty(q => Math.min(10, q + 1))} style={{ background: 'rgba(251,191,36,0.2)', border: 'none', borderRadius: 4, color: '#fbbf24', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>+</button>
+                    </div>
+                    <div className="text-force-gold" style={{ fontSize: 10, color: '#fbbf24', lineHeight: 1.2, textAlign: 'center', opacity: 0.9 }}>
+                      Higher chance!
+                    </div>
+                  </div>
+
+                  {/* Bottom: Buttons (Stacked) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+
+                    <BuyButton
+                      userId={user?.id}
+                      onSuccess={() => {
+                        loadUserData();
+                        setPurchasedPack({ type: 'rare', count: rareBuyQty }); // ✨ MODALI AÇ
+                      }}
+                      price={25 * rareBuyQty}
+                      packType="rare"
+                      compact={true}
+                      referrerAddress={user?.referredBy}
+                      xHandle={xHandle}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        {/* Select Card Modal */}
+        {
+          modalOpen.open && modalOpen.type === 'select' && (
+            <div className="modal-backdrop" onClick={closeModal}>
+              <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1100, width: '96%' }}>
+                <div className="modal-header">
+                  <h3 style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>Select a Card</h3>
+                  <button onClick={closeModal} style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer' }}>×</button>
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="Search tokens..."
+                  value={modalSearch}
+                  onChange={(e) => setModalSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    fontSize: 16,
+                    marginBottom: 16
+                  }}
+                />
+
+                <div className="modal-grid" style={{ maxHeight: '520px', overflowY: 'auto' }}>
+                  {filteredTokens.map(({ tok, available }) => {
+                    return (
+                      <div
+                        key={tok.id}
+                        className="modal-card"
+                        style={{
+                          cursor: available > 0 ? 'pointer' : 'not-allowed',
+                          opacity: available > 0 ? 1 : 0.5
+                        }}
+                        onClick={() => available > 0 && addToNextRound(tok.id)}
+                        title={available <= 0 ? 'No copies left today' : ''}
+                      >
+                        <div style={{
+                          width: 104,
+                          height: 104,
+                          borderRadius: '50%',
+                          background: 'rgba(255,255,255,0.1)',
+                          border: '3px solid rgba(255,255,255,0.25)',
+                          boxShadow: '0 6px 18px rgba(0,0,0,0.25)',
+                          marginBottom: 14,
+                          margin: '0 auto 14px auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden'
+                        }}>
+                          <img
+                            src={tok.logo}
+                            alt={tok.symbol}
+                            style={{
+                              width: 96,
+                              height: 96,
+                              borderRadius: '50%',
+                              objectFit: 'cover',
+                              display: 'block',
+                              flexShrink: 0
+                            }}
+                            onError={handleImageFallback}
+                          />
+                        </div>
+
+                        <div style={{ fontSize: 16, fontWeight: 800, color: 'white', marginBottom: 6 }}>
+                          {tok.symbol}
+                        </div>
+
+                        <div style={{
+                          fontSize: 12,
+                          color: available > 0 ? '#86efac' : '#fca5a5',
+                          fontWeight: 700
+                        }}>
+                          Left for next: {available}
+                        </div>
+
+                        <button
+                          className="btn"
+                          style={{ fontSize: 15, padding: '10px 18px', marginTop: 10 }}
+                          disabled={available <= 0}
+                        >
+                          Use
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        {/* Mystery Pack Results Modal */}
+        {
+          showMysteryResults.open && (
+            <div className="modal-backdrop" onClick={() => setShowMysteryResults({ open: false, cards: [] })}>
+              <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 900, width: '96%' }}>
+                <div className="modal-header">
+                  <h3 style={{
+                    color: 'white',
+                    fontSize: 26,
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1.2,
+                    textShadow: '0 4px 12px rgba(0,0,0,0.45)'
+                  }}>Mystery Pack Results</h3>
+                  <button onClick={() => setShowMysteryResults({ open: false, cards: [] })} style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer' }}>×</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 16 }}>
+                  {showMysteryResults.cards.map((id, idx) => {
+                    const tok = getTokenById(id) || TOKENS[0]
+                    return (
+                      <div key={idx} style={{
+                        background: `linear-gradient(135deg, ${getGradientColor(idx)}, ${getGradientColor(idx + 1)})`,
+                        borderRadius: 16,
+                        padding: 20,
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                        border: '1px solid rgba(255,255,255,.22)',
+                        boxShadow: '0 14px 32px rgba(0,0,0,0.28)'
+                      }}>
+                        <div style={{ width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', border: '3px solid rgba(255,255,255,.3)', display: 'grid', placeItems: 'center', boxShadow: '0 6px 18px rgba(0,0,0,0.35)' }}>
+                          <img
+                            src={tok.logo}
+                            alt={tok.symbol}
+                            style={{ width: 94, height: 94, borderRadius: '50%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.style.display = 'none'
+                              const parent = target.parentElement
+                              if (parent) {
+                                parent.innerHTML = `<div style="font-size: 36px; font-weight: 900; color: white; text-shadow: 0 3px 8px rgba(0,0,0,0.45);">${tok.symbol.charAt(0)}</div>`
+                              }
+                            }}
+                          />
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{
+                            fontWeight: 900,
+                            color: '#fff',
+                            fontSize: 18,
+                            letterSpacing: 1,
+                            textTransform: 'uppercase',
+                            textShadow: '0 3px 8px rgba(0,0,0,0.4)'
+                          }}>{tok.symbol}</div>
+                          <div style={{
+                            color: 'rgba(255,255,255,0.9)',
+                            fontSize: 13,
+                            fontWeight: 600,
+                            marginTop: 4
+                          }}>{tok.name}</div>
+                          {tok.about && (
+                            <div style={{
+                              color: 'rgba(255,255,255,0.75)',
+                              fontSize: 11,
+                              letterSpacing: 1.5,
+                              marginTop: 2,
+                              textTransform: 'uppercase'
+                            }}>{tok.about}</div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <button className="btn primary" onClick={addMysteryToInventory} style={{ marginRight: 8 }}>Add to Inventory</button>
+                  <button className="btn" onClick={() => setShowMysteryResults({ open: false, cards: [] })}>Close</button>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        {/* Round Results Modal */}
+        {
+          showRoundResults.open && (
+            <div className="modal-backdrop" onClick={() => setShowRoundResults({ open: false, results: [] })}>
+              <div className="modal" style={{
+                background: 'linear-gradient(180deg, rgba(5,15,12,0.95), rgba(4,12,10,0.95))',
+                border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: 24,
+                padding: 28,
+                maxWidth: 820,
+                width: '92%',
+                maxHeight: '82vh',
+                overflow: 'auto',
+                position: 'relative',
+                boxShadow: '0 24px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                  <h2 style={{ color: 'white', margin: 0, fontSize: 28, fontWeight: 900, letterSpacing: 0.2 }}>🎯 Round Results</h2>
+                  <button
+                    onClick={() => setShowRoundResults({ open: false, results: [] })}
+                    style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer' }}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div style={{ marginBottom: 24 }}>
+                  {showRoundResults.results.map((result, index) => {
+                    const token = getTokenById(result.tokenId) || TOKENS[0]
+                    return (
+                      <div key={index} style={{
+                        background: `linear-gradient(135deg, ${getGradientColor(index)}, ${getGradientColor(index + 1)})`,
+                        borderRadius: 18,
+                        padding: 16,
+                        marginBottom: 14,
+                        border: '1px solid rgba(255,255,255,0.22)',
+                        display: 'grid',
+                        gridTemplateColumns: '64px 1fr 120px',
+                        alignItems: 'center',
+                        gap: 18,
+                        boxShadow: '0 10px 28px rgba(0,0,0,0.25)'
+                      }}>
+                        {/* Token logo */}
+                        <div style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: '50%',
+                          background: 'rgba(255,255,255,0.15)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '2px solid rgba(255,255,255,0.25)'
+                        }}>
+                          <img
+                            src={token.logo}
+                            alt={token.symbol}
+                            style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: '50%',
+                              objectFit: 'cover'
+                            }}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                parent.innerHTML = `<div style="font-size: 20px; font-weight: 900; color: white;">${token.symbol.charAt(0)}</div>`;
+                              }
+                            }}
+                          />
+                        </div>
+
+                        {/* Token info */}
+                        <div style={{ flex: 1 }}>
+                          <div style={{
+                            fontSize: 18,
+                            fontWeight: 800,
+                            color: 'white',
+                            marginBottom: 4,
+                            letterSpacing: 0.2
+                          }}>
+                            {token.symbol}
+                          </div>
+                          <div style={{
+                            fontSize: 12,
+                            color: 'rgba(255,255,255,0.8)',
+                            marginBottom: 4
+                          }}>
+                            {result.dir === 'UP' ? '▲ UP' : '▼ DOWN'} • {result.percentage > 0 ? '+' : ''}{result.percentage.toFixed(2)}%
+                          </div>
+                        </div>
+
+                        {/* Points */}
+                        <div style={{
+                          fontSize: 20,
+                          fontWeight: 900,
+                          color: result.points >= 0 ? '#00cfa3' : '#ef4444',
+                          textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                          textAlign: 'right'
+                        }}>
+                          {result.points > 0 ? '+' : ''}{result.points}
+                        </div>
+                      </div>
+                    )
                   })}
                 </div>
 
-                {/* Save Picks / Change Button */}
+                {/* Total Points */}
                 <div style={{
-                  marginTop: 24,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: 12,
-                  flexDirection: 'column'
-                }}>
-                  {nextRoundSaved ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        border: '2px solid rgba(16, 185, 129, 0.5)',
-                        borderRadius: 12, padding: '12px 24px',
-                        color: '#86efac', fontSize: 16, fontWeight: 700
-                      }}>
-                        <span>✅</span><span>Picks Saved</span>
-                      </div>
-                      <button onClick={enableEditing} className="btn" style={{
-                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                        border: '2px solid rgba(245, 158, 11, 0.5)',
-                        color: 'white', fontSize: 16, fontWeight: 700,
-                        padding: '14px 32px', borderRadius: 12, cursor: 'pointer',
-                        boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)',
-                        transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: 1.2,
-                        display: 'flex', alignItems: 'center', gap: 8
-                      }}>
-                        <span>✏️</span><span>Change</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={(e) => saveNextRoundPicks(e)}
-                        className="btn"
-                        style={{
-                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                          border: '2px solid rgba(16, 185, 129, 0.5)',
-                          color: 'white', fontSize: 16, fontWeight: 700,
-                          padding: '14px 32px', borderRadius: 12, cursor: 'pointer',
-                          boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)',
-                          transition: 'all 0.3s ease', textTransform: 'uppercase', letterSpacing: 1.2,
-                          display: 'flex', alignItems: 'center', gap: 8
-                        }}
-                      >
-                        <span>💾</span><span>Save Picks</span>
-                      </button>
-                      <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.7)', fontStyle: 'italic' }}>
-                        Click to save your selections
-                      </div>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-            {/* --- FİNALIZING KONTROLÜ BİTİŞİ (NEXT ROUND) --- */}
-          </div>
-
-          {/* Previous Rounds */}
-          <div className="panel">
-            <h2>Previous Rounds</h2>
-            <div className="sep"></div>
-
-            {recentRounds.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                padding: '40px 20px',
-                color: 'rgba(255,255,255,0.6)',
-                fontSize: 14
-              }}>
-                Complete a round to see your recent performance.
-              </div>
-            ) : (
-              recentRounds.map((round, idx) => (
-                <div key={idx} style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  borderRadius: 16,
-                  padding: 20,
-                  marginBottom: 16,
-                  border: '1px solid rgba(255,255,255,0.1)'
+                  background: 'rgba(255,255,255,0.1)',
+                  borderRadius: 18,
+                  padding: 22,
+                  textAlign: 'center',
+                  marginBottom: 24,
+                  border: '1px solid rgba(255,255,255,0.2)'
                 }}>
                   <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 16
+                    fontSize: 15,
+                    color: 'rgba(255,255,255,0.8)',
+                    marginBottom: 8
                   }}>
-                    <div style={{
-                      fontSize: 18,
-                      fontWeight: 700,
-                      color: 'white'
-                    }}>
-                      Beta round {round.roundNumber}
-                    </div>
-                    <div style={{
-                      fontSize: 14,
-                      color: 'rgba(255,255,255,0.7)'
-                    }}>
-                      {round.dayKey}
-                    </div>
+                    Total Points
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Right Sidebar: Packs (Swapped & Resized) */}
-        <div className="panel" style={{ padding: 6, position: 'sticky', top: 16, alignSelf: 'start', background: 'linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.28))', display: 'flex', flexDirection: 'column', gap: 6 }}>
-
-          {/* COMMON PACK */}
-          <div style={{
-            padding: 6,
-            borderRadius: 12,
-            background: 'linear-gradient(180deg,#0f172a,#0b1324)',
-            boxShadow: '0 4px 12px rgba(0,0,0,.32), inset 0 0 0 1px rgba(255,255,255,.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6
-          }}>
-            <div className="text-force-light-gray" style={{ fontWeight: 900, letterSpacing: 0.5, fontSize: 13, textAlign: 'center', color: '#94a3b8' }}>COMMON PACK</div>
-
-            <div style={{ display: 'flex', gap: 8 }}>
-              {/* Image (Resized to 110px) */}
-              <div style={{
-                flex: '0 0 110px',
-                height: 175,
-                borderRadius: 10,
-                background: 'linear-gradient(180deg,#1e293b,#0f172a)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                overflow: 'hidden',
-                position: 'relative'
-              }}>
-                <img src="/common-pack.jpg" alt="Common Pack" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
-
-              {/* Controls & Buttons */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-
-                {/* Top: Qty & Info */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '2px 4px' }}>
-                    <button onClick={() => setBuyQty(q => Math.max(1, q - 1))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, color: 'white', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>-</button>
-                    <div className="text-force-white" style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{buyQty}</div>
-                    <button onClick={() => setBuyQty(q => Math.min(10, q + 1))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, color: 'white', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>+</button>
-                  </div>
-                  <div className="text-force-light-gray" style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center', lineHeight: 1.2 }}>
-                    Standard rates
+                  <div style={{
+                    fontSize: 38,
+                    fontWeight: 900,
+                    color: (() => {
+                      const total = showRoundResults.results.reduce((sum, result) => sum + result.points, 0)
+                      return total >= 0 ? '#00cfa3' : '#ef4444'
+                    })(),
+                    textShadow: '0 2px 8px rgba(0,0,0,0.4)'
+                  }}>
+                    {(() => {
+                      const total = showRoundResults.results.reduce((sum, result) => sum + result.points, 0)
+                      return total > 0 ? `+${total}` : total
+                    })()}
                   </div>
                 </div>
 
-                {/* Bottom: Buttons (Stacked) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-
-
-                  <BuyButton
-                    userId={user?.id}
-                    onSuccess={() => {
-                      loadUserData(); // Puanı güncelle
-                      setPurchasedPack({ type: 'common', count: buyQty }); // ✨ MODALI AÇ
-                    }}
-                    price={10 * buyQty} // Fiyatı adetle çarpıyoruz
-                    packType="common"
-                    compact={true}
-                  />
+                <div style={{ textAlign: 'center' }}>
+                  <button
+                    className="btn primary big"
+                    onClick={() => setShowRoundResults({ open: false, results: [] })}
+                  >
+                    Continue to Next Round
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
+          )
+        }
 
-          {/* RARE PACK */}
-          <div style={{
-            padding: 6,
-            borderRadius: 12,
-            background: 'linear-gradient(180deg,#1e1b4b,#172554)',
-            boxShadow: '0 4px 12px rgba(0,0,0,.32), inset 0 0 0 1px rgba(251,191,36,0.15)',
-            border: '1px solid rgba(251,191,36,0.1)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6
-          }}>
-            <div className="text-force-gold" style={{ fontWeight: 900, letterSpacing: 0.5, fontSize: 13, textAlign: 'center', color: '#fbbf24' }}>RARE PACK</div>
-
-            <div style={{ display: 'flex', gap: 8 }}>
-              {/* Image (Resized to 110px) */}
-              <div style={{
-                flex: '0 0 110px',
-                height: 175,
-                borderRadius: 10,
-                background: 'linear-gradient(180deg,#312e81,#1e1b4b)',
-                border: '1px solid rgba(251,191,36,0.2)',
-                overflow: 'hidden',
-                position: 'relative'
-              }}>
-                <img src="/rare-pack.jpg" alt="Rare Pack" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {/* Registration Modal */}
+        {/* Registration Modal Removed - Use /invite */}
+        {/* Welcome Gift Modal */}
+        {showWelcomeGift && (
+          <div className="modal-backdrop">
+            <div className="modal" style={{ maxWidth: 400, textAlign: 'center', padding: 0, overflow: 'hidden' }}>
+              <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', padding: '30px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                <div style={{ fontSize: 40 }}>🎁</div>
+                <h2 style={{ margin: 0, color: 'white', fontSize: 24, fontWeight: 800 }}>Welcome Gift!</h2>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.9)', fontSize: 15 }}>
+                  Thanks for joining Flip Royale! Here is a free <b>Common Pack</b> to get you started.
+                </p>
               </div>
+              <div style={{ padding: 24, background: '#1e293b' }}>
+                <img src="/common-pack.jpg" alt="Common Pack" style={{ width: 120, borderRadius: 12, marginBottom: 20, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }} />
+                <button
+                  data-test="welcome-open"
+                  className="btn"
+                  onClick={async () => {
+                    setShowWelcomeGift(false);
+                    if (!user?.id) { toast('Please login first', 'error'); return }
+                    try {
+                      const res = await fetch('/api/users/openPack', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id).toLowerCase() },
+                        body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType: 'common' })
+                      })
+                      const data = await res.json().catch(() => ({}))
+                      if (!res.ok) {
+                        toast(data.error || 'Failed to open welcome pack', 'error')
+                        return
+                      }
 
-              {/* Controls & Buttons */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      // Oracle may return newCards, cards or tokens depending on implementation
+                      const cards = data.newCards || data.cards || data.tokens || []
+                      setShowMysteryResults({ open: true, cards })
+                      // Refresh user data to update inventory/points
+                      loadUserData()
+                    } catch (e) {
+                      console.error('Open welcome pack error', e)
+                      toast('Connection error while opening welcome pack', 'error')
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    border: 'none',
+                    padding: '14px',
+                    borderRadius: 12,
+                    color: 'white',
+                    fontWeight: 800,
+                    fontSize: 16,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  Open My Gift!
+                </button>
 
-                {/* Top: Qty & Info */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(251,191,36,0.1)', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(251,191,36,0.2)' }}>
-                    <button onClick={() => setRareBuyQty(q => Math.max(1, q - 1))} style={{ background: 'rgba(251,191,36,0.2)', border: 'none', borderRadius: 4, color: '#fbbf24', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>-</button>
-                    <div className="text-force-gold" style={{ fontWeight: 700, fontSize: 13, color: '#fbbf24' }}>{rareBuyQty}</div>
-                    <button onClick={() => setRareBuyQty(q => Math.min(10, q + 1))} style={{ background: 'rgba(251,191,36,0.2)', border: 'none', borderRadius: 4, color: '#fbbf24', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>+</button>
-                  </div>
-                  <div className="text-force-gold" style={{ fontSize: 10, color: '#fbbf24', lineHeight: 1.2, textAlign: 'center', opacity: 0.9 }}>
-                    Higher chance!
-                  </div>
-                </div>
-
-                {/* Bottom: Buttons (Stacked) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-
-
-                  <BuyButton
-                    userId={user?.id}
-                    onSuccess={() => {
-                      loadUserData();
-                      setPurchasedPack({ type: 'rare', count: rareBuyQty }); // ✨ MODALI AÇ
-                    }}
-                    price={25 * rareBuyQty}
-                    packType="rare"
-                    compact={true}
-                  />
-                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
+        {/* 📦 PAKET SATIN ALINDI MODALI */}
+        {purchasedPack && (
+          <div className="modal-backdrop" style={{ zIndex: 9999 }}>
+            <div className="modal" style={{
+              textAlign: 'center',
+              maxWidth: 400,
+              background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
+
+              <h3 style={{ color: 'white', fontSize: 24, fontWeight: 800, margin: '0 0 8px 0' }}>
+                Pack Purchased!
+              </h3>
+
+              <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 12px 0' }}>
+                You have successfully added <b>{purchasedPack.count} {purchasedPack.type.toUpperCase()}</b> Pack(s) to your inventory.
+              </p>
+
+              <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 24px 0', fontStyle: 'italic' }}>
+                Your packs are safe in your inventory.
+              </p>
+
+              <div style={{
+                width: 140,
+                height: 200,
+                margin: '0 auto 24px',
+                borderRadius: 12,
+                overflow: 'hidden',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255,255,255,0.1)'
+              }}>
+                <img
+                  src={`/${purchasedPack.type === 'rare' ? 'rare-pack.jpg' : 'common-pack.jpg'}`}
+                  alt="Pack"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <button
+                  className="btn"
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    padding: '16px',
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
+                  }}
+                  onClick={() => {
+                    setPurchasedPack(null);
+                    window.location.href = '/my-packs';
+                  }}
+                >
+                  GO TO MY PACKS & OPEN
+                </button>
+
+                <button
+                  className="btn"
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    padding: '12px',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: 'rgba(255,255,255,0.7)',
+                    border: 'none',
+                    borderRadius: 10,
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setPurchasedPack(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-
-      {/* Select Card Modal */}
-      {
-        modalOpen.open && modalOpen.type === 'select' && (
-          <div className="modal-backdrop" onClick={closeModal}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1100, width: '96%' }}>
-              <div className="modal-header">
-                <h3 style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>Select a Card</h3>
-                <button onClick={closeModal} style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer' }}>×</button>
-              </div>
-
-              <input
-                type="text"
-                placeholder="Search tokens..."
-                value={modalSearch}
-                onChange={(e) => setModalSearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: 8,
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  background: 'rgba(255,255,255,0.1)',
-                  color: 'white',
-                  fontSize: 16,
-                  marginBottom: 16
-                }}
-              />
-
-              <div className="modal-grid" style={{ maxHeight: '520px', overflowY: 'auto' }}>
-                {filteredTokens.map(({ tok, available }) => {
-                  return (
-                    <div
-                      key={tok.id}
-                      className="modal-card"
-                      style={{
-                        cursor: available > 0 ? 'pointer' : 'not-allowed',
-                        opacity: available > 0 ? 1 : 0.5
-                      }}
-                      onClick={() => available > 0 && addToNextRound(tok.id)}
-                      title={available <= 0 ? 'No copies left today' : ''}
-                    >
-                      <div style={{
-                        width: 104,
-                        height: 104,
-                        borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '3px solid rgba(255,255,255,0.25)',
-                        boxShadow: '0 6px 18px rgba(0,0,0,0.25)',
-                        marginBottom: 14,
-                        margin: '0 auto 14px auto',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden'
-                      }}>
-                        <img
-                          src={tok.logo}
-                          alt={tok.symbol}
-                          style={{
-                            width: 96,
-                            height: 96,
-                            borderRadius: '50%',
-                            objectFit: 'cover',
-                            display: 'block',
-                            flexShrink: 0
-                          }}
-                          onError={handleImageFallback}
-                        />
-                      </div>
-
-                      <div style={{ fontSize: 16, fontWeight: 800, color: 'white', marginBottom: 6 }}>
-                        {tok.symbol}
-                      </div>
-
-                      <div style={{
-                        fontSize: 12,
-                        color: available > 0 ? '#86efac' : '#fca5a5',
-                        fontWeight: 700
-                      }}>
-                        Left for next: {available}
-                      </div>
-
-                      <button
-                        className="btn"
-                        style={{ fontSize: 15, padding: '10px 18px', marginTop: 10 }}
-                        disabled={available <= 0}
-                      >
-                        Use
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      {/* Mystery Pack Results Modal */}
-      {
-        showMysteryResults.open && (
-          <div className="modal-backdrop" onClick={() => setShowMysteryResults({ open: false, cards: [] })}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 900, width: '96%' }}>
-              <div className="modal-header">
-                <h3 style={{
-                  color: 'white',
-                  fontSize: 26,
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1.2,
-                  textShadow: '0 4px 12px rgba(0,0,0,0.45)'
-                }}>Mystery Pack Results</h3>
-                <button onClick={() => setShowMysteryResults({ open: false, cards: [] })} style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer' }}>×</button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 16 }}>
-                {showMysteryResults.cards.map((id, idx) => {
-                  const tok = getTokenById(id) || TOKENS[0]
-                  return (
-                    <div key={idx} style={{
-                      background: `linear-gradient(135deg, ${getGradientColor(idx)}, ${getGradientColor(idx + 1)})`,
-                      borderRadius: 16,
-                      padding: 20,
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-                      border: '1px solid rgba(255,255,255,.22)',
-                      boxShadow: '0 14px 32px rgba(0,0,0,0.28)'
-                    }}>
-                      <div style={{ width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', border: '3px solid rgba(255,255,255,.3)', display: 'grid', placeItems: 'center', boxShadow: '0 6px 18px rgba(0,0,0,0.35)' }}>
-                        <img
-                          src={tok.logo}
-                          alt={tok.symbol}
-                          style={{ width: 94, height: 94, borderRadius: '50%', objectFit: 'cover' }}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.style.display = 'none'
-                            const parent = target.parentElement
-                            if (parent) {
-                              parent.innerHTML = `<div style="font-size: 36px; font-weight: 900; color: white; text-shadow: 0 3px 8px rgba(0,0,0,0.45);">${tok.symbol.charAt(0)}</div>`
-                            }
-                          }}
-                        />
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{
-                          fontWeight: 900,
-                          color: '#fff',
-                          fontSize: 18,
-                          letterSpacing: 1,
-                          textTransform: 'uppercase',
-                          textShadow: '0 3px 8px rgba(0,0,0,0.4)'
-                        }}>{tok.symbol}</div>
-                        <div style={{
-                          color: 'rgba(255,255,255,0.9)',
-                          fontSize: 13,
-                          fontWeight: 600,
-                          marginTop: 4
-                        }}>{tok.name}</div>
-                        {tok.about && (
-                          <div style={{
-                            color: 'rgba(255,255,255,0.75)',
-                            fontSize: 11,
-                            letterSpacing: 1.5,
-                            marginTop: 2,
-                            textTransform: 'uppercase'
-                          }}>{tok.about}</div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <button className="btn primary" onClick={addMysteryToInventory} style={{ marginRight: 8 }}>Add to Inventory</button>
-                <button className="btn" onClick={() => setShowMysteryResults({ open: false, cards: [] })}>Close</button>
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      {/* Round Results Modal */}
-      {
-        showRoundResults.open && (
-          <div className="modal-backdrop" onClick={() => setShowRoundResults({ open: false, results: [] })}>
-            <div className="modal" style={{
-              background: 'linear-gradient(180deg, rgba(5,15,12,0.95), rgba(4,12,10,0.95))',
-              border: '1px solid rgba(255,255,255,0.18)',
-              borderRadius: 24,
-              padding: 28,
-              maxWidth: 820,
-              width: '92%',
-              maxHeight: '82vh',
-              overflow: 'auto',
-              position: 'relative',
-              boxShadow: '0 24px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <h2 style={{ color: 'white', margin: 0, fontSize: 28, fontWeight: 900, letterSpacing: 0.2 }}>🎯 Round Results</h2>
-                <button
-                  onClick={() => setShowRoundResults({ open: false, results: [] })}
-                  style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer' }}
-                >
-                  ×
-                </button>
-              </div>
-
-              <div style={{ marginBottom: 24 }}>
-                {showRoundResults.results.map((result, index) => {
-                  const token = getTokenById(result.tokenId) || TOKENS[0]
-                  return (
-                    <div key={index} style={{
-                      background: `linear-gradient(135deg, ${getGradientColor(index)}, ${getGradientColor(index + 1)})`,
-                      borderRadius: 18,
-                      padding: 16,
-                      marginBottom: 14,
-                      border: '1px solid rgba(255,255,255,0.22)',
-                      display: 'grid',
-                      gridTemplateColumns: '64px 1fr 120px',
-                      alignItems: 'center',
-                      gap: 18,
-                      boxShadow: '0 10px 28px rgba(0,0,0,0.25)'
-                    }}>
-                      {/* Token logo */}
-                      <div style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.15)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '2px solid rgba(255,255,255,0.25)'
-                      }}>
-                        <img
-                          src={token.logo}
-                          alt={token.symbol}
-                          style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: '50%',
-                            objectFit: 'cover'
-                          }}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            const parent = target.parentElement;
-                            if (parent) {
-                              parent.innerHTML = `<div style="font-size: 20px; font-weight: 900; color: white;">${token.symbol.charAt(0)}</div>`;
-                            }
-                          }}
-                        />
-                      </div>
-
-                      {/* Token info */}
-                      <div style={{ flex: 1 }}>
-                        <div style={{
-                          fontSize: 18,
-                          fontWeight: 800,
-                          color: 'white',
-                          marginBottom: 4,
-                          letterSpacing: 0.2
-                        }}>
-                          {token.symbol}
-                        </div>
-                        <div style={{
-                          fontSize: 12,
-                          color: 'rgba(255,255,255,0.8)',
-                          marginBottom: 4
-                        }}>
-                          {result.dir === 'UP' ? '▲ UP' : '▼ DOWN'} • {result.percentage > 0 ? '+' : ''}{result.percentage.toFixed(2)}%
-                        </div>
-                      </div>
-
-                      {/* Points */}
-                      <div style={{
-                        fontSize: 20,
-                        fontWeight: 900,
-                        color: result.points >= 0 ? '#00cfa3' : '#ef4444',
-                        textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                        textAlign: 'right'
-                      }}>
-                        {result.points > 0 ? '+' : ''}{result.points}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Total Points */}
-              <div style={{
-                background: 'rgba(255,255,255,0.1)',
-                borderRadius: 18,
-                padding: 22,
-                textAlign: 'center',
-                marginBottom: 24,
-                border: '1px solid rgba(255,255,255,0.2)'
-              }}>
-                <div style={{
-                  fontSize: 15,
-                  color: 'rgba(255,255,255,0.8)',
-                  marginBottom: 8
-                }}>
-                  Total Points
-                </div>
-                <div style={{
-                  fontSize: 38,
-                  fontWeight: 900,
-                  color: (() => {
-                    const total = showRoundResults.results.reduce((sum, result) => sum + result.points, 0)
-                    return total >= 0 ? '#00cfa3' : '#ef4444'
-                  })(),
-                  textShadow: '0 2px 8px rgba(0,0,0,0.4)'
-                }}>
-                  {(() => {
-                    const total = showRoundResults.results.reduce((sum, result) => sum + result.points, 0)
-                    return total > 0 ? `+${total}` : total
-                  })()}
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'center' }}>
-                <button
-                  className="btn primary big"
-                  onClick={() => setShowRoundResults({ open: false, results: [] })}
-                >
-                  Continue to Next Round
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      {/* Registration Modal */}
-      {/* Registration Modal Removed - Use /invite */}
-      {/* Welcome Gift Modal */}
-      {showWelcomeGift && (
-        <div className="modal-backdrop">
-          <div className="modal" style={{ maxWidth: 400, textAlign: 'center', padding: 0, overflow: 'hidden' }}>
-            <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', padding: '30px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-              <div style={{ fontSize: 40 }}>🎁</div>
-              <h2 style={{ margin: 0, color: 'white', fontSize: 24, fontWeight: 800 }}>Welcome Gift!</h2>
-              <p style={{ margin: 0, color: 'rgba(255,255,255,0.9)', fontSize: 15 }}>
-                Thanks for joining Flip Royale! Here is a free <b>Common Pack</b> to get you started.
-              </p>
-            </div>
-            <div style={{ padding: 24, background: '#1e293b' }}>
-              <img src="/common-pack.jpg" alt="Common Pack" style={{ width: 120, borderRadius: 12, marginBottom: 20, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }} />
-              <button
-                data-test="welcome-open"
-                className="btn"
-                onClick={async () => {
-                  setShowWelcomeGift(false);
-                  if (!user?.id) { toast('Please login first', 'error'); return }
-                  try {
-                    const res = await fetch('/api/users/openPack', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id).toLowerCase() },
-                      body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType: 'common' })
-                    })
-                    const data = await res.json().catch(() => ({}))
-                    if (!res.ok) {
-                      toast(data.error || 'Failed to open welcome pack', 'error')
-                      return
-                    }
-
-                    // Oracle may return newCards, cards or tokens depending on implementation
-                    const cards = data.newCards || data.cards || data.tokens || []
-                    setShowMysteryResults({ open: true, cards })
-                    // Refresh user data to update inventory/points
-                    loadUserData()
-                  } catch (e) {
-                    console.error('Open welcome pack error', e)
-                    toast('Connection error while opening welcome pack', 'error')
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
-                  border: 'none',
-                  padding: '14px',
-                  borderRadius: 12,
-                  color: 'white',
-                  fontWeight: 800,
-                  fontSize: 16,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                }}
-              >
-                Open My Gift!
-              </button>
-
-            </div>
-          </div>
-        </div>
-      )}
-      {/* 📦 PAKET SATIN ALINDI MODALI */}
-      {purchasedPack && (
-        <div className="modal-backdrop" style={{ zIndex: 9999 }}>
-          <div className="modal" style={{
-            textAlign: 'center',
-            maxWidth: 400,
-            background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
-
-            <h3 style={{ color: 'white', fontSize: 24, fontWeight: 800, margin: '0 0 8px 0' }}>
-              Pack Purchased!
-            </h3>
-
-            <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 24px 0' }}>
-              You have successfully added <b>{purchasedPack.count} {purchasedPack.type.toUpperCase()}</b> Pack(s) to your inventory.
-            </p>
-
-            <div style={{
-              width: 140,
-              height: 200,
-              margin: '0 auto 24px',
-              borderRadius: 12,
-              overflow: 'hidden',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255,255,255,0.1)'
-            }}>
-              <img
-                src={`/${purchasedPack.type === 'rare' ? 'rare-pack.jpg' : 'common-pack.jpg'}`}
-                alt="Pack"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <button
-                className="btn"
-                style={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  padding: '16px',
-                  fontSize: 18,
-                  fontWeight: 800,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 12,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
-                }}
-                onClick={async () => {
-                  setPurchasedPack(null);
-                  if (!user?.id) { toast('Please login first', 'error'); return }
-                  try {
-                    const res = await fetch('/api/users/openPack', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id).toLowerCase() },
-                      body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType: purchasedPack.type })
-                    });
-
-                    const data = await res.json().catch(() => ({}));
-
-                    if (!res.ok) {
-                      toast(data.error || 'Failed to open pack on server', 'error')
-                      return
-                    }
-
-                    const cards = data.newCards || data.cards || data.tokens || []
-                    setShowMysteryResults({ open: true, cards })
-                    loadUserData();
-                  } catch (e) {
-                    console.error('Open pack error:', e)
-                    toast('Connection error while opening pack.', 'error')
-                  }
-                }}
-              >
-                OPEN NOW!
-              </button>
-
-              <button
-                className="btn"
-                style={{
-                  background: 'transparent',
-                  color: '#94a3b8',
-                  padding: '12px',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12,
-                  cursor: 'pointer'
-                }}
-                onClick={() => {
-                  setPurchasedPack(null);
-                  // Redirect to My Packs page so users can manage unopened packs there
-                  window.location.href = '/my-packs';
-                }}
-              >
-                View My Packs
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Redeem Code Modal */}
+      <RedeemCodeModal
+        isOpen={showRedeemModal}
+        onClose={() => setShowRedeemModal(false)}
+        userId={user?.id || ''}
+        onSuccess={() => {
+          loadUserData() // Reload to show new pack
+          toast('🎁 Code Redeemed! Check My Packs for your free pack!')
+        }}
+      />
+    </TokenGate>
   )
 }

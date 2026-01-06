@@ -60,7 +60,10 @@ export default async function handler(
       score: getUserScoreForTimeframe(u)
     }))
 
-    const sorted = scored.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 100)
+    // Filter out users with zero or negative points (leaderboard should only show positive)
+    const filtered = scored.filter(item => item.score > 0)
+
+    const sorted = filtered.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 100)
 
     const top = sorted.map((item, i) => ({
       id: item.user.id,

@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { useToast } from '../lib/toast';
+<<<<<<< HEAD
+=======
+import { signIn } from 'next-auth/react';
+>>>>>>> master
 import {
   PACK_SHOP_ADDRESS,
   PACK_SHOP_ABI,
@@ -47,7 +51,8 @@ export default function BuyButton({
   packType = 'common',
   compact = false,
   isGift = false,
-  referrerAddress
+  referrerAddress,
+  xHandle
 }: {
   userId: string,
   onSuccess: () => void,
@@ -55,9 +60,10 @@ export default function BuyButton({
   packType?: 'common' | 'rare',
   compact?: boolean,
   isGift?: boolean,
-  referrerAddress?: string
+  referrerAddress?: string,
+  xHandle?: string | null
 }) {
-  const [status, setStatus] = useState<'idle' | 'approving' | 'buying' | 'done'>('idle');
+  const [status, setStatus] = useState<'idle' | 'approving' | 'settingReferrer' | 'buying' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
 
   const { toast } = useToast();
@@ -83,6 +89,15 @@ export default function BuyButton({
     enabled: Boolean(address),
   });
 
+  // Check if referrer is already set on-chain
+  const { data: onChainReferrer, refetch: refetchReferrer } = useContractRead({
+    address: PACK_SHOP_ADDRESS as `0x${string}`,
+    abi: PACK_SHOP_ABI,
+    functionName: 'referrerOf',
+    args: [address!],
+    enabled: Boolean(address),
+  });
+
   // Approve - sadece gerekli miktar için
   const {
     writeAsync: approveAsync,
@@ -97,9 +112,10 @@ export default function BuyButton({
   const { isLoading: isApproveWaiting } = useWaitForTransaction({
     hash: approveData?.hash,
     onSuccess: async () => {
-      console.log('✅ Approve confirmed! Now buying...');
+      console.log('✅ Approve confirmed!');
       await refetchAllowance();
-      executeBuy();
+      // After approval, check if we need to set referrer first
+      await executeSetReferrerOrBuy();
     },
     onError: (err) => {
       console.error('Approve error:', err);
@@ -108,14 +124,40 @@ export default function BuyButton({
     }
   });
 
-  // Buy pack
+  // SetReferrer contract call
+  const {
+    writeAsync: setReferrerAsync,
+    data: setReferrerData,
+  } = useContractWrite({
+    address: PACK_SHOP_ADDRESS as `0x${string}`,
+    abi: PACK_SHOP_ABI,
+    functionName: 'setReferrer',
+  });
+
+  // Wait for setReferrer
+  const { isLoading: isSetReferrerWaiting } = useWaitForTransaction({
+    hash: setReferrerData?.hash,
+    onSuccess: async () => {
+      console.log('✅ Referrer set! Now buying...');
+      await refetchReferrer();
+      executeBuy();
+    },
+    onError: (err) => {
+      console.error('SetReferrer error:', err);
+      // Even if setReferrer fails, try to buy anyway
+      console.log('SetReferrer failed, proceeding with buyPack...');
+      executeBuy();
+    }
+  });
+
+  // Buy pack - ALWAYS use buyPack (not buyPackWithReferrer)
   const {
     writeAsync: buyAsync,
     data: buyData,
   } = useContractWrite({
     address: PACK_SHOP_ADDRESS as `0x${string}`,
     abi: PACK_SHOP_ABI,
-    functionName: referrerAddress ? 'buyPackWithReferrer' : 'buyPack',
+    functionName: 'buyPack',
   });
 
   // Wait for buy
@@ -133,16 +175,49 @@ export default function BuyButton({
     }
   });
 
+  // Check if referrer needs to be set on-chain
+  function needsReferrerSet(): boolean {
+    // If we have a referrer address from database but not set on-chain
+    if (!referrerAddress) {
+      return false;
+    }
+    if (!onChainReferrer) {
+      return true;
+    }
+    // Check if on-chain referrer is zero address
+    return onChainReferrer === '0x0000000000000000000000000000000000000000';
+  }
+
+  // Step 2: Set referrer if needed, then buy
+  async function executeSetReferrerOrBuy() {
+    const needsSet = needsReferrerSet();
+
+    try {
+      if (needsSet && referrerAddress) {
+        setStatus('settingReferrer');
+        await setReferrerAsync({
+          args: [referrerAddress as `0x${string}`]
+        });
+        // Wait for transaction will call executeBuy
+      } else {
+        // No referrer needed, buy directly
+        executeBuy();
+      }
+    } catch (err: any) {
+      // If setReferrer fails, still try to buy
+      executeBuy();
+    }
+  }
+
+  // Step 3: Execute the buy
   async function executeBuy() {
     try {
       setStatus('buying');
       console.log('Sending buyPack transaction...');
 
-      const args = referrerAddress
-        ? [packTypeNum, BigInt(1), referrerAddress as `0x${string}`]
-        : [packTypeNum, BigInt(1)];
-
-      await buyAsync({ args: args as any });
+      await buyAsync({
+        args: [packTypeNum, BigInt(1)]
+      });
     } catch (err: any) {
       console.error('Buy error:', err);
       setError(err.shortMessage || 'Purchase failed');
@@ -173,6 +248,16 @@ export default function BuyButton({
     }
     if (isGift) { onSuccess?.(); return; }
 
+    // Check if X account is connected (required for ReplyCorp campaign)
+    if (!xHandle) {
+      toast('Please connect your X account first to purchase packs', 'error');
+      // Redirect to X OAuth
+      setTimeout(() => {
+        signIn('twitter', { callbackUrl: '/auth/callback' });
+      }, 1000);
+      return;
+    }
+
     setError(null);
 
     // Check balance
@@ -201,16 +286,17 @@ export default function BuyButton({
         setStatus('idle');
       }
     } else {
-      // Already approved, buy directly
-      executeBuy();
+      // Already approved, check referrer then buy
+      await executeSetReferrerOrBuy();
     }
   };
 
-  const isLoading = status !== 'idle' && status !== 'done' || isApproveWaiting || isBuyWaiting;
+  const isLoading = status !== 'idle' && status !== 'done' || isApproveWaiting || isSetReferrerWaiting || isBuyWaiting;
 
   const getLabel = () => {
     if (isGift) return 'Open Gift';
     if (status === 'approving' || isApproveWaiting) return `Approve ${price} VIRTUAL...`;
+    if (status === 'settingReferrer' || isSetReferrerWaiting) return 'Setting referrer...';
     if (status === 'buying' || isBuyWaiting) return 'Buying...';
     if (status === 'done') return '✓ Success!';
     return `Buy for ${price} VIRTUAL`;

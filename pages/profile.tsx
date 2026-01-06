@@ -25,6 +25,7 @@ type User = {
 
 type RoundHistory = {
   dayKey: string
+  roundNumber?: number
   items: Array<{
     symbol: string
     dir: 'UP' | 'DOWN'
@@ -94,11 +95,20 @@ export default function Profile() {
         if (j.ok && j.user) {
           setUser(j.user)
           if (Array.isArray(j.user.roundHistory)) {
-            const mappedHistory = j.user.roundHistory.map((h: any) => ({
-              dayKey: h.date,
-              totalPoints: h.totalPoints,
-              items: h.items || []
-            }))
+            // Map and sort by date descending (newest first)
+            const mappedHistory = j.user.roundHistory
+              .map((h: any) => ({
+                dayKey: h.date,
+                roundNumber: h.roundNumber,
+                totalPoints: h.totalPoints,
+                items: h.items || []
+              }))
+              .sort((a: any, b: any) => {
+                // Sort by date descending (newest first)
+                const dateA = new Date(a.dayKey).getTime()
+                const dateB = new Date(b.dayKey).getTime()
+                return dateB - dateA
+              })
             setHistory(mappedHistory)
           }
         }
@@ -277,14 +287,16 @@ export default function Profile() {
             <div style={{ textAlign: 'center', padding: 40, borderRadius: 12, border: '2px dashed var(--border)', color: 'var(--muted-inv)' }}>No rounds played yet. Start playing to see your history!</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {history.slice().reverse().map((round, index) => {
+              {history.map((round, index) => {
                 const roundTotal = round.totalPoints || 0
                 const picks = Array.isArray(round.items) ? round.items : []
-                const roundNumber = history.length - index
+                // Use actual roundNumber from database if available, otherwise calculate from position
+                // history is sorted newest first, so we need to reverse the index for display
+                const displayRoundNumber = round.roundNumber || (history.length - index)
                 return (
                   <div key={round.dayKey} style={{ background: 'var(--card-2)', padding: 20, borderRadius: 12, border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><div className="badge">Round #{roundNumber}</div><div style={{ fontSize: 16, fontWeight: 600 }}>{new Date(round.dayKey).toLocaleDateString()}</div></div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><div className="badge">Round #{displayRoundNumber}</div><div style={{ fontSize: 16, fontWeight: 600 }}>{new Date(round.dayKey).toLocaleDateString()}</div></div>
                       <div className={`points ${roundTotal >= 0 ? 'good' : 'bad'}`} style={{ fontSize: 18 }}>{roundTotal > 0 ? '+' : ''}{roundTotal.toLocaleString()} pts</div>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>

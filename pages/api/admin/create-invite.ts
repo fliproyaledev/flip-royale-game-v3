@@ -41,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // POST: Yeni kod oluştur
     if (req.method === 'POST') {
         try {
-            const { type, customCode, givesFreepack, count } = req.body
+            const { type, customCode, givesFreepack, count, maxUses, packType } = req.body
 
             // Tek seferde birden fazla kod oluştur
             const createCount = Math.min(Number(count) || 1, 100)
@@ -52,7 +52,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     type: type || 'waitlist',
                     createdBy: adminWallet || 'admin',
                     customCode: createCount === 1 ? customCode : undefined,
-                    givesFreepack: givesFreepack !== false
+                    givesFreepack: givesFreepack !== false,
+                    maxUses: maxUses ? Number(maxUses) : undefined,
+                    packType: packType === 'rare' ? 'rare' : 'common'  // Pack tipi (common veya rare)
                 })
                 createdCodes.push(invite)
             }

@@ -46,7 +46,7 @@ export default function MyPacksPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/users/me?userId=${encodeURIComponent(user.id)}`)
+      const res = await fetch(`/api/users/me?userId=${encodeURIComponent(user.id)}&_t=${Date.now()}`)
       const data = await res.json()
       if (!res.ok || !data.ok) {
         setError(data?.error || 'Unable to load user')
@@ -116,7 +116,7 @@ export default function MyPacksPage() {
       setShowMysteryResults({ open: true, cards: totalNewCards })
       await loadPacks()
       try {
-        const meRes = await fetch(`/api/users/me?userId=${encodeURIComponent(user.id)}`)
+        const meRes = await fetch(`/api/users/me?userId=${encodeURIComponent(user.id)}&_t=${Date.now()}`)
         if (meRes.ok) {
           const meData = await meRes.json()
           if (meData?.user) {

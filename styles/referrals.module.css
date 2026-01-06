@@ -272,3 +272,82 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ============ LIGHT MODE SUPPORT ============ */
+:global([data-theme="light"]) .container {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%);
+}
+
+:global([data-theme="light"]) .card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(30, 41, 59, 0.15);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+}
+
+:global([data-theme="light"]) .title {
+    color: #b45309;
+}
+
+:global([data-theme="light"]) .loading,
+:global([data-theme="light"]) .backLink,
+:global([data-theme="light"]) .backBtn,
+:global([data-theme="light"]) .message,
+:global([data-theme="light"]) .label,
+:global([data-theme="light"]) .statsTitle {
+    color: #475569;
+}
+
+:global([data-theme="light"]) .codeSection,
+:global([data-theme="light"]) .statCard {
+    background: rgba(30, 41, 59, 0.05);
+}
+
+:global([data-theme="light"]) .code {
+    color: #b45309;
+}
+
+:global([data-theme="light"]) .copyBtn {
+    background: rgba(180, 83, 9, 0.1);
+    border: 1px solid rgba(180, 83, 9, 0.3);
+    color: #b45309;
+}
+
+:global([data-theme="light"]) .copyBtn:hover {
+    background: rgba(180, 83, 9, 0.2);
+}
+
+:global([data-theme="light"]) .shareUrl {
+    color: #64748b;
+}
+
+:global([data-theme="light"]) .statValue {
+    color: #059669;
+}
+
+:global([data-theme="light"]) .statLabel {
+    color: #64748b;
+}
+
+:global([data-theme="light"]) .lockedMessage {
+    color: #475569;
+}
+
+:global([data-theme="light"]) .packCount {
+    color: #b45309;
+}
+
+:global([data-theme="light"]) .infoSection {
+    border-top: 1px solid rgba(30, 41, 59, 0.1);
+}
+
+:global([data-theme="light"]) .infoSection h3 {
+    color: #475569;
+}
+
+:global([data-theme="light"]) .infoSection ul {
+    color: #64748b;
+}
+
+:global([data-theme="light"]) .infoSection strong {
+    color: #b45309;
+}
