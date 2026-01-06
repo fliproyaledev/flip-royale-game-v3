@@ -20,7 +20,7 @@ export default function Guide() {
         <div className="sep"></div>
 
         <section style={{ marginBottom: 40 }}>
-          <h3>0) What You Need (Access)</h3>
+          <h3>0)(AFTER LAUNCH) What You Need (Access)</h3>
           <p>To play Flip Royale, you must hold at least <b>$100 worth of $FLIP</b> in your wallet.</p>
           <p>This is an access requirement (not a fee): your $FLIP is <b>not spent and not locked</b> to play.</p>
         </section>
@@ -73,7 +73,7 @@ export default function Guide() {
             <li>Price goes down → you gain points</li>
             <li>Price goes up → you lose points</li>
           </ul>
-          <p><b>Max points per round:</b> You can earn up to 2,500 points in a single round (cap for fairness)</p>
+          //<p><b>Max points per round:</b> You can earn up to 2,500 points in a single round (cap for fairness)</p>
         </section>
 
         <section style={{ marginBottom: 40 }}>
@@ -193,7 +193,7 @@ export default function Guide() {
             <li><b>Active Round:</b> live scoring phase (after UTC 00:00)</li>
             <li><b>LOCK:</b> freeze a card's score permanently</li>
             <li><b>Duplicate:</b> using the same card multiple times (higher risk)</li>
-            <li><b>Cap:</b> max 2,500 points per round</li>
+            //<li><b>Cap:</b> max 2,500 points per round</li>
           </ul>
         </section>
 
