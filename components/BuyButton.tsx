@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { useToast } from '../lib/toast';
+import { signIn } from 'next-auth/react';
 import {
   PACK_SHOP_ADDRESS,
   PACK_SHOP_ABI,
@@ -47,7 +48,8 @@ export default function BuyButton({
   packType = 'common',
   compact = false,
   isGift = false,
-  referrerAddress
+  referrerAddress,
+  xHandle
 }: {
   userId: string,
   onSuccess: () => void,
@@ -55,7 +57,8 @@ export default function BuyButton({
   packType?: 'common' | 'rare',
   compact?: boolean,
   isGift?: boolean,
-  referrerAddress?: string
+  referrerAddress?: string,
+  xHandle?: string | null
 }) {
   const [status, setStatus] = useState<'idle' | 'approving' | 'settingReferrer' | 'buying' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -241,6 +244,16 @@ export default function BuyButton({
       return
     }
     if (isGift) { onSuccess?.(); return; }
+
+    // Check if X account is connected (required for ReplyCorp campaign)
+    if (!xHandle) {
+      toast('Please connect your X account first to purchase packs', 'error');
+      // Redirect to X OAuth
+      setTimeout(() => {
+        signIn('twitter', { callbackUrl: '/auth/callback' });
+      }, 1000);
+      return;
+    }
 
     setError(null);
 

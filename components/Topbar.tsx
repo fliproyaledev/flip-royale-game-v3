@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTheme } from '../lib/theme'
 import ThemeToggle from './ThemeToggle'
 import RedeemCodeModal from './RedeemCodeModal'
 import { useToast } from '../lib/toast'
+import { signIn } from 'next-auth/react'
 
 const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
@@ -14,6 +15,8 @@ type TopbarProps = {
         avatar?: string
         totalPoints?: number
         username?: string
+        xHandle?: string
+        xUserId?: string
     } | null
 }
 
@@ -21,6 +24,24 @@ export default function Topbar({ activeTab, user }: TopbarProps) {
     const { theme } = useTheme()
     const { toast } = useToast()
     const [showRedeemModal, setShowRedeemModal] = useState(false)
+    const [xHandle, setXHandle] = useState<string | undefined>(user?.xHandle)
+
+    // Check localStorage for xHandle if not in user prop (for pages that don't fetch fresh user data)
+    useEffect(() => {
+        if (user && !user.xHandle) {
+            try {
+                const stored = localStorage.getItem('flipflop-user')
+                if (stored) {
+                    const userData = JSON.parse(stored)
+                    if (userData.xHandle) {
+                        setXHandle(userData.xHandle)
+                    }
+                }
+            } catch { }
+        } else if (user?.xHandle) {
+            setXHandle(user.xHandle)
+        }
+    }, [user])
 
     const handleLogout = () => {
         try { localStorage.removeItem('flipflop-user') } catch { }
@@ -93,6 +114,73 @@ export default function Topbar({ activeTab, user }: TopbarProps) {
                         <span style={{ fontSize: 16 }}>🎁</span>
                         <span>Redeem</span>
                     </button>
+                )}
+
+                {/* Connect X Button - Only visible when logged in */}
+                {user && (
+                    xHandle ? (
+                        // X hesabı bağlı - yeşil badge göster
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '8px 14px',
+                                background: 'rgba(34, 197, 94, 0.2)',
+                                border: '1px solid rgba(34, 197, 94, 0.3)',
+                                borderRadius: 10,
+                                color: '#86efac',
+                                fontSize: 13,
+                                fontWeight: 600,
+                                whiteSpace: 'nowrap'
+                            }}
+                            title={`Connected as @${xHandle}`}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                            <span>@{xHandle}</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="#22c55e">
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                            </svg>
+                        </div>
+                    ) : (
+                        // X hesabı bağlı değil - connect butonu göster
+                        <button
+                            onClick={() => {
+                                // NextAuth ile X OAuth başlat
+                                signIn('twitter', { callbackUrl: '/auth/callback' })
+                            }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '8px 14px',
+                                background: theme === 'light' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.2)',
+                                border: `1px solid ${theme === 'light' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.3)'}`,
+                                borderRadius: 10,
+                                color: theme === 'light' ? '#1d4ed8' : '#93c5fd',
+                                fontSize: 13,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                whiteSpace: 'nowrap'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.background = theme === 'light' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(59, 130, 246, 0.3)'
+                                e.currentTarget.style.transform = 'scale(1.02)'
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.background = theme === 'light' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.2)'
+                                e.currentTarget.style.transform = 'scale(1)'
+                            }}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                            <span>Connect X</span>
+                        </button>
+                    )
                 )}
                 <ThemeToggle />
                 <a

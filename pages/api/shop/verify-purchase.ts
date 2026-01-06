@@ -5,7 +5,13 @@ const ORACLE_SECRET = process.env.ORACLE_SECRET;
 
 import { getUser, updateUser } from '../../../lib/users'
 
-// Paket fiyatları (USD cinsinden)
+// Paket fiyatları (VIRTUAL cinsinden)
+const PACK_PRICES_VIRTUAL: Record<string, number> = {
+  common: 10,
+  rare: 25
+}
+
+// Paket fiyatları (USD cinsinden - referral komisyon için)
 const PACK_PRICES: Record<string, number> = {
   common: 5,
   rare: 15
@@ -25,6 +31,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ ok: false, error: 'Missing parameters' });
     }
 
+    const cleanUserId = String(userId).toLowerCase();
+    const qty = Number(count) || 1;
+    const validatedPackType = packType === 'rare' ? 'rare' : 'common';
+
+    // Get user to check xHandle for ReplyCorp campaign tracking
+    const purchaseUser = await getUser(cleanUserId);
+    const xHandle = purchaseUser?.xHandle || null;
+    const xUserId = purchaseUser?.xUserId || null;
+
+    // REQUIRE X account to be linked for pack purchases (ReplyCorp campaign)
+    if (!xUserId) {
+      return res.status(403).json({
+        ok: false,
+        error: 'X account required',
+        errorCode: 'X_ACCOUNT_REQUIRED',
+        message: 'Please connect your X (Twitter) account before purchasing packs.'
+      });
+    }
+
     // 2. If Oracle is configured, forward the verification to Oracle purchase endpoint
     if (ORACLE_URL && ORACLE_SECRET) {
       const oracleRes = await fetch(`${ORACLE_URL}/api/users/purchase`, {
@@ -34,9 +59,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          userId: userId.toLowerCase(),
-          packType: packType || 'common',
-          count: count || 1,
+          userId: cleanUserId,
+          packType: validatedPackType,
+          count: qty,
           useInventory: true,
           paymentMethod: 'CRYPTO',
           txHash: txHash
@@ -50,24 +75,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Oracle modunda da komisyon hesapla (local user data'dan)
-      await processReferralCommission(userId.toLowerCase(), packType || 'common', count || 1);
+      await processReferralCommission(cleanUserId, validatedPackType, qty);
 
-      // REDUNDANT LOCAL UPDATE REMOVED:
-      // Previously, this code manually updated inventory/stats locally.
-      // However, since Oracle also updates the DB/KV, this was causing a race condition
-      // where we would fetch the UPDATED inventory, add to it AGAIN, and save.
-      // Resulting in 2x packs. We now rely on Oracle's update.
+      // Log purchase with X handle for ReplyCorp campaign
+      await logPurchaseWithXHandle(cleanUserId, xHandle, xUserId, validatedPackType, qty, txHash);
 
       return res.status(200).json({ ok: true, ...data });
     }
 
     // 3. Local fallback when ORACLE_URL not set: add pack to local user inventory
-    const clean = String(userId).toLowerCase()
-    let user = await getUser(clean)
+    let user = await getUser(cleanUserId)
     if (!user) {
       // create minimal user
       user = {
-        id: clean,
+        id: cleanUserId,
         name: 'Player',
         totalPoints: 0,
         bankPoints: 0,
@@ -80,8 +101,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const qty = Number(count) || 1
-    const validatedPackType = packType === 'rare' ? 'rare' : 'common'
     const packKey1 = `${validatedPackType}_pack`
     const packKey2 = `${validatedPackType}`
 
@@ -96,10 +115,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     user.packsPurchased = (user.packsPurchased || 0) + qty
 
     user.updatedAt = new Date().toISOString()
-    await updateUser(clean, user)
+    await updateUser(cleanUserId, user)
 
     // Referral komisyonu hesapla
-    await processReferralCommission(clean, validatedPackType, qty);
+    await processReferralCommission(cleanUserId, validatedPackType, qty);
+
+    // Log purchase with X handle for ReplyCorp campaign
+    await logPurchaseWithXHandle(cleanUserId, xHandle, xUserId, validatedPackType, qty, txHash);
 
     return res.status(200).json({ ok: true, user, newCards: [] })
 
@@ -135,5 +157,127 @@ async function processReferralCommission(userId: string, packType: string, qty: 
   } catch (e) {
     console.error('[Referral] Commission error:', e);
     // Komisyon hatası satın almayı engellemez
+  }
+}
+
+// Log purchase with X handle for ReplyCorp campaign tracking
+// Stores in Redis/Upstash for later export to ReplyCorp API
+async function logPurchaseWithXHandle(
+  walletAddress: string,
+  xHandle: string | null,
+  xUserId: string | null,
+  packType: string,
+  quantity: number,
+  txHash: string
+) {
+  try {
+    const purchaseLog = {
+      walletAddress,
+      xHandle,
+      xUserId,
+      packType,
+      quantity,
+      txHash,
+      timestamp: new Date().toISOString(),
+      campaign: 'replycorp_2026'
+    };
+
+    // Store in Redis using KV
+    const KV_REST_API_URL = process.env.KV_REST_API_URL;
+    const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN;
+
+    if (KV_REST_API_URL && KV_REST_API_TOKEN) {
+      // Create unique log key with timestamp
+      const logKey = `purchase:${Date.now()}:${walletAddress.slice(0, 8)}`;
+
+      await fetch(`${KV_REST_API_URL}/set/${logKey}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${KV_REST_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(purchaseLog)
+      });
+
+      // Also maintain a list of all purchase log keys for easy retrieval
+      const listKey = 'purchase_logs_list';
+      await fetch(`${KV_REST_API_URL}/lpush/${listKey}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${KV_REST_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(logKey)
+      });
+
+      console.log(`[ReplyCorp] Purchase logged: wallet=${walletAddress.slice(0, 10)}..., xHandle=${xHandle || 'NOT_LINKED'}, pack=${packType}x${quantity}`);
+    }
+
+    // Send to ReplyCorp API if user has X account linked
+    if (xUserId) {
+      await sendToReplyCorp(xUserId, walletAddress, xHandle, packType, quantity, txHash);
+    }
+  } catch (e) {
+    console.error('[ReplyCorp] Purchase log error:', e);
+    // Log hatası satın almayı engellemez
+  }
+}
+
+// Send conversion to ReplyCorp API for attribution tracking
+async function sendToReplyCorp(
+  xUserId: string,
+  walletAddress: string,
+  xHandle: string | null,
+  packType: string,
+  quantity: number,
+  txHash: string
+) {
+  try {
+    const REPLYCORP_API_KEY = process.env.REPLYCORP_API_KEY;
+    const REPLYCORP_CAMPAIGN_ID = process.env.REPLYCORP_CAMPAIGN_ID;
+
+    if (!REPLYCORP_API_KEY || !REPLYCORP_CAMPAIGN_ID) {
+      console.log('[ReplyCorp] API key or campaign ID not configured, skipping');
+      return;
+    }
+
+    // Calculate VIRTUAL amount
+    const virtualAmount = packType === 'rare' ? 25 * quantity : 10 * quantity;
+
+    // Send conversion to ReplyCorp (amount in VIRTUAL)
+    const response = await fetch(
+      `https://api.replycorp.io/api/v1/campaigns/${REPLYCORP_CAMPAIGN_ID}/conversions`,
+      {
+        method: 'POST',
+        headers: {
+          'X-API-Key': REPLYCORP_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          twitterId: xUserId,
+          eventType: 'purchase',
+          amount: virtualAmount,
+          walletAddress: walletAddress,
+          metadata: {
+            txHash: txHash,
+            packType: packType,
+            quantity: quantity,
+            currency: 'VIRTUAL',
+            xHandle: xHandle
+          }
+        })
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`[ReplyCorp] ✅ Conversion sent: xUserId=${xUserId}, amount=${virtualAmount} VIRTUAL, attribution=${data.attribution?.pointsDistributed ? 'YES' : 'NO'}`);
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`[ReplyCorp] ❌ API error: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+  } catch (e) {
+    console.error('[ReplyCorp] Send error:', e);
+    // ReplyCorp hatası satın almayı engellemez
   }
 }

@@ -77,6 +77,13 @@ export type UserRecord = {
     processedAt: string | null
     txHash: string | null
   }[]
+  // X (Twitter) entegrasyonu - ReplyCorp Campaign
+  xHandle?: string                  // @username
+  xUserId?: string                  // Twitter numeric ID
+  xName?: string                    // Display name
+  xImage?: string                   // Profile image URL
+  xLinkedAt?: string                // Bağlama tarihi
+  redeemedWaitlistCodes?: string[]  // Kullanılan waitlist kodları (çoklu)
 }
 
 // ─────────────────────────────────────────────────────────────
