@@ -2499,7 +2499,7 @@ export default function Home() {
                       <button onClick={() => setBuyQty(q => Math.min(10, q + 1))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, color: 'white', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>+</button>
                     </div>
                     <div className="text-force-light-gray" style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center', lineHeight: 1.2 }}>
-                      Standard rates
+                      Standard common pack. The chance of finding a Unicorn card inside is low.
                     </div>
                   </div>
 
@@ -2562,7 +2562,7 @@ export default function Home() {
                       <button onClick={() => setRareBuyQty(q => Math.min(10, q + 1))} style={{ background: 'rgba(251,191,36,0.2)', border: 'none', borderRadius: 4, color: '#fbbf24', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>+</button>
                     </div>
                     <div className="text-force-gold" style={{ fontSize: 10, color: '#fbbf24', lineHeight: 1.2, textAlign: 'center', opacity: 0.9 }}>
-                      Higher chance!
+                      Higher chance! There's a higher chance of including a Unicorn card.
                     </div>
                   </div>
 
