@@ -268,9 +268,19 @@ async function sendToReplyCorp(
       }
     );
 
+    // Log the payload that was sent
+    const sentPayload = {
+      twitterId: xUserId,
+      eventType: 'purchase',
+      amount: virtualAmount,
+      walletAddress: walletAddress,
+      metadata: { txHash, packType, quantity, currency: 'VIRTUAL' }
+    };
+    console.log(`[ReplyCorp] 📤 Sent payload: ${JSON.stringify(sentPayload)}`);
+
     if (response.ok) {
       const data = await response.json();
-      console.log(`[ReplyCorp] ✅ Conversion sent: xUserId=${xUserId}, amount=${virtualAmount} VIRTUAL, attribution=${data.attribution?.pointsDistributed ? 'YES' : 'NO'}`);
+      console.log(`[ReplyCorp] ✅ Response: ${JSON.stringify(data)}`);
     } else {
       const errorData = await response.json().catch(() => ({}));
       console.error(`[ReplyCorp] ❌ API error: ${response.status} - ${JSON.stringify(errorData)}`);
