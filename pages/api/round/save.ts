@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getUser, updateUser } from "../../../lib/users"; 
+import { getUser, updateUser } from "../../../lib/users";
 import { verifyUserSignature } from "../../../lib/verify";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -8,14 +8,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // 1. CORS Preflight
   if (req.method === "OPTIONS") {
-     return res.status(200).end();
+    return res.status(200).end();
   }
 
   // 2. Sadece POST izni
   if (req.method !== "POST") {
-    return res.status(405).json({ 
-        ok: false, 
-        error: `Method not allowed. Beklenen: POST, Gelen: ${req.method}` 
+    return res.status(405).json({
+      ok: false,
+      error: `Method not allowed. Beklenen: POST, Gelen: ${req.method}`
     });
   }
 
@@ -43,16 +43,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 4. Kullanıcıyı ORACLE'dan Yükle
     const normalizedUserId = userId.toLowerCase();
-    
+
     // Köprü üzerinden Oracle'a soruyoruz
     const user = await getUser(normalizedUserId);
 
     if (!user) {
-        console.log(`🚨 [DEBUG] Kullanıcı Oracle'da bulunamadı: ${normalizedUserId}`);
-        return res.status(404).json({ 
-            ok: false, 
-            error: "User not found. Please register first." 
-        });
+      console.log(`🚨 [DEBUG] Kullanıcı Oracle'da bulunamadı: ${normalizedUserId}`);
+      return res.status(404).json({
+        ok: false,
+        error: "User not found. Please register first."
+      });
     }
 
     // 5. Güncellenecek Verileri Hazırla
@@ -60,6 +60,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let hasChanges = false;
 
     if (nextRound !== undefined) {
+      // Validate: nextRound must have exactly 5 non-null cards to be saved
+      const validCards = Array.isArray(nextRound)
+        ? nextRound.filter((card: any) => card !== null && card !== undefined && card.tokenId)
+        : [];
+
+      if (validCards.length < 5) {
+        return res.status(400).json({
+          ok: false,
+          error: `You must select 5 cards to save. Currently selected: ${validCards.length}/5`,
+          errorCode: 'INSUFFICIENT_CARDS',
+          cardsSelected: validCards.length
+        });
+      }
+
       updates.nextRound = nextRound;
       hasChanges = true;
     }
@@ -76,15 +90,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 6. Oracle'a Kaydet
     if (hasChanges) {
-        updates.updatedAt = new Date().toISOString();
-        
-        await updateUser(normalizedUserId, updates);
-        
-        // HATA DÜZELTİLDİ: TypeScript'i (user as any) ile susturuyoruz
-        const userNameLog = user.name || (user as any).username || normalizedUserId;
-        console.log(`✅ [Game] Data synced to Oracle for ${userNameLog}`);
+      updates.updatedAt = new Date().toISOString();
+
+      await updateUser(normalizedUserId, updates);
+
+      // HATA DÜZELTİLDİ: TypeScript'i (user as any) ile susturuyoruz
+      const userNameLog = user.name || (user as any).username || normalizedUserId;
+      console.log(`✅ [Game] Data synced to Oracle for ${userNameLog}`);
     } else {
-        console.log(`ℹ️ [Game] No changes detected for ${normalizedUserId}`);
+      console.log(`ℹ️ [Game] No changes detected for ${normalizedUserId}`);
     }
 
     return res.status(200).json({ ok: true });

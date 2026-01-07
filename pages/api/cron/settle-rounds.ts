@@ -248,6 +248,25 @@ export default async function handler(
         const nextPicksRaw = (user.nextRound || []).filter(Boolean) as RoundPick[];
         const newActiveRound: RoundPick[] = [];
 
+        // SAFETY CHECK: Only transfer if exactly 5 cards are selected
+        if (nextPicksRaw.length < 5) {
+          console.log(`⚠️ [CRON] User ${uid} has only ${nextPicksRaw.length}/5 cards, skipping transfer to active round`);
+          // Keep nextRound intact so user can complete their selections
+          // Set empty active round
+          user.activeRound = [];
+          user.currentRound = newGlobalRound;
+          user.lastSettledDay = today;
+          user.updatedAt = new Date().toISOString();
+
+          // Still save the user with empty active round
+          await fetch(`${ORACLE_URL}/api/users/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ORACLE_SECRET}` },
+            body: JSON.stringify({ address: uid, userData: user })
+          });
+          continue;
+        }
+
         for (const pick of nextPicksRaw) {
           const tokenData = priceMap[pick.tokenId];
           const entryPrice = tokenData?.price || 0;
