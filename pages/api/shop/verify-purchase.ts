@@ -177,8 +177,6 @@ async function logPurchaseWithXHandle(
       xUserId,
       packType,
       quantity,
-      amount: packType === 'rare' ? 25 * quantity : 10 * quantity,
-      currency: 'VIRTUAL',
       txHash,
       timestamp: new Date().toISOString(),
       campaign: 'replycorp_2026'
@@ -248,7 +246,7 @@ async function sendToReplyCorp(
 
     // Send conversion to ReplyCorp (amount in VIRTUAL)
     const response = await fetch(
-      `https://api.replycorp.io/api/v1/campaigns/${REPLYCORP_CAMPAIGN_ID}/conversions`,
+      `https://prod.api.replycorp.io/api/v1/campaigns/${REPLYCORP_CAMPAIGN_ID}/conversions`,
       {
         method: 'POST',
         headers: {
@@ -257,15 +255,13 @@ async function sendToReplyCorp(
         },
         body: JSON.stringify({
           twitterId: xUserId,
-          eventType: 'purchase',
           amount: virtualAmount,
           walletAddress: walletAddress,
           metadata: {
             txHash: txHash,
             packType: packType,
             quantity: quantity,
-            currency: 'VIRTUAL',
-            xHandle: xHandle
+            currency: 'VIRTUAL'
           }
         })
       }
