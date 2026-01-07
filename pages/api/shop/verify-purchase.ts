@@ -177,6 +177,8 @@ async function logPurchaseWithXHandle(
       xUserId,
       packType,
       quantity,
+      amount: packType === 'rare' ? 25 * quantity : 10 * quantity,
+      currency: 'VIRTUAL',
       txHash,
       timestamp: new Date().toISOString(),
       campaign: 'replycorp_2026'
