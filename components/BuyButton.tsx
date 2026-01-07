@@ -2,10 +2,7 @@ import { useState } from 'react';
 import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { useToast } from '../lib/toast';
-<<<<<<< HEAD
-=======
 import { signIn } from 'next-auth/react';
->>>>>>> master
 import {
   PACK_SHOP_ADDRESS,
   PACK_SHOP_ABI,

@@ -8,11 +8,7 @@ import { signIn } from 'next-auth/react'
 const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
 type TopbarProps = {
-<<<<<<< HEAD
-    activeTab?: 'play' | 'prices' | 'guide' | 'inventory' | 'my-packs' | 'leaderboard' | 'referrals' | 'history' | 'profile'
-=======
     activeTab?: 'play' | 'prices' | 'guide' | 'inventory' | 'my-packs' | 'leaderboard' | 'referrals' | 'history' | 'litepaper' | 'profile'
->>>>>>> master
     user?: {
         id?: string
         name?: string
