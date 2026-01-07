@@ -255,6 +255,7 @@ async function sendToReplyCorp(
         },
         body: JSON.stringify({
           twitterId: xUserId,
+          eventType: 'purchase',
           amount: virtualAmount,
           walletAddress: walletAddress,
           metadata: {
