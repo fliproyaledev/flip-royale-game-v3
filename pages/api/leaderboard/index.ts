@@ -19,9 +19,19 @@ export default async function handler(
 
     const getUserScoreForTimeframe = (u: any) => {
       if (timeframe === 'daily') {
-        // Most recent round entry (assume roundHistory[0] is newest)
-        const latest = Array.isArray(u.roundHistory) && u.roundHistory.length > 0 ? u.roundHistory[0] : null
-        return latest ? (latest.totalPoints ?? latest.total ?? 0) : 0
+        // Get today's date in UTC (YYYY-MM-DD format)
+        const now = new Date()
+        const todayKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
+
+        // Find today's entry in roundHistory
+        if (!Array.isArray(u.roundHistory) || u.roundHistory.length === 0) return 0
+
+        const todayEntry = u.roundHistory.find((entry: any) => {
+          const entryDate = entry.date || entry.dayKey || entry.baseDay || null
+          return entryDate === todayKey
+        })
+
+        return todayEntry ? (todayEntry.totalPoints ?? todayEntry.total ?? 0) : 0
       }
       if (timeframe === 'weekly') {
         // Sum totals for last 7 entries or entries within last 7 days
