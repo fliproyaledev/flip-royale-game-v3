@@ -103,6 +103,77 @@ function handleImageFallback(event: SyntheticEvent<HTMLImageElement>) {
   target.src = '/token-logos/placeholder.png'
 }
 
+// Pure CSS Card Styles - returns all styling for each card type
+interface CardCSSStyles {
+  // Background
+  background: string;
+  borderColor: string;
+  boxShadow: string;
+  // Ring
+  ringColor: string;
+  ringGlow: string;
+  // Text
+  textColor: string;
+  typeColor: string;
+}
+
+function getCardCSSStyles(type: string): CardCSSStyles {
+  const styles: Record<string, CardCSSStyles> = {
+    pegasus: {
+      background: 'linear-gradient(180deg, #2d5a3f 0%, #1a3a28 50%, #050a07 100%)',
+      borderColor: '#4a7c59',
+      boxShadow: '0 0 15px rgba(74, 124, 89, 0.3)',
+      ringColor: '#7cb342',
+      ringGlow: '0 0 15px #7cb342, 0 0 30px #7cb342, 0 0 45px rgba(124, 179, 66, 0.6), inset 0 0 15px rgba(124, 179, 66, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#4ade80',
+    },
+    genesis: {
+      background: 'linear-gradient(180deg, #6b3d8f 0%, #4a2c6a 50%, #0a0510 100%)',
+      borderColor: '#7c4a9e',
+      boxShadow: '0 0 15px rgba(124, 74, 158, 0.3)',
+      ringColor: '#9c27b0',
+      ringGlow: '0 0 15px #9c27b0, 0 0 30px #9c27b0, 0 0 45px rgba(156, 39, 176, 0.6), inset 0 0 15px rgba(156, 39, 176, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#c084fc',
+    },
+    unicorn: {
+      background: 'linear-gradient(180deg, #f0c14b 0%, #daa520 50%, #4a3000 100%)',
+      borderColor: '#daa520',
+      boxShadow: '0 0 15px rgba(218, 165, 32, 0.3)',
+      ringColor: '#ffd700',
+      ringGlow: '0 0 15px #ffd700, 0 0 30px #ffd700, 0 0 45px rgba(255, 215, 0, 0.6), inset 0 0 15px rgba(255, 215, 0, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#78350f',
+    },
+    sentient: {
+      background: 'linear-gradient(180deg, #2a4a6a 0%, #1a3050 50%, #050a10 100%)',
+      borderColor: '#3a5a8a',
+      boxShadow: '0 0 15px rgba(58, 90, 138, 0.3)',
+      ringColor: '#2196f3',
+      ringGlow: '0 0 15px #2196f3, 0 0 30px #2196f3, 0 0 45px rgba(33, 150, 243, 0.6), inset 0 0 15px rgba(33, 150, 243, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#60a5fa',
+    },
+    firstborn: {
+      background: 'linear-gradient(180deg, #2d5a3f 0%, #1a3a28 40%, #0f2318 100%)',
+      borderColor: '#4a7c59',
+      boxShadow: '0 0 15px rgba(74, 124, 89, 0.3)',
+      ringColor: '#7cb342',
+      ringGlow: '0 0 15px #7cb342, 0 0 30px #7cb342, 0 0 45px rgba(124, 179, 66, 0.6), inset 0 0 15px rgba(124, 179, 66, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#4ade80',
+    },
+  };
+
+  return styles[type?.toLowerCase()] || styles.sentient;
+}
+
+// Legacy function for backward compatibility (kept but not used for cards)
+function getCardTextColor(type: string): string {
+  return getCardCSSStyles(type).typeColor;
+}
+
 function calcPoints(pct: number, dir: 'UP' | 'DOWN', dup: number, boostLevel: 0 | 50 | 100, boostActive: boolean) {
   // Each 1% change equals 100 points
   const signed = dir === 'UP' ? pct : -pct;
@@ -1799,7 +1870,7 @@ export default function Home() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Active Round Panel */}
-            <div className="panel">
+            <div className="panel" style={{ padding: 8 }}>
               <div className="row" style={{ alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
                 <h2 style={{
                   fontWeight: 900,
@@ -1863,7 +1934,7 @@ export default function Home() {
                 </div>
               ) : (
                 // --- NORMAL KART GÖRÜNÜMÜ ---
-                <div className="picks" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(160px, 1fr))', gap: 14 }}>
+                <div className="picks" style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>
                   {active.map((p, index) => {
                     const tok = getTokenById(p.tokenId) || TOKENS[0]
                     if (!tok) return null
@@ -1877,38 +1948,52 @@ export default function Home() {
                       ? p.pointsLocked
                       : (price ? calcPoints(price.changePct ?? 0, p.dir, p.duplicateIndex, boost.level, boostActive) : 0)
 
+                    const cardStyles = getCardCSSStyles(tok.about)
+
                     return (
-                      <div key={index} style={{
-                        background: `linear-gradient(135deg, ${getGradientColor(index)}, ${getGradientColor(index + 1)})`,
-                        borderRadius: 18,
-                        padding: 14,
+                      <div key={index} className="card-texture" style={{
+                        background: cardStyles.background,
+                        border: `3px solid ${cardStyles.borderColor}`,
+                        boxShadow: cardStyles.boxShadow,
+                        borderRadius: 16,
+                        padding: 0,
                         position: 'relative',
-                        minHeight: 220,
+                        height: 340,
+                        width: 180,
                         display: 'flex',
                         flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        boxShadow: '0 8px 26px rgba(0,0,0,0.18), 0 3px 16px rgba(0,0,0,0.12)',
                         transition: 'all 0.3s ease',
-                        transform: 'translateY(0)',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        overflow: 'hidden',
+                        flexShrink: 0
                       }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)'
-                          e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.25), 0 6px 20px rgba(0,0,0,0.15)'
-                          e.currentTarget.style.border = '1px solid rgba(255,255,255,0.32)'
+                          e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)'
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)'
-                          e.currentTarget.style.boxShadow = '0 8px 26px rgba(0,0,0,0.18), 0 3px 16px rgba(0,0,0,0.12)'
-                          e.currentTarget.style.border = '1px solid rgba(255,255,255,0.2)'
+                          e.currentTarget.style.transform = 'translateY(0) scale(1)'
                         }}>
 
+                        {/* Glowing Ring */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '22%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: 120,
+                          height: 120,
+                          borderRadius: '50%',
+                          border: `3px solid ${cardStyles.ringColor}`,
+                          boxShadow: cardStyles.ringGlow,
+                          pointerEvents: 'none'
+                        }} />
+
+                        {/* Locked badge */}
                         {p.locked && (
                           <div style={{
                             position: 'absolute',
-                            top: 10,
-                            right: 10,
+                            top: 8,
+                            right: 8,
                             background: '#fbbf24',
                             color: '#000',
                             width: 22,
@@ -1917,145 +2002,173 @@ export default function Home() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: 700,
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.25)'
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                            zIndex: 10
                           }}>
                             🔒
                           </div>
                         )}
 
+                        {/* Duplicate badge */}
                         {p.duplicateIndex > 1 && (
                           <div style={{
                             position: 'absolute',
-                            top: 10,
-                            left: 10,
-                            background: 'rgba(0,0,0,0.7)',
+                            top: 8,
+                            left: 8,
+                            background: 'rgba(0,0,0,0.75)',
                             color: 'white',
-                            padding: '3px 7px',
+                            padding: '3px 8px',
                             borderRadius: 6,
-                            fontSize: 12,
-                            border: '1px solid rgba(255,255,255,0.3)',
-                            fontWeight: 600
+                            fontSize: 10,
+                            border: '1px solid rgba(255,255,255,0.25)',
+                            fontWeight: 700,
+                            zIndex: 10
                           }}>
                             dup x{p.duplicateIndex}
                           </div>
                         )}
 
+                        {/* Token Logo - centered in ring */}
                         <div style={{
-                          width: 100,
-                          height: 100,
+                          position: 'absolute',
+                          top: '22%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: 110,
+                          height: 110,
                           borderRadius: '50%',
-                          background: 'rgba(255,255,255,0.15)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          margin: '0 auto 14px',
-                          border: '2px solid rgba(255,255,255,0.22)',
-                          boxShadow: '0 10px 24px rgba(0,0,0,0.28)',
-                          position: 'relative',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
+                          zIndex: 5
                         }}>
                           <img
                             src={tok.logo}
                             alt={tok.symbol}
                             style={{
-                              width: 92,
-                              height: 92,
+                              width: 106,
+                              height: 106,
                               borderRadius: '50%',
-                              objectFit: 'cover',
-                              position: 'relative',
-                              zIndex: 2,
-                              border: '2px solid rgba(255,255,255,0.2)'
+                              objectFit: 'cover'
                             }}
                             onError={handleImageFallback}
                           />
                         </div>
 
-                        <div style={{ textAlign: 'center' }}>
+                        {/* Token Name & Type */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '40%',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          textAlign: 'center',
+                          width: '90%'
+                        }}>
                           <div style={{
-                            fontSize: 13,
+                            fontSize: 15,
                             fontWeight: 900,
-                            color: 'white',
-                            textShadow: '0 2px 4px rgba(0,0,0,0.35)',
-                            marginBottom: 4,
-                            letterSpacing: 0.4
+                            color: cardStyles.textColor,
+                            letterSpacing: 0.5
                           }}>
                             {tok.symbol}
                           </div>
                           <div style={{
-                            fontSize: 13,
-                            color: 'rgba(255,255,255,0.82)',
-                            marginBottom: 6,
-                            fontWeight: 600,
-                            letterSpacing: 0.6,
-                            textTransform: 'uppercase'
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: cardStyles.typeColor,
+                            marginTop: 2
                           }}>
                             {tok.about}
                           </div>
+                        </div>
 
-                          <div style={{ display: 'flex', gap: 6, marginBottom: 8, justifyContent: 'center' }}>
-                            <button className={`btn ${p.dir === 'UP' ? 'btn-up active' : ''}`} style={{ fontSize: 13, padding: '6px 10px', fontWeight: 600 }}>
-                              ▲ UP
-                            </button>
-                            <button className={`btn ${p.dir === 'DOWN' ? 'btn-down active' : ''}`} style={{ fontSize: 13, padding: '6px 10px', fontWeight: 600 }}>
-                              ▼ DOWN
-                            </button>
-                          </div>
+                        {/* Direction buttons */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '55%',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          display: 'flex',
+                          gap: 6,
+                          justifyContent: 'center'
+                        }}>
+                          <button className={`btn ${p.dir === 'UP' ? 'btn-up active' : ''}`} style={{ fontSize: 10, padding: '5px 10px', fontWeight: 700 }}>
+                            ▲ UP
+                          </button>
+                          <button className={`btn ${p.dir === 'DOWN' ? 'btn-down active' : ''}`} style={{ fontSize: 10, padding: '5px 10px', fontWeight: 700 }}>
+                            ▼ DOWN
+                          </button>
+                        </div>
 
+                        {/* Lock button or Locked status */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '68%',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          textAlign: 'center'
+                        }}>
                           {!p.locked ? (
                             <button
                               className="btn"
-                              style={{ fontSize: 13, padding: '6px 10px', marginBottom: 8, fontWeight: 600 }}
+                              style={{ fontSize: 10, padding: '5px 12px', fontWeight: 600 }}
                               onClick={() => toggleLock(index)}
                             >
                               Lock
                             </button>
                           ) : (
                             <div style={{
-                              fontSize: 12,
-                              padding: '5px 9px',
-                              marginBottom: 8,
-                              fontWeight: 600,
+                              fontSize: 10,
+                              fontWeight: 700,
                               color: '#fbbf24',
-                              textAlign: 'center'
+                              textShadow: '0 1px 4px rgba(0,0,0,0.5)'
                             }}>
                               🔒 Locked
                             </div>
                           )}
-
-                          <div style={{
-                            background: 'rgba(0,0,0,0.25)',
-                            color: 'white',
-                            padding: '6px 10px',
-                            borderRadius: 8,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            marginBottom: 4
-                          }}>
-                            {p.locked ? '🔒 Locked Points: ' : 'Live Points: '}
-                            {(() => {
-                              try {
-                                return points > 0 ? `+${points}` : points
-                              } catch {
-                                return 0
-                              }
-                            })()}
-                          </div>
-
-                          {p.duplicateIndex > 1 && (
-                            <div style={{
-                              background: 'rgba(0,0,0,0.2)',
-                              color: 'white',
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              fontSize: 12,
-                              fontWeight: 600
-                            }}>
-                              Applied: Boost x{boostActive && boost.level ? (boost.level === 100 ? 2 : 1.5) : 1}
-                            </div>
-                          )}
                         </div>
+
+                        {/* Points display */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '76%',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          color: 'white',
+                          fontSize: 12,
+                          fontWeight: 800,
+                          textAlign: 'center',
+                          whiteSpace: 'nowrap',
+                          textShadow: '0 2px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.5)'
+                        }}>
+                          {p.locked ? '🔒 ' : ''}
+                          <span style={{ color: points >= 0 ? '#4ade80' : '#f87171' }}>
+                            {points > 0 ? `+${points}` : points}
+                          </span>
+                        </div>
+
+                        {/* FLIP ROYALE Badge */}
+                        <div style={{
+                          position: 'absolute',
+                          bottom: -2,
+                          left: '50%',
+                          transform: 'translateX(-50%)'
+                        }}>
+                          <img
+                            src="/logo.png"
+                            alt="Flip Royale"
+                            style={{
+                              height: 48,
+                              width: 'auto',
+                              objectFit: 'contain',
+                              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))'
+                            }}
+                          />
+                        </div>
+
                       </div>
                     )
                   })}
@@ -2065,7 +2178,7 @@ export default function Home() {
             {/* --- YENİ KOD BİTİŞİ --- */}
             {/* Next Round */}
             {/* Next Round Panel */}
-            <div className="panel">
+            <div className="panel" style={{ padding: 8 }}>
               <div className="row" style={{ alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
                 <h2 style={{
                   fontWeight: 900,
@@ -2120,129 +2233,207 @@ export default function Home() {
               ) : (
                 /* --- NORMAL NEXT ROUND İÇERİĞİ --- */
                 <>
-                  <div className="picks" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(160px, 1fr))', gap: 14 }}>
+                  <div className="picks" style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>
                     {Array.from({ length: 5 }, (_, index) => {
                       const p = nextRound[index]
 
                       if (p) {
                         const tok = getTokenById(p.tokenId) || TOKENS[0]
                         if (!tok) return null
+                        const cardStyles = getCardCSSStyles(tok.about)
 
                         return (
-                          <div key={index} style={{
-                            background: `linear-gradient(135deg, ${getGradientColor(index)}, ${getGradientColor(index + 1)})`,
-                            borderRadius: 18,
-                            padding: 14,
+                          <div key={index} className="card-texture" style={{
+                            background: cardStyles.background,
+                            border: `3px solid ${cardStyles.borderColor}`,
+                            boxShadow: cardStyles.boxShadow,
+                            borderRadius: 16,
+                            padding: 0,
                             position: 'relative',
-                            minHeight: 220,
+                            height: 340,
+                            width: 180,
                             display: 'flex',
                             flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            boxShadow: '0 8px 26px rgba(0,0,0,0.18), 0 3px 16px rgba(0,0,0,0.12)',
-                            cursor: 'pointer'
-                          }}>
+                            cursor: 'pointer',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            transition: 'all 0.3s ease'
+                          }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0) scale(1)'
+                            }}>
+
+                            {/* Glowing Ring */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '22%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              width: 120,
+                              height: 120,
+                              borderRadius: '50%',
+                              border: `3px solid ${cardStyles.ringColor}`,
+                              boxShadow: cardStyles.ringGlow,
+                              pointerEvents: 'none'
+                            }} />
+
+                            {/* Duplicate badge */}
                             {p.duplicateIndex > 1 && (
                               <div style={{
                                 position: 'absolute',
-                                top: 12,
-                                left: 12,
-                                background: 'rgba(0,0,0,0.7)',
+                                top: 8,
+                                left: 8,
+                                background: 'rgba(0,0,0,0.75)',
                                 color: 'white',
-                                padding: '4px 8px',
+                                padding: '3px 8px',
                                 borderRadius: 6,
-                                fontSize: 12,
-                                border: '1px solid rgba(255,255,255,0.3)',
-                                fontWeight: 600
+                                fontSize: 10,
+                                border: '1px solid rgba(255,255,255,0.25)',
+                                fontWeight: 700,
+                                zIndex: 10
                               }}>
                                 dup x{p.duplicateIndex}
                               </div>
                             )}
 
+                            {/* Token Logo - centered in ring */}
                             <div style={{
-                              width: 100,
-                              height: 100,
+                              position: 'absolute',
+                              top: '22%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              width: 110,
+                              height: 110,
                               borderRadius: '50%',
-                              background: 'rgba(255,255,255,0.15)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              margin: '0 auto 14px',
-                              border: '2px solid rgba(255,255,255,0.22)',
-                              boxShadow: '0 10px 24px rgba(0,0,0,0.28)',
-                              position: 'relative',
-                              overflow: 'hidden'
+                              overflow: 'hidden',
+                              zIndex: 5
                             }}>
                               <img
                                 src={tok.logo}
                                 alt={tok.symbol}
                                 style={{
-                                  width: 92,
-                                  height: 92,
+                                  width: 106,
+                                  height: 106,
                                   borderRadius: '50%',
-                                  objectFit: 'cover',
-                                  position: 'relative',
-                                  zIndex: 2,
-                                  border: '2px solid rgba(255,255,255,0.2)'
+                                  objectFit: 'cover'
                                 }}
                                 onError={handleImageFallback}
                               />
                             </div>
 
-                            <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                              <div>
-                                <div style={{ fontSize: 16, fontWeight: 900, color: 'white', marginBottom: 4, textShadow: '0 2px 4px rgba(0,0,0,0.5)', letterSpacing: 0.5 }}>
-                                  {tok.symbol}
-                                </div>
-                                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.82)', marginBottom: 8, lineHeight: 1.4, fontWeight: 600, letterSpacing: 0.4 }}>
-                                  {tok.about}
-                                </div>
+                            {/* Token Name & Type */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '40%',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              textAlign: 'center',
+                              width: '90%'
+                            }}>
+                              <div style={{
+                                fontSize: 15,
+                                fontWeight: 900,
+                                color: cardStyles.textColor,
+                                letterSpacing: 0.5
+                              }}>
+                                {tok.symbol}
                               </div>
-
-                              <div style={{ marginBottom: 12 }}>
-                                <div style={{ display: 'flex', gap: 8, marginBottom: 10, justifyContent: 'center' }}>
-                                  <button
-                                    className={`btn ${p.dir === 'UP' ? 'btn-up active' : ''}`}
-                                    style={{ fontSize: 13, padding: '8px 14px', fontWeight: 600 }}
-                                    onClick={() => {
-                                      const newNextRound = [...nextRound]
-                                      if (newNextRound[index]) {
-                                        newNextRound[index] = { ...newNextRound[index]!, dir: 'UP' }
-                                        setNextRound(newNextRound)
-                                        setNextRoundLoaded(true)
-                                        setNextRoundSaved(false)
-                                      }
-                                    }}
-                                  >
-                                    ▲ UP
-                                  </button>
-                                  <button
-                                    className={`btn ${p.dir === 'DOWN' ? 'btn-down active' : ''}`}
-                                    style={{ fontSize: 13, padding: '8px 14px', fontWeight: 600 }}
-                                    onClick={() => {
-                                      const newNextRound = [...nextRound]
-                                      if (newNextRound[index]) {
-                                        newNextRound[index] = { ...newNextRound[index]!, dir: 'DOWN' }
-                                        setNextRound(newNextRound)
-                                        setNextRoundLoaded(true)
-                                        setNextRoundSaved(false)
-                                      }
-                                    }}
-                                  >
-                                    ▼ DOWN
-                                  </button>
-                                </div>
-
-                                <button
-                                  className="btn"
-                                  style={{ fontSize: 10, padding: '6px 12px', fontWeight: 600 }}
-                                  onClick={() => removeFromNextRound(index)}
-                                  disabled={nextRoundSaved}
-                                >
-                                  Remove
-                                </button>
+                              <div style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: cardStyles.typeColor,
+                                marginTop: 2
+                              }}>
+                                {tok.about}
                               </div>
                             </div>
+
+                            {/* Buttons area */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '55%',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              display: 'flex',
+                              gap: 6,
+                              justifyContent: 'center',
+                              width: '90%'
+                            }}>
+                              <button
+                                className={`btn ${p.dir === 'UP' ? 'btn-up active' : ''}`}
+                                style={{ fontSize: 10, padding: '5px 10px', fontWeight: 700 }}
+                                onClick={() => {
+                                  const newNextRound = [...nextRound]
+                                  if (newNextRound[index]) {
+                                    newNextRound[index] = { ...newNextRound[index]!, dir: 'UP' }
+                                    setNextRound(newNextRound)
+                                    setNextRoundLoaded(true)
+                                    setNextRoundSaved(false)
+                                  }
+                                }}
+                              >
+                                ▲ UP
+                              </button>
+                              <button
+                                className={`btn ${p.dir === 'DOWN' ? 'btn-down active' : ''}`}
+                                style={{ fontSize: 10, padding: '5px 10px', fontWeight: 700 }}
+                                onClick={() => {
+                                  const newNextRound = [...nextRound]
+                                  if (newNextRound[index]) {
+                                    newNextRound[index] = { ...newNextRound[index]!, dir: 'DOWN' }
+                                    setNextRound(newNextRound)
+                                    setNextRoundLoaded(true)
+                                    setNextRoundSaved(false)
+                                  }
+                                }}
+                              >
+                                ▼ DOWN
+                              </button>
+                            </div>
+
+                            {/* Remove button */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '68%',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              textAlign: 'center'
+                            }}>
+                              <button
+                                className="btn"
+                                style={{ fontSize: 10, padding: '5px 12px', fontWeight: 600 }}
+                                onClick={() => removeFromNextRound(index)}
+                                disabled={nextRoundSaved}
+                              >
+                                Remove
+                              </button>
+                            </div>
+
+                            {/* FLIP ROYALE Badge */}
+                            <div style={{
+                              position: 'absolute',
+                              bottom: -2,
+                              left: '50%',
+                              transform: 'translateX(-50%)'
+                            }}>
+                              <img
+                                src="/logo.png"
+                                alt="Flip Royale"
+                                style={{
+                                  height: 48,
+                                  width: 'auto',
+                                  objectFit: 'contain',
+                                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))'
+                                }}
+                              />
+                            </div>
+
                           </div>
                         )
                       } else {
@@ -2587,7 +2778,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </div>
+        </div >
 
 
         {/* Select Card Modal */}
@@ -2924,159 +3115,164 @@ export default function Home() {
         {/* Registration Modal */}
         {/* Registration Modal Removed - Use /invite */}
         {/* Welcome Gift Modal */}
-        {showWelcomeGift && (
-          <div className="modal-backdrop">
-            <div className="modal" style={{ maxWidth: 400, textAlign: 'center', padding: 0, overflow: 'hidden' }}>
-              <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', padding: '30px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <div style={{ fontSize: 40 }}>🎁</div>
-                <h2 style={{ margin: 0, color: 'white', fontSize: 24, fontWeight: 800 }}>Welcome Gift!</h2>
-                <p style={{ margin: 0, color: 'rgba(255,255,255,0.9)', fontSize: 15 }}>
-                  Thanks for joining Flip Royale! Here is a free <b>Common Pack</b> to get you started.
-                </p>
-              </div>
-              <div style={{ padding: 24, background: '#1e293b' }}>
-                <img src="/common-pack.jpg" alt="Common Pack" style={{ width: 120, borderRadius: 12, marginBottom: 20, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }} />
-                <button
-                  data-test="welcome-open"
-                  className="btn"
-                  onClick={async () => {
-                    setShowWelcomeGift(false);
-                    if (!user?.id) { toast('Please login first', 'error'); return }
-                    try {
-                      const res = await fetch('/api/users/openPack', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id).toLowerCase() },
-                        body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType: 'common' })
-                      })
-                      const data = await res.json().catch(() => ({}))
-                      if (!res.ok) {
-                        toast(data.error || 'Failed to open welcome pack', 'error')
-                        return
+        {
+          showWelcomeGift && (
+            <div className="modal-backdrop">
+              <div className="modal" style={{ maxWidth: 400, textAlign: 'center', padding: 0, overflow: 'hidden' }}>
+                <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', padding: '30px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                  <div style={{ fontSize: 40 }}>🎁</div>
+                  <h2 style={{ margin: 0, color: 'white', fontSize: 24, fontWeight: 800 }}>Welcome Gift!</h2>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.9)', fontSize: 15 }}>
+                    Thanks for joining Flip Royale! Here is a free <b>Common Pack</b> to get you started.
+                  </p>
+                </div>
+                <div style={{ padding: 24, background: '#1e293b' }}>
+                  <img src="/common-pack.jpg" alt="Common Pack" style={{ width: 120, borderRadius: 12, marginBottom: 20, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }} />
+                  <button
+                    data-test="welcome-open"
+                    className="btn"
+                    onClick={async () => {
+                      setShowWelcomeGift(false);
+                      if (!user?.id) { toast('Please login first', 'error'); return }
+                      try {
+                        const res = await fetch('/api/users/openPack', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id).toLowerCase() },
+                          body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType: 'common' })
+                        })
+                        const data = await res.json().catch(() => ({}))
+                        if (!res.ok) {
+                          toast(data.error || 'Failed to open welcome pack', 'error')
+                          return
+                        }
+
+                        // Oracle may return newCards, cards or tokens depending on implementation
+                        const cards = data.newCards || data.cards || data.tokens || []
+                        setShowMysteryResults({ open: true, cards })
+                        // Refresh user data to update inventory/points
+                        loadUserData()
+                      } catch (e) {
+                        console.error('Open welcome pack error', e)
+                        toast('Connection error while opening welcome pack', 'error')
                       }
+                    }}
+                    style={{
+                      width: '100%',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      border: 'none',
+                      padding: '14px',
+                      borderRadius: 12,
+                      color: 'white',
+                      fontWeight: 800,
+                      fontSize: 16,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                    }}
+                  >
+                    Open My Gift!
+                  </button>
 
-                      // Oracle may return newCards, cards or tokens depending on implementation
-                      const cards = data.newCards || data.cards || data.tokens || []
-                      setShowMysteryResults({ open: true, cards })
-                      // Refresh user data to update inventory/points
-                      loadUserData()
-                    } catch (e) {
-                      console.error('Open welcome pack error', e)
-                      toast('Connection error while opening welcome pack', 'error')
-                    }
-                  }}
-                  style={{
-                    width: '100%',
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    border: 'none',
-                    padding: '14px',
-                    borderRadius: 12,
-                    color: 'white',
-                    fontWeight: 800,
-                    fontSize: 16,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                  }}
-                >
-                  Open My Gift!
-                </button>
-
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
         {/* 📦 PAKET SATIN ALINDI MODALI */}
-        {purchasedPack && (
-          <div className="modal-backdrop" style={{ zIndex: 9999 }}>
-            <div className="modal" style={{
-              textAlign: 'center',
-              maxWidth: 400,
-              background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-            }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
-
-              <h3 style={{ color: 'white', fontSize: 24, fontWeight: 800, margin: '0 0 8px 0' }}>
-                Pack Purchased!
-              </h3>
-
-              <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 12px 0' }}>
-                You have successfully added <b>{purchasedPack.count} {purchasedPack.type.toUpperCase()}</b> Pack(s) to your inventory.
-              </p>
-
-              <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 24px 0', fontStyle: 'italic' }}>
-                Your packs are safe in your inventory.
-              </p>
-
-              <div style={{
-                width: 140,
-                height: 200,
-                margin: '0 auto 24px',
-                borderRadius: 12,
-                overflow: 'hidden',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255,255,255,0.1)'
+        {
+          purchasedPack && (
+            <div className="modal-backdrop" style={{ zIndex: 9999 }}>
+              <div className="modal" style={{
+                textAlign: 'center',
+                maxWidth: 400,
+                background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
               }}>
-                <img
-                  src={`/${purchasedPack.type === 'rare' ? 'rare-pack.jpg' : 'common-pack.jpg'}`}
-                  alt="Pack"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              </div>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <button
-                  className="btn"
-                  style={{
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    padding: '16px',
-                    fontSize: 18,
-                    fontWeight: 800,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 12,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
-                  }}
-                  onClick={() => {
-                    setPurchasedPack(null);
-                    window.location.href = '/my-packs';
-                  }}
-                >
-                  GO TO MY PACKS & OPEN
-                </button>
+                <h3 style={{ color: 'white', fontSize: 24, fontWeight: 800, margin: '0 0 8px 0' }}>
+                  Pack Purchased!
+                </h3>
 
-                <button
-                  className="btn"
-                  style={{
-                    background: 'rgba(255,255,255,0.1)',
-                    padding: '12px',
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: 'rgba(255,255,255,0.7)',
-                    border: 'none',
-                    borderRadius: 10,
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setPurchasedPack(null)}
-                >
-                  Close
-                </button>
+                <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 12px 0' }}>
+                  You have successfully added <b>{purchasedPack.count} {purchasedPack.type.toUpperCase()}</b> Pack(s) to your inventory.
+                </p>
+
+                <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 24px 0', fontStyle: 'italic' }}>
+                  Your packs are safe in your inventory.
+                </p>
+
+                <div style={{
+                  width: 140,
+                  height: 200,
+                  margin: '0 auto 24px',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255,255,255,0.1)'
+                }}>
+                  <img
+                    src={`/${purchasedPack.type === 'rare' ? 'rare-pack.jpg' : 'common-pack.jpg'}`}
+                    alt="Pack"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <button
+                    className="btn"
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      padding: '16px',
+                      fontSize: 18,
+                      fontWeight: 800,
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 12,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
+                    }}
+                    onClick={() => {
+                      setPurchasedPack(null);
+                      window.location.href = '/my-packs';
+                    }}
+                  >
+                    GO TO MY PACKS & OPEN
+                  </button>
+
+                  <button
+                    className="btn"
+                    style={{
+                      background: 'rgba(255,255,255,0.1)',
+                      padding: '12px',
+                      fontSize: 15,
+                      fontWeight: 600,
+                      color: 'rgba(255,255,255,0.7)',
+                      border: 'none',
+                      borderRadius: 10,
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setPurchasedPack(null)}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )
+        }
+      </div >
 
       {/* Redeem Code Modal */}
-      <RedeemCodeModal
+      < RedeemCodeModal
         isOpen={showRedeemModal}
-        onClose={() => setShowRedeemModal(false)}
+        onClose={() => setShowRedeemModal(false)
+        }
         userId={user?.id || ''}
         onSuccess={() => {
           loadUserData() // Reload to show new pack
           toast('🎁 Code Redeemed! Check My Packs for your free pack!')
         }}
       />
-    </TokenGate>
+    </TokenGate >
   )
 }

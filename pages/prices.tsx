@@ -39,6 +39,7 @@ export default function PricesPage() {
   const [error, setError] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
   const [sortBy, setSortBy] = useState<SortOption>('changePct')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     const saved = localStorage.getItem('flipflop-user')
@@ -147,34 +148,41 @@ export default function PricesPage() {
   }, [])
 
   const sortedRows = useMemo(() => {
-    return rows.slice().sort((a, b) => {
-      if (sortBy === 'changePct') {
-        const aChange = Number.isFinite(a.changePct ?? NaN) ? (a.changePct as number) : -Infinity
-        const bChange = Number.isFinite(b.changePct ?? NaN) ? (b.changePct as number) : -Infinity
-        if (bChange !== aChange) return bChange - aChange
-        // Secondary sort by FDV
-        const aFdv = Number.isFinite(a.fdv ?? NaN) ? (a.fdv as number) : -Infinity
-        const bFdv = Number.isFinite(b.fdv ?? NaN) ? (b.fdv as number) : -Infinity
-        return bFdv - aFdv
-      } else if (sortBy === 'fdv') {
-        const aFdv = Number.isFinite(a.fdv ?? NaN) ? (a.fdv as number) : -Infinity
-        const bFdv = Number.isFinite(b.fdv ?? NaN) ? (b.fdv as number) : -Infinity
-        if (bFdv !== aFdv) return bFdv - aFdv
-        // Secondary sort by change %
-        const aChange = Number.isFinite(a.changePct ?? NaN) ? (a.changePct as number) : -Infinity
-        const bChange = Number.isFinite(b.changePct ?? NaN) ? (b.changePct as number) : -Infinity
-        return bChange - aChange
-      } else { // sortBy === 'price'
-        const aPrice = Number.isFinite(a.price ?? NaN) ? (a.price as number) : -Infinity
-        const bPrice = Number.isFinite(b.price ?? NaN) ? (b.price as number) : -Infinity
-        if (bPrice !== aPrice) return bPrice - aPrice
-        // Secondary sort by change %
-        const aChange = Number.isFinite(a.changePct ?? NaN) ? (a.changePct as number) : -Infinity
-        const bChange = Number.isFinite(b.changePct ?? NaN) ? (b.changePct as number) : -Infinity
-        return bChange - aChange
-      }
-    })
-  }, [rows, sortBy])
+    const searchLower = search.toLowerCase().trim()
+    return rows
+      .filter(row => {
+        if (!searchLower) return true
+        return row.name.toLowerCase().includes(searchLower) ||
+          row.symbol.toLowerCase().includes(searchLower)
+      })
+      .sort((a, b) => {
+        if (sortBy === 'changePct') {
+          const aChange = Number.isFinite(a.changePct ?? NaN) ? (a.changePct as number) : -Infinity
+          const bChange = Number.isFinite(b.changePct ?? NaN) ? (b.changePct as number) : -Infinity
+          if (bChange !== aChange) return bChange - aChange
+          // Secondary sort by FDV
+          const aFdv = Number.isFinite(a.fdv ?? NaN) ? (a.fdv as number) : -Infinity
+          const bFdv = Number.isFinite(b.fdv ?? NaN) ? (b.fdv as number) : -Infinity
+          return bFdv - aFdv
+        } else if (sortBy === 'fdv') {
+          const aFdv = Number.isFinite(a.fdv ?? NaN) ? (a.fdv as number) : -Infinity
+          const bFdv = Number.isFinite(b.fdv ?? NaN) ? (b.fdv as number) : -Infinity
+          if (bFdv !== aFdv) return bFdv - aFdv
+          // Secondary sort by change %
+          const aChange = Number.isFinite(a.changePct ?? NaN) ? (a.changePct as number) : -Infinity
+          const bChange = Number.isFinite(b.changePct ?? NaN) ? (b.changePct as number) : -Infinity
+          return bChange - aChange
+        } else { // sortBy === 'price'
+          const aPrice = Number.isFinite(a.price ?? NaN) ? (a.price as number) : -Infinity
+          const bPrice = Number.isFinite(b.price ?? NaN) ? (b.price as number) : -Infinity
+          if (bPrice !== aPrice) return bPrice - aPrice
+          // Secondary sort by change %
+          const aChange = Number.isFinite(a.changePct ?? NaN) ? (a.changePct as number) : -Infinity
+          const bChange = Number.isFinite(b.changePct ?? NaN) ? (b.changePct as number) : -Infinity
+          return bChange - aChange
+        }
+      })
+  }, [rows, sortBy, search])
 
   const updatedLabel = lastUpdated
     ? new Date(lastUpdated).toLocaleTimeString()
@@ -188,6 +196,21 @@ export default function PricesPage() {
         <div className="row">
           <h2>Live Token Prices</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <input
+              type="text"
+              placeholder="Search token..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: 'rgba(0,0,0,0.3)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: 'white',
+                fontSize: 14,
+                width: 180
+              }}
+            />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}

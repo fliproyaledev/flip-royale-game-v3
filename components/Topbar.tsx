@@ -71,7 +71,7 @@ export default function Topbar({ activeTab, user }: TopbarProps) {
                 </a>
             </div>
             <nav className="tabs">
-                <a className={`tab ${activeTab === 'play' ? 'active' : ''}`} href="/">PLAY</a>
+                <a className={`tab ${activeTab === 'play' ? 'active' : ''}`} href="/">FLIP ROYALE</a>
                 <a className={`tab ${activeTab === 'prices' ? 'active' : ''}`} href="/prices">PRICES</a>
                 <a className={`tab ${activeTab === 'guide' ? 'active' : ''}`} href="/guide">GUIDE</a>
                 <a className={`tab ${activeTab === 'inventory' ? 'active' : ''}`} href="/inventory">INVENTORY</a>

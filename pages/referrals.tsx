@@ -91,7 +91,15 @@ export default function ReferralsPage() {
 
         initPage()
 
-        return () => { mounted = false }
+        // Fallback: Eğer 3 saniye içinde loading bitmezse zorla bitir
+        const timeout = setTimeout(() => {
+            setLoading(false)
+        }, 3000)
+
+        return () => {
+            mounted = false
+            clearTimeout(timeout)
+        }
     }, [])
 
     // Referral verisini yükle

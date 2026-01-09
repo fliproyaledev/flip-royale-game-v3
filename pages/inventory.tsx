@@ -11,9 +11,72 @@ function handleImageFallback(event: SyntheticEvent<HTMLImageElement>) {
   target.src = '/token-logos/placeholder.png'
 }
 
+// Card CSS Styles - same as index.tsx
+interface CardCSSStyles {
+  background: string;
+  borderColor: string;
+  boxShadow: string;
+  ringColor: string;
+  ringGlow: string;
+  textColor: string;
+  typeColor: string;
+}
+
+function getCardCSSStyles(type: string): CardCSSStyles {
+  const styles: Record<string, CardCSSStyles> = {
+    pegasus: {
+      background: 'linear-gradient(180deg, #2d5a3f 0%, #1a3a28 50%, #050a07 100%)',
+      borderColor: '#4a7c59',
+      boxShadow: '0 0 15px rgba(74, 124, 89, 0.3)',
+      ringColor: '#7cb342',
+      ringGlow: '0 0 15px #7cb342, 0 0 30px #7cb342, 0 0 45px rgba(124, 179, 66, 0.6), inset 0 0 15px rgba(124, 179, 66, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#4ade80',
+    },
+    genesis: {
+      background: 'linear-gradient(180deg, #6b3d8f 0%, #4a2c6a 50%, #0a0510 100%)',
+      borderColor: '#7c4a9e',
+      boxShadow: '0 0 15px rgba(124, 74, 158, 0.3)',
+      ringColor: '#9c27b0',
+      ringGlow: '0 0 15px #9c27b0, 0 0 30px #9c27b0, 0 0 45px rgba(156, 39, 176, 0.6), inset 0 0 15px rgba(156, 39, 176, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#c084fc',
+    },
+    unicorn: {
+      background: 'linear-gradient(180deg, #f0c14b 0%, #daa520 50%, #4a3000 100%)',
+      borderColor: '#daa520',
+      boxShadow: '0 0 15px rgba(218, 165, 32, 0.3)',
+      ringColor: '#ffd700',
+      ringGlow: '0 0 15px #ffd700, 0 0 30px #ffd700, 0 0 45px rgba(255, 215, 0, 0.6), inset 0 0 15px rgba(255, 215, 0, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#78350f',
+    },
+    sentient: {
+      background: 'linear-gradient(180deg, #2a4a6a 0%, #1a3050 50%, #050a10 100%)',
+      borderColor: '#3a5a8a',
+      boxShadow: '0 0 15px rgba(58, 90, 138, 0.3)',
+      ringColor: '#2196f3',
+      ringGlow: '0 0 15px #2196f3, 0 0 30px #2196f3, 0 0 45px rgba(33, 150, 243, 0.6), inset 0 0 15px rgba(33, 150, 243, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#60a5fa',
+    },
+    firstborn: {
+      background: 'linear-gradient(180deg, #2d5a3f 0%, #1a3a28 50%, #050a07 100%)',
+      borderColor: '#4a7c59',
+      boxShadow: '0 0 15px rgba(74, 124, 89, 0.3)',
+      ringColor: '#7cb342',
+      ringGlow: '0 0 15px #7cb342, 0 0 30px #7cb342, 0 0 45px rgba(124, 179, 66, 0.6), inset 0 0 15px rgba(124, 179, 66, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#4ade80',
+    },
+  };
+  return styles[type?.toLowerCase()] || styles.sentient;
+}
+
 export default function Inventory() {
   const [inventory, setInventory] = useState<Record<string, number>>({})
   const [user, setUser] = useState<any>(null)
+  const [filter, setFilter] = useState<string>('all')
 
   useEffect(() => {
     async function load() {
@@ -41,6 +104,21 @@ export default function Inventory() {
     load()
   }, [])
 
+  const filterButtons = [
+    { key: 'all', label: 'All', color: '#ffffff' },
+    { key: 'unicorn', label: 'Unicorn', color: '#ffd700' },
+    { key: 'pegasus', label: 'Pegasus', color: '#4ade80' },
+    { key: 'genesis', label: 'Genesis', color: '#c084fc' },
+    { key: 'sentient', label: 'Sentient', color: '#60a5fa' },
+  ]
+
+  const filteredTokens = TOKENS.filter(t => {
+    const hasInventory = (inventory[t.id] || 0) > 0
+    if (!hasInventory) return false
+    if (filter === 'all') return true
+    return t.about?.toLowerCase() === filter
+  })
+
   return (
     <div className="app">
       <Topbar activeTab="inventory" user={user} />
@@ -49,162 +127,191 @@ export default function Inventory() {
         <h2>Token Collection</h2>
         <div className="sep"></div>
 
+        {/* Filter Buttons */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 16,
-          marginTop: 20
+          display: 'flex',
+          gap: 10,
+          marginTop: 16,
+          marginBottom: 20,
+          flexWrap: 'wrap'
         }}>
-          {TOKENS.filter(t => (inventory[t.id] || 0) > 0).map((tok, index) => {
+          {filterButtons.map(btn => (
+            <button
+              key={btn.key}
+              onClick={() => setFilter(btn.key)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 8,
+                border: filter === btn.key ? `2px solid ${btn.color}` : '2px solid rgba(255,255,255,0.2)',
+                background: filter === btn.key ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.3)',
+                color: btn.color,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 16,
+          justifyContent: 'flex-start'
+        }}>
+          {filteredTokens.map((tok) => {
             const count = inventory[tok.id] || 0
-
-            // Color palette inspired by trading card gradients
-            const colors = [
-              'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Purple to indigo
-              'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', // Pink to coral
-              'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', // Blue to cyan
-              'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', // Green to aqua
-              'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', // Pink to yellow
-              'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', // Mint to blush
-              'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', // Soft pink tones
-              'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)', // Peach to apricot
-              'linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%)', // Pink to soft orange
-              'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)', // Lavender to pink
-              'linear-gradient(135deg, #fad0c4 0%, #ffd1ff 100%)', // Apricot to lilac
-            ]
-
-            const rarity = index < 3 ? 'C' : index < 7 ? 'U' : 'R' // Common, Uncommon, Rare
-            const rarityColor = rarity === 'C' ? '#6b7280' : rarity === 'U' ? '#3b82f6' : '#f59e0b'
+            const cardStyles = getCardCSSStyles(tok.about)
 
             return (
-              <div key={tok.id} style={{
-                background: colors[index % colors.length],
-                borderRadius: 20,
-                padding: 24,
+              <div key={tok.id} className="card-texture" style={{
+                background: cardStyles.background,
+                border: `3px solid ${cardStyles.borderColor}`,
+                boxShadow: cardStyles.boxShadow,
+                borderRadius: 16,
+                padding: 0,
                 position: 'relative',
-                minHeight: 280,
+                height: 340,
+                width: 180,
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
-                border: '2px solid rgba(255,255,255,0.15)',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.15), 0 4px 20px rgba(0,0,0,0.1)',
-                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                transform: 'translateY(0)',
-                cursor: 'pointer'
+                transition: 'all 0.3s ease',
+                cursor: 'pointer',
+                overflow: 'hidden',
+                flexShrink: 0
               }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
-                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(0,0,0,0.25), 0 8px 30px rgba(0,0,0,0.15)';
-                  e.currentTarget.style.border = '2px solid rgba(255,255,255,0.3)';
+                  e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.15), 0 4px 20px rgba(0,0,0,0.1)';
-                  e.currentTarget.style.border = '2px solid rgba(255,255,255,0.15)';
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)'
                 }}>
 
-
-                {/* Rarity badge */}
+                {/* Count badge */}
                 <div style={{
                   position: 'absolute',
-                  top: 12,
-                  left: 12,
-                  background: rarityColor,
+                  top: 8,
+                  right: 8,
+                  background: 'rgba(0,0,0,0.75)',
                   color: 'white',
-                  width: 24,
-                  height: 24,
+                  padding: '4px 10px',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  fontWeight: 700,
+                  zIndex: 10
+                }}>
+                  x{count}
+                </div>
+
+                {/* Glowing ring */}
+                <div style={{
+                  position: 'absolute',
+                  top: '22%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 120,
+                  height: 120,
+                  borderRadius: '50%',
+                  border: `3px solid ${cardStyles.ringColor}`,
+                  boxShadow: cardStyles.ringGlow,
+                  pointerEvents: 'none'
+                }} />
+
+                {/* Token Logo */}
+                <div style={{
+                  position: 'absolute',
+                  top: '22%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: 110,
+                  height: 110,
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 12,
-                  fontWeight: 700
+                  overflow: 'hidden',
+                  zIndex: 5
                 }}>
-                  {rarity}
-                </div>
-
-                {/* Token logo */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  flex: 1,
-                  marginTop: 16
-                }}>
-                  <div style={{
-                    width: 120,
-                    height: 120,
-                    background: 'rgba(255,255,255,0.12)',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '3px solid rgba(255,255,255,0.25)',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
-                    backdropFilter: 'blur(15px)',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}>
-                    {/* Glow effect */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      width: '120%',
-                      height: '120%',
-                      background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
+                  <img
+                    src={tok.logo}
+                    alt={tok.symbol}
+                    style={{
+                      width: 106,
+                      height: 106,
                       borderRadius: '50%',
-                      filter: 'blur(20px)'
-                    }} />
-
-                    <img
-                      src={tok.logo}
-                      alt={tok.symbol}
-                      style={{
-                        width: 100,
-                        height: 100,
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))',
-                        position: 'relative',
-                        zIndex: 2,
-                        border: '2px solid rgba(255,255,255,0.2)'
-                      }}
-                      onError={handleImageFallback}
-                    />
-                  </div>
+                      objectFit: 'cover'
+                    }}
+                    onError={handleImageFallback}
+                  />
                 </div>
 
-                {/* Token info */}
-                <div style={{ textAlign: 'center', marginTop: 16 }}>
+                {/* Token Name & Type */}
+                <div style={{
+                  position: 'absolute',
+                  top: '45%',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  textAlign: 'center',
+                  width: '90%'
+                }}>
                   <div style={{
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: 900,
-                    color: 'white',
-                    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                    marginBottom: 4
+                    color: cardStyles.textColor,
+                    letterSpacing: 0.5
                   }}>
                     {tok.symbol}
                   </div>
                   <div style={{
                     fontSize: 12,
-                    color: 'rgba(255,255,255,0.8)',
-                    marginBottom: 8
+                    fontWeight: 700,
+                    color: cardStyles.typeColor,
+                    marginTop: 2
                   }}>
                     {tok.about}
                   </div>
-                  <div style={{
-                    background: 'rgba(0,0,0,0.2)',
-                    color: 'white',
-                    padding: '6px 12px',
-                    borderRadius: 8,
-                    fontSize: 12,
-                    fontWeight: 600
-                  }}>
-                    Owned: {count}
-                  </div>
                 </div>
+
+                {/* Owned count display */}
+                <div style={{
+                  position: 'absolute',
+                  top: '68%',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: 'rgba(0,0,0,0.4)',
+                  color: 'white',
+                  padding: '6px 16px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textAlign: 'center'
+                }}>
+                  Owned: {count}
+                </div>
+
+                {/* FLIP ROYALE Badge */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: -2,
+                  left: '50%',
+                  transform: 'translateX(-50%)'
+                }}>
+                  <img
+                    src="/logo.png"
+                    alt="Flip Royale"
+                    style={{
+                      height: 48,
+                      width: 'auto',
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))'
+                    }}
+                  />
+                </div>
+
               </div>
             )
           })}
