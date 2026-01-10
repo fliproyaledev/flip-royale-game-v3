@@ -4,9 +4,66 @@ import { useToast } from '../lib/toast'
 import Topbar from '../components/Topbar'
 import { TOKENS, getTokenById } from '../lib/tokens'
 
-function getGradientColor(index: number) {
-  const colors = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#06b6d4', '#f97316', '#ef4444', '#8b5cf6', '#ec4899', '#3b82f6']
-  return colors[index % colors.length]
+// Card CSS Styles - consistent with index.tsx and inventory.tsx
+interface CardCSSStyles {
+  background: string;
+  borderColor: string;
+  boxShadow: string;
+  ringColor: string;
+  ringGlow: string;
+  textColor: string;
+  typeColor: string;
+}
+
+function getCardCSSStyles(type: string): CardCSSStyles {
+  const styles: Record<string, CardCSSStyles> = {
+    pegasus: {
+      background: 'linear-gradient(180deg, #2d5a3f 0%, #1a3a28 50%, #050a07 100%)',
+      borderColor: '#4a7c59',
+      boxShadow: '0 0 15px rgba(74, 124, 89, 0.3)',
+      ringColor: '#7cb342',
+      ringGlow: '0 0 15px #7cb342, 0 0 30px #7cb342, 0 0 45px rgba(124, 179, 66, 0.6), inset 0 0 15px rgba(124, 179, 66, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#4ade80',
+    },
+    genesis: {
+      background: 'linear-gradient(180deg, #6b3d8f 0%, #4a2c6a 50%, #0a0510 100%)',
+      borderColor: '#7c4a9e',
+      boxShadow: '0 0 15px rgba(124, 74, 158, 0.3)',
+      ringColor: '#9c27b0',
+      ringGlow: '0 0 15px #9c27b0, 0 0 30px #9c27b0, 0 0 45px rgba(156, 39, 176, 0.6), inset 0 0 15px rgba(156, 39, 176, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#c084fc',
+    },
+    unicorn: {
+      background: 'linear-gradient(180deg, #f0c14b 0%, #daa520 50%, #4a3000 100%)',
+      borderColor: '#daa520',
+      boxShadow: '0 0 15px rgba(218, 165, 32, 0.3)',
+      ringColor: '#ffd700',
+      ringGlow: '0 0 15px #ffd700, 0 0 30px #ffd700, 0 0 45px rgba(255, 215, 0, 0.6), inset 0 0 15px rgba(255, 215, 0, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#78350f',
+    },
+    sentient: {
+      background: 'linear-gradient(180deg, #2a4a6a 0%, #1a3050 50%, #050a10 100%)',
+      borderColor: '#3a5a8a',
+      boxShadow: '0 0 15px rgba(58, 90, 138, 0.3)',
+      ringColor: '#2196f3',
+      ringGlow: '0 0 15px #2196f3, 0 0 30px #2196f3, 0 0 45px rgba(33, 150, 243, 0.6), inset 0 0 15px rgba(33, 150, 243, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#60a5fa',
+    },
+    firstborn: {
+      background: 'linear-gradient(180deg, #2d5a3f 0%, #1a3a28 50%, #050a07 100%)',
+      borderColor: '#4a7c59',
+      boxShadow: '0 0 15px rgba(74, 124, 89, 0.3)',
+      ringColor: '#7cb342',
+      ringGlow: '0 0 15px #7cb342, 0 0 30px #7cb342, 0 0 45px rgba(124, 179, 66, 0.6), inset 0 0 15px rgba(124, 179, 66, 0.3)',
+      textColor: '#ffffff',
+      typeColor: '#4ade80',
+    },
+  };
+  return styles[type?.toLowerCase()] || styles.sentient;
 }
 
 function handleImageFallback(e: any) {
@@ -231,28 +288,136 @@ export default function MyPacksPage() {
       {/* Mystery Pack Results Modal */}
       {showMysteryResults.open && (
         <div className="modal-backdrop" onClick={() => setShowMysteryResults({ open: false, cards: [] })}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 900, width: '96%' }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1100, width: '96%' }}>
             <div className="modal-header">
               <h3 style={{ color: 'white', fontSize: 26, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.2 }}>Mystery Pack Results</h3>
               <button onClick={() => setShowMysteryResults({ open: false, cards: [] })} style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer' }}>×</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 16 }}>
+
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 20,
+              marginBottom: 16,
+              justifyContent: 'center',
+              maxHeight: '60vh',
+              overflowY: 'auto',
+              padding: 10
+            }}>
               {showMysteryResults.cards.map((id, idx) => {
                 const tok = getTokenById(id) || TOKENS[0]
+                const cardStyles = getCardCSSStyles(tok.about)
+
                 return (
-                  <div key={idx} style={{ background: `linear-gradient(135deg, ${getGradientColor(idx)}, ${getGradientColor(idx + 1)})`, borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, border: '1px solid rgba(255,255,255,.22)', boxShadow: '0 14px 32px rgba(0,0,0,0.28)' }}>
-                    <div style={{ width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', border: '3px solid rgba(255,255,255,.3)', display: 'grid', placeItems: 'center', boxShadow: '0 6px 18px rgba(0,0,0,0.35)' }}>
-                      <img src={tok.logo} alt={tok.symbol} style={{ width: 94, height: 94, borderRadius: '50%', objectFit: 'cover' }} onError={handleImageFallback} />
+                  <div key={idx} className="card-texture" style={{
+                    background: cardStyles.background,
+                    border: `3px solid ${cardStyles.borderColor}`,
+                    boxShadow: cardStyles.boxShadow,
+                    borderRadius: 16,
+                    padding: 0,
+                    position: 'relative',
+                    height: 340,
+                    width: 180,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'all 0.3s ease',
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}>
+
+                    {/* Glowing ring */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '22%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: 120,
+                      height: 120,
+                      borderRadius: '50%',
+                      border: `3px solid ${cardStyles.ringColor}`,
+                      boxShadow: cardStyles.ringGlow,
+                      pointerEvents: 'none'
+                    }} />
+
+                    {/* Token Logo */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '22%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: 110,
+                      height: 110,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      zIndex: 5
+                    }}>
+                      <img
+                        src={tok.logo}
+                        alt={tok.symbol}
+                        style={{
+                          width: 106,
+                          height: 106,
+                          borderRadius: '50%',
+                          objectFit: 'cover'
+                        }}
+                        onError={handleImageFallback}
+                      />
                     </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontWeight: 900, color: '#fff', fontSize: 18, letterSpacing: 1, textTransform: 'uppercase', textShadow: '0 3px 8px rgba(0,0,0,0.4)' }}>{tok.symbol}</div>
-                      <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 600, marginTop: 4 }}>{tok.name}</div>
-                      {tok.about && (<div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, letterSpacing: 1.5, marginTop: 2, textTransform: 'uppercase' }}>{tok.about}</div>)}
+
+                    {/* Token Name & Type */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '45%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      textAlign: 'center',
+                      width: '90%'
+                    }}>
+                      <div style={{
+                        fontSize: 16,
+                        fontWeight: 900,
+                        color: cardStyles.textColor,
+                        letterSpacing: 0.5
+                      }}>
+                        {tok.symbol}
+                      </div>
+                      <div style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: cardStyles.typeColor,
+                        marginTop: 2
+                      }}>
+                        {tok.about}
+                      </div>
                     </div>
+
+                    {/* FLIP ROYALE Badge */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: -2,
+                      left: '50%',
+                      transform: 'translateX(-50%)'
+                    }}>
+                      <img
+                        src="/logo.png"
+                        alt="Flip Royale"
+                        style={{
+                          height: 48,
+                          width: 'auto',
+                          objectFit: 'contain',
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))'
+                        }}
+                      />
+                    </div>
+
                   </div>
                 )
               })}
             </div>
+
             <div style={{ textAlign: 'center' }}>
               <button className="btn primary" onClick={addMysteryToInventory} style={{ marginRight: 8 }}>Add to Inventory</button>
               <button className="btn" onClick={() => setShowMysteryResults({ open: false, cards: [] })}>Close</button>

@@ -240,6 +240,7 @@ export default function Home() {
   const [showSummary, setShowSummary] = useState<{ open: boolean; items: DayResult | null }>({ open: false, items: null })
   const [modalOpen, setModalOpen] = useState<{ open: boolean; type: 'select' | 'summary' | 'pack' }>({ open: false, type: 'select' })
   const [modalSearch, setModalSearch] = useState('')
+  const [modalFilter, setModalFilter] = useState('all') // ✨ New State for Modal Filter
   const [showRoundResults, setShowRoundResults] = useState<{ open: boolean; results: RoundResult[] }>({ open: false, results: [] })
   const [currentRound, setCurrentRound] = useState(1)
   const [stateLoaded, setStateLoaded] = useState(false)
@@ -1419,9 +1420,18 @@ export default function Home() {
 
   const filteredTokens = useMemo(() => {
     const q = modalSearch.toLowerCase();
+    const filter = modalFilter;
+
     return TOKENS
       .map(tok => ({ tok, available: (inventory[tok.id] || 0) - nextCount(tok.id) }))
-      .filter(({ tok }) => tok.symbol.toLowerCase().includes(q) || tok.name.toLowerCase().includes(q))
+      .filter(({ tok }) => {
+        // Search Filter
+        const matchesSearch = !q || tok.symbol.toLowerCase().includes(q) || tok.name.toLowerCase().includes(q);
+        // Category Filter
+        const matchesFilter = filter === 'all' || (tok.about && tok.about.toLowerCase() === filter);
+
+        return matchesSearch && matchesFilter;
+      })
       .sort((a, b) => {
         const aOwn = a.available > 0 ? 1 : 0;
         const bOwn = b.available > 0 ? 1 : 0;
@@ -1429,7 +1439,7 @@ export default function Home() {
         if (b.available !== a.available) return b.available - a.available;
         return a.tok.symbol.localeCompare(b.tok.symbol);
       });
-  }, [TOKENS, modalSearch, inventory, nextRound]);
+  }, [TOKENS, modalSearch, inventory, nextRound, modalFilter]);
 
   const highlightGainers = useMemo(() => globalHighlights.topGainers.slice(0, 5), [globalHighlights.topGainers])
   const highlightLosers = useMemo(() => globalHighlights.topLosers.slice(0, 5), [globalHighlights.topLosers])
@@ -2807,6 +2817,40 @@ export default function Home() {
                     marginBottom: 16
                   }}
                 />
+
+                {/* Filter Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: 10,
+                  marginBottom: 16,
+                  flexWrap: 'wrap'
+                }}>
+                  {[
+                    { key: 'all', label: 'All', color: '#ffffff' },
+                    { key: 'unicorn', label: 'Unicorn', color: '#ffd700' },
+                    { key: 'pegasus', label: 'Pegasus', color: '#4ade80' },
+                    { key: 'genesis', label: 'Genesis', color: '#c084fc' },
+                    { key: 'sentient', label: 'Sentient', color: '#60a5fa' },
+                  ].map(btn => (
+                    <button
+                      key={btn.key}
+                      onClick={() => setModalFilter(btn.key)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        border: `1px solid ${modalFilter === btn.key ? btn.color : 'rgba(255,255,255,0.2)'}`,
+                        background: modalFilter === btn.key ? `${btn.color}20` : 'rgba(255,255,255,0.05)',
+                        color: modalFilter === btn.key ? btn.color : 'rgba(255,255,255,0.6)',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: modalFilter === btn.key ? 700 : 500,
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
 
                 <div className="modal-grid" style={{ maxHeight: '520px', overflowY: 'auto' }}>
                   {filteredTokens.map(({ tok, available }) => {
