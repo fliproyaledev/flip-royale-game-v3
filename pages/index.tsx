@@ -2075,13 +2075,15 @@ export default function Home() {
                           left: '50%',
                           transform: 'translateX(-50%)',
                           textAlign: 'center',
-                          width: '90%'
+                          width: '90%',
+                          zIndex: 20
                         }}>
                           <div style={{
                             fontSize: 15,
                             fontWeight: 900,
-                            color: cardStyles.textColor,
-                            letterSpacing: 0.5
+                            color: '#ffffff',
+                            letterSpacing: 0.5,
+                            textShadow: '0 2px 4px rgba(0,0,0,0.8)'
                           }}>
                             {tok.symbol}
                           </div>
@@ -2089,7 +2091,8 @@ export default function Home() {
                             fontSize: 12,
                             fontWeight: 700,
                             color: cardStyles.typeColor,
-                            marginTop: 2
+                            marginTop: 2,
+                            textShadow: '0 1px 3px rgba(0,0,0,0.9)'
                           }}>
                             {tok.about}
                           </div>
@@ -2152,10 +2155,11 @@ export default function Home() {
                           fontWeight: 800,
                           textAlign: 'center',
                           whiteSpace: 'nowrap',
-                          textShadow: '0 2px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.5)'
+                          textShadow: '0 2px 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.5)',
+                          zIndex: 20
                         }}>
                           {p.locked ? '🔒 ' : ''}
-                          <span style={{ color: points >= 0 ? '#4ade80' : '#f87171' }}>
+                          <span className="card-points" style={{ color: points >= 0 ? '#4ade80' : '#f87171' }}>
                             {points > 0 ? `+${points}` : points}
                           </span>
                         </div>
@@ -2344,13 +2348,15 @@ export default function Home() {
                               left: '50%',
                               transform: 'translateX(-50%)',
                               textAlign: 'center',
-                              width: '90%'
+                              width: '90%',
+                              zIndex: 20
                             }}>
                               <div style={{
                                 fontSize: 15,
                                 fontWeight: 900,
-                                color: cardStyles.textColor,
-                                letterSpacing: 0.5
+                                color: '#ffffff',
+                                letterSpacing: 0.5,
+                                textShadow: '0 2px 4px rgba(0,0,0,0.8)'
                               }}>
                                 {tok.symbol}
                               </div>
@@ -2358,7 +2364,8 @@ export default function Home() {
                                 fontSize: 12,
                                 fontWeight: 700,
                                 color: cardStyles.typeColor,
-                                marginTop: 2
+                                marginTop: 2,
+                                textShadow: '0 1px 3px rgba(0,0,0,0.9)'
                               }}>
                                 {tok.about}
                               </div>
@@ -2715,6 +2722,7 @@ export default function Home() {
                         setPurchasedPack({ type: 'common', count: buyQty }); // ✨ MODALI AÇ
                       }}
                       price={10 * buyQty} // Fiyatı adetle çarpıyoruz
+                      quantity={buyQty} // 🔧 Miktar prop'u eklendi
                       packType="common"
                       compact={true}
                       referrerAddress={user?.referredBy}
@@ -2778,6 +2786,7 @@ export default function Home() {
                         setPurchasedPack({ type: 'rare', count: rareBuyQty }); // ✨ MODALI AÇ
                       }}
                       price={25 * rareBuyQty}
+                      quantity={rareBuyQty} // 🔧 Miktar prop'u eklendi
                       packType="rare"
                       compact={true}
                       referrerAddress={user?.referredBy}

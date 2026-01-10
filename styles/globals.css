@@ -1192,9 +1192,10 @@ select option {
    ================================================================= */
 
 /* 1. TÜM METİNLERİ ZORLA SİYAH YAP (Profile Sayfası Dahil) */
-[data-theme="light"] .panel div,
-[data-theme="light"] .panel span,
-[data-theme="light"] .panel p,
+/* Kart içeriklerini hariç tut (.card-texture) */
+[data-theme="light"] .panel div:not(.card-texture):not(.card-texture *),
+[data-theme="light"] .panel span:not(.card-texture *),
+[data-theme="light"] .panel p:not(.card-texture *),
 [data-theme="light"] .panel h1,
 [data-theme="light"] .panel h2,
 [data-theme="light"] .panel h3,
@@ -1205,6 +1206,21 @@ select option {
   opacity: 1 !important;
   /* Saydamlığı iptal et */
   text-shadow: none !important;
+}
+
+/* Kart içindeki metinleri BEYAZ zorla (Light Mode'da bile) */
+/* .card-points puanları hariç tut - onlar yeşil/kırmızı kalmalı */
+[data-theme="light"] .card-texture,
+[data-theme="light"] .card-texture div,
+[data-theme="light"] .card-texture span:not(.card-points),
+[data-theme="light"] .card-texture p {
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Puanları kendi renklerinde bırak (yeşil/kırmızı) ama gölge ekle */
+[data-theme="light"] .card-texture .card-points {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
 }
 
 /* 2. SOLUK YAZILARI (Member Since vb.) GÖRÜNÜR GRİ YAP */
@@ -1386,9 +1402,10 @@ select option {
    ================================================================= */
 
 /* 1. TÜM METİNLERİ ZORLA SİYAH YAP (Profile Sayfası Dahil) */
-[data-theme="light"] .panel div,
-[data-theme="light"] .panel span,
-[data-theme="light"] .panel p,
+/* Kart içeriklerini hariç tut (.card-texture) */
+[data-theme="light"] .panel div:not(.card-texture):not(.card-texture *),
+[data-theme="light"] .panel span:not(.card-texture *),
+[data-theme="light"] .panel p:not(.card-texture *),
 [data-theme="light"] .panel h1,
 [data-theme="light"] .panel h2,
 [data-theme="light"] .panel h3,
@@ -1399,6 +1416,21 @@ select option {
   opacity: 1 !important;
   /* Saydamlığı iptal et */
   text-shadow: none !important;
+}
+
+/* Kart içindeki metinleri BEYAZ zorla (Light Mode'da bile) */
+/* .card-points puanları hariç tut - onlar yeşil/kırmızı kalmalı */
+[data-theme="light"] .card-texture,
+[data-theme="light"] .card-texture div,
+[data-theme="light"] .card-texture span:not(.card-points),
+[data-theme="light"] .card-texture p {
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Puanları kendi renklerinde bırak (yeşil/kırmızı) ama gölge ekle */
+[data-theme="light"] .card-texture .card-points {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
 }
 
 /* 2. SOLUK YAZILARI (Member Since vb.) GÖRÜNÜR GRİ YAP */

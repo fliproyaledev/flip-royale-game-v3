@@ -45,6 +45,7 @@ export default function BuyButton({
   userId,
   onSuccess,
   price,
+  quantity = 1,
   packType = 'common',
   compact = false,
   isGift = false,
@@ -54,6 +55,7 @@ export default function BuyButton({
   userId: string,
   onSuccess: () => void,
   price: number,
+  quantity?: number,
   packType?: 'common' | 'rare',
   compact?: boolean,
   isGift?: boolean,
@@ -213,7 +215,7 @@ export default function BuyButton({
       console.log('Sending buyPack transaction...');
 
       await buyAsync({
-        args: [packTypeNum, BigInt(1)]
+        args: [packTypeNum, BigInt(quantity)]
       });
     } catch (err: any) {
       console.error('Buy error:', err);
@@ -227,7 +229,7 @@ export default function BuyButton({
       await fetch('/api/shop/verify-purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, txHash, amount: price, packType, count: 1 })
+        body: JSON.stringify({ userId, txHash, amount: price, packType, count: quantity })
       });
       if (onSuccess) onSuccess();
     } catch (e) {
