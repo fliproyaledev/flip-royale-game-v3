@@ -34,28 +34,29 @@ export default async function handler(
         return todayEntry ? (todayEntry.totalPoints ?? todayEntry.total ?? 0) : 0
       }
       if (timeframe === 'weekly') {
-        // Sum totals for last 7 entries or entries within last 7 days
+        // ISO Week Based: Monday 00:00 UTC to Sunday 23:59 UTC
         if (!Array.isArray(u.roundHistory) || u.roundHistory.length === 0) return 0
+
         const now = new Date()
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+        // Get current week's Monday 00:00 UTC
+        const dayOfWeek = now.getUTCDay() // 0 = Sunday, 1 = Monday, ...
+        const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // Sunday = 6 days since Monday
+        const weekStart = new Date(Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          now.getUTCDate() - daysSinceMonday,
+          0, 0, 0, 0
+        ))
+
         let sum = 0
         for (const entry of u.roundHistory) {
           const dayKey = entry.dayKey || entry.date || entry.baseDay || null
-          // If dayKey exists and is parseable, use date filter; otherwise sum up to first 7 entries
           if (dayKey) {
             const d = new Date(dayKey)
-            if (!isNaN(d.getTime())) {
-              if (d >= sevenDaysAgo) {
-                sum += (entry.totalPoints ?? entry.total ?? 0)
-              }
-              continue
+            if (!isNaN(d.getTime()) && d >= weekStart) {
+              sum += (entry.totalPoints ?? entry.total ?? 0)
             }
-          }
-          // fallback: sum up to first 7 items
-          if (sum === 0) {
-            const slice = u.roundHistory.slice(0, 7)
-            for (const s of slice) sum += (s.totalPoints ?? s.total ?? 0)
-            break
           }
         }
         return sum

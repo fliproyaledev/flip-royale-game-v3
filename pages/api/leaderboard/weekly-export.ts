@@ -32,9 +32,18 @@ export default async function handler(
             // endDate'i günün sonuna ayarla (23:59:59)
             endDate.setHours(23, 59, 59, 999)
         } else {
-            // Varsayılan: son 7 gün
+            // Varsayılan: Mevcut ISO Hafta (Pazartesi başlangıç)
             endDate = now
-            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+            // Get current week's Monday 00:00 UTC
+            const dayOfWeek = now.getUTCDay() // 0 = Sunday, 1 = Monday, ...
+            const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+            startDate = new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate() - daysSinceMonday,
+                0, 0, 0, 0
+            ))
         }
 
         const getScoreForRange = (u: any): number => {
