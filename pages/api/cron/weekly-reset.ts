@@ -5,7 +5,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { kv } from '@vercel/kv'
-import { getAllUsers } from '../../../lib/users'
+import { getAllUsers, updateUser } from '../../../lib/users'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -105,13 +105,55 @@ export default async function handler(
         // 9. Arşiv listesini 52 hafta ile sınırla (1 yıl)
         await kv.ltrim('leaderboard:weekly:archive-list', 0, 51)
 
-        console.log(`✅ Weekly Reset completed: ${weekString} with ${scored.length} participants`)
+        console.log(`✅ Weekly Archive completed: ${weekString} with ${scored.length} participants`)
+
+        // 10. RoundHistory temizleme - arşivlenen haftanın verilerini sil
+        // Cutoff tarihi: 7 gün önce (arşivlenen hafta bundan önce)
+        const cutoffDate = sevenDaysAgo
+        let usersCleared = 0
+        let entriesRemoved = 0
+
+        console.log('🧹 Cleaning up roundHistory entries older than', cutoffDate.toISOString().split('T')[0])
+
+        for (const user of usersArray) {
+            if (!Array.isArray(user.roundHistory) || user.roundHistory.length === 0) continue
+
+            const originalLength = user.roundHistory.length
+
+            // Sadece cutoff tarihinden SONRAKI (yeni hafta) kayıtları tut
+            const newRoundHistory = user.roundHistory.filter((entry: any) => {
+                const dayKey = entry.dayKey || entry.date || entry.baseDay || null
+                if (!dayKey) return true // Tarih bilgisi yoksa tut
+                const entryDate = new Date(dayKey)
+                if (isNaN(entryDate.getTime())) return true // Geçersiz tarih ise tut
+                return entryDate >= cutoffDate // Cutoff'dan sonraki kayıtları tut
+            })
+
+            // Eğer değişiklik varsa güncelle
+            if (newRoundHistory.length < originalLength) {
+                const removed = originalLength - newRoundHistory.length
+                entriesRemoved += removed
+                usersCleared++
+
+                try {
+                    await updateUser(user.id, { roundHistory: newRoundHistory })
+                } catch (err) {
+                    console.error(`Failed to update user ${user.id}:`, err)
+                }
+            }
+        }
+
+        console.log(`🧹 Cleanup complete: ${usersCleared} users updated, ${entriesRemoved} entries removed`)
 
         return res.status(200).json({
             ok: true,
-            message: 'Weekly leaderboard archived successfully',
+            message: 'Weekly leaderboard archived and history cleared successfully',
             week: weekString,
             totalParticipants: scored.length,
+            cleanup: {
+                usersCleared,
+                entriesRemoved
+            },
             top3: scored.slice(0, 3).map(u => ({
                 rank: u.rank,
                 username: u.username,
@@ -124,3 +166,4 @@ export default async function handler(
         return res.status(500).json({ ok: false, error: 'Internal Server Error' })
     }
 }
+
