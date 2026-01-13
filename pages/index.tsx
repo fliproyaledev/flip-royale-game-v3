@@ -2680,7 +2680,7 @@ export default function Home() {
               flexDirection: 'column',
               gap: 6
             }}>
-              <div className="text-force-light-gray" style={{ fontWeight: 900, letterSpacing: 0.5, fontSize: 13, textAlign: 'center', color: '#94a3b8' }}>COMMON PACK</div>
+              <div className="text-force-white" style={{ fontWeight: 900, letterSpacing: 0.5, fontSize: 13, textAlign: 'center', color: '#cbd5e1' }}>COMMON PACK</div>
 
               <div style={{ display: 'flex', gap: 8 }}>
                 {/* Image (Resized to 110px) */}
@@ -2706,7 +2706,7 @@ export default function Home() {
                       <div className="text-force-white" style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{buyQty}</div>
                       <button onClick={() => setBuyQty(q => Math.min(10, q + 1))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, color: 'white', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>+</button>
                     </div>
-                    <div className="text-force-light-gray" style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center', lineHeight: 1.2 }}>
+                    <div className="text-force-white" style={{ fontSize: 10, color: '#cbd5e1', textAlign: 'center', lineHeight: 1.2, opacity: 0.9 }}>
                       Standard common pack. The chance of finding a Unicorn card inside is low.
                     </div>
                   </div>
@@ -2835,11 +2835,11 @@ export default function Home() {
                   flexWrap: 'wrap'
                 }}>
                   {[
-                    { key: 'all', label: 'All', color: '#ffffff' },
-                    { key: 'unicorn', label: 'Unicorn', color: '#ffd700' },
-                    { key: 'pegasus', label: 'Pegasus', color: '#4ade80' },
-                    { key: 'genesis', label: 'Genesis', color: '#c084fc' },
-                    { key: 'sentient', label: 'Sentient', color: '#60a5fa' },
+                    { key: 'all', label: 'All', color: theme === 'light' ? '#064e3b' : '#ffffff' },
+                    { key: 'unicorn', label: 'Unicorn', color: '#d97706' },
+                    { key: 'pegasus', label: 'Pegasus', color: '#16a34a' },
+                    { key: 'genesis', label: 'Genesis', color: '#9333ea' },
+                    { key: 'sentient', label: 'Sentient', color: '#2563eb' },
                   ].map(btn => (
                     <button
                       key={btn.key}
@@ -2847,9 +2847,9 @@ export default function Home() {
                       style={{
                         padding: '6px 12px',
                         borderRadius: 8,
-                        border: `1px solid ${modalFilter === btn.key ? btn.color : 'rgba(255,255,255,0.2)'}`,
-                        background: modalFilter === btn.key ? `${btn.color}20` : 'rgba(255,255,255,0.05)',
-                        color: modalFilter === btn.key ? btn.color : 'rgba(255,255,255,0.6)',
+                        border: `1px solid ${modalFilter === btn.key ? btn.color : theme === 'light' ? 'rgba(6,78,59,0.3)' : 'rgba(255,255,255,0.2)'}`,
+                        background: modalFilter === btn.key ? `${btn.color}20` : theme === 'light' ? 'rgba(6,78,59,0.05)' : 'rgba(255,255,255,0.05)',
+                        color: modalFilter === btn.key ? btn.color : theme === 'light' ? '#064e3b' : 'rgba(255,255,255,0.6)',
                         cursor: 'pointer',
                         fontSize: 13,
                         fontWeight: modalFilter === btn.key ? 700 : 500,
