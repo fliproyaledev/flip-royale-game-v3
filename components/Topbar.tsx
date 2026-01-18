@@ -4,6 +4,7 @@ import ThemeToggle from './ThemeToggle'
 import RedeemCodeModal from './RedeemCodeModal'
 import { useToast } from '../lib/toast'
 import { signIn } from 'next-auth/react'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
@@ -257,17 +258,9 @@ export default function Topbar({ activeTab, user }: TopbarProps) {
                         </div>
                     </>
                 ) : (
-                    <a href="/" style={{
-                        background: 'linear-gradient(135deg, var(--accent-green), var(--accent-2))',
-                        color: '#03120d',
-                        padding: '10px 20px',
-                        borderRadius: 12,
-                        fontWeight: 700,
-                        fontSize: 14,
-                        textDecoration: 'none'
-                    }}>
-                        Connect Wallet
-                    </a>
+                    <div style={{ marginLeft: 6 }}>
+                        <ConnectButton />
+                    </div>
                 )}
             </div>
 

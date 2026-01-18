@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import { useToast } from '../lib/toast'
 import Topbar from '../components/Topbar'
 import { TOKENS, getTokenById } from '../lib/tokens'
+import { PACK_INFO } from '../lib/contracts/packShopV2'
 
 // Card CSS Styles - consistent with index.tsx and inventory.tsx
 interface CardCSSStyles {
@@ -233,14 +234,16 @@ export default function MyPacksPage() {
             ) : (
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {Object.entries(packs).map(([type, count]) => {
-                  // Determine image source based on type
-                  const isRare = type.toLowerCase().includes('rare')
-                  const imgSrc = isRare ? '/rare-pack.jpg' : '/common-pack.jpg'
-                  const color = isRare ? '#fbbf24' : '#94a3b8'
-                  const borderColor = isRare ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.1)'
-                  const bgGradient = isRare
+                  const typeKey = type.toLowerCase() as any
+                  const info = PACK_INFO[typeKey]
+
+                  // Use info if available, otherwise fallbacks
+                  const imgSrc = info?.image || (type.includes('rare') ? '/rare-pack.jpg' : '/common-pack.jpg')
+                  const color = info?.color || (type.includes('rare') ? '#fbbf24' : '#94a3b8')
+                  const borderColor = info?.color ? `${info.color}40` : (type.includes('rare') ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.1)')
+                  const bgGradient = info?.bgGradient || (type.includes('rare')
                     ? 'linear-gradient(180deg, rgba(30,27,75,0.8), rgba(23,37,84,0.6))'
-                    : 'linear-gradient(180deg, rgba(15,23,42,0.8), rgba(11,19,36,0.6))'
+                    : 'linear-gradient(180deg, rgba(15,23,42,0.8), rgba(11,19,36,0.6))')
 
                   return (
                     <div key={type} style={{
@@ -256,7 +259,7 @@ export default function MyPacksPage() {
                     }}>
                       {/* Image Container */}
                       <div style={{ width: '100%', aspectRatio: '2/3', borderRadius: 12, overflow: 'hidden', position: 'relative', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <img src={imgSrc} alt={`${type} Pack`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={imgSrc} alt={`${type} Pack`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 8, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
                           <div style={{ color: 'white', fontWeight: 800, textAlign: 'center', textShadow: '0 2px 4px black' }}>{count}x</div>
                         </div>
