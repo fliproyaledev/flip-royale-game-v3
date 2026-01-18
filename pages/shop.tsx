@@ -1,0 +1,446 @@
+import { useState, useEffect } from 'react'
+import Head from 'next/head'
+import Link from 'next/link'
+import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { parseUnits } from 'viem'
+import ThemeToggle from '../components/ThemeToggle'
+import { useTheme } from '../lib/theme'
+import { useToast } from '../lib/toast'
+import {
+    PACK_SHOP_V2_ADDRESS,
+    FLIP_TOKEN_ADDRESS,
+    PACK_SHOP_V2_ABI,
+    ERC20_ABI,
+    PACK_INFO,
+    PACK_PRICES_V2,
+    PackTypeV2,
+    formatFlipAmount,
+    flipToWei
+} from '../lib/contracts/packShopV2'
+
+const PACK_ORDER: PackTypeV2[] = ['common', 'rare', 'unicorn', 'genesis', 'sentient']
+
+export default function ShopPage() {
+    const { theme } = useTheme()
+    const { toast } = useToast()
+    const { address, isConnected } = useAccount()
+
+    // Quantity state for each pack
+    const [quantities, setQuantities] = useState<Record<PackTypeV2, number>>({
+        common: 1, rare: 1, unicorn: 1, genesis: 1, sentient: 1
+    })
+
+    // Purchase state
+    const [buyingPack, setBuyingPack] = useState<PackTypeV2 | null>(null)
+    const [status, setStatus] = useState<'idle' | 'approving' | 'buying' | 'verifying'>('idle')
+
+    // User data
+    const [user, setUser] = useState<any>(null)
+
+    // Fetch user data
+    useEffect(() => {
+        if (!address) return
+        fetch(`/api/users/get-or-create?userId=${address.toLowerCase()}`)
+            .then(r => r.json())
+            .then(d => d.ok && setUser(d.user))
+            .catch(() => { })
+    }, [address])
+
+    // Check FLIP allowance
+    const { data: allowance, refetch: refetchAllowance } = useContractRead({
+        address: FLIP_TOKEN_ADDRESS as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [address!, PACK_SHOP_V2_ADDRESS as `0x${string}`],
+        enabled: Boolean(address),
+    })
+
+    // Check FLIP balance
+    const { data: balance } = useContractRead({
+        address: FLIP_TOKEN_ADDRESS as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [address!],
+        enabled: Boolean(address),
+    })
+
+    // Approve FLIP
+    const { writeAsync: approveAsync, data: approveData } = useContractWrite({
+        address: FLIP_TOKEN_ADDRESS as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+    })
+
+    const { isLoading: approveLoading } = useWaitForTransaction({
+        hash: approveData?.hash,
+        onSuccess: () => {
+            refetchAllowance()
+        }
+    })
+
+    // Buy Pack
+    const { writeAsync: buyAsync, data: buyData } = useContractWrite({
+        address: PACK_SHOP_V2_ADDRESS as `0x${string}`,
+        abi: PACK_SHOP_V2_ABI,
+        functionName: 'buyPack',
+    })
+
+    const { isLoading: buyLoading } = useWaitForTransaction({
+        hash: buyData?.hash,
+        onSuccess: async () => {
+            if (buyingPack && address) {
+                // Verify purchase on backend
+                setStatus('verifying')
+                try {
+                    await fetch('/api/shop/verify-purchase', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: address.toLowerCase(),
+                            txHash: buyData?.hash,
+                            packType: buyingPack,
+                            count: quantities[buyingPack]
+                        })
+                    })
+                    toast(`🎉 Purchased ${quantities[buyingPack]}x ${PACK_INFO[buyingPack].name}!`, 'success')
+                } catch (e) {
+                    console.error('Verify error:', e)
+                }
+            }
+            setStatus('idle')
+            setBuyingPack(null)
+        }
+    })
+
+    // Handle buy
+    const handleBuy = async (packType: PackTypeV2) => {
+        if (!address || !isConnected) {
+            toast('Please connect your wallet first', 'error')
+            return
+        }
+
+        // Check X account
+        if (!user?.xUserId) {
+            toast('Please connect your X account first', 'error')
+            return
+        }
+
+        const qty = quantities[packType]
+        const price = PACK_PRICES_V2[packType] * qty
+        const priceWei = flipToWei(price)
+
+        // Check balance
+        if (balance && balance < priceWei) {
+            toast(`Insufficient FLIP balance. Need ${formatFlipAmount(price)} FLIP`, 'error')
+            return
+        }
+
+        setBuyingPack(packType)
+
+        try {
+            // Check allowance
+            if (!allowance || allowance < priceWei) {
+                setStatus('approving')
+                toast('Approving FLIP...', 'info')
+                await approveAsync({
+                    args: [PACK_SHOP_V2_ADDRESS as `0x${string}`, priceWei * BigInt(2)]
+                })
+                await new Promise(r => setTimeout(r, 2000))
+                await refetchAllowance()
+            }
+
+            // Buy pack
+            setStatus('buying')
+            toast('Confirming purchase...', 'info')
+            await buyAsync({
+                args: [PACK_INFO[packType].id, BigInt(qty)]
+            })
+
+        } catch (e: any) {
+            console.error('Buy error:', e)
+            toast(e.message?.slice(0, 100) || 'Purchase failed', 'error')
+            setStatus('idle')
+            setBuyingPack(null)
+        }
+    }
+
+    const updateQty = (pack: PackTypeV2, delta: number) => {
+        setQuantities(prev => ({
+            ...prev,
+            [pack]: Math.max(1, Math.min(10, prev[pack] + delta))
+        }))
+    }
+
+    const flipBalance = balance ? Number(balance) / 1e18 : 0
+
+    return (
+        <>
+            <Head>
+                <title>Pack Shop | FLIP ROYALE</title>
+                <meta name="description" content="Buy card packs with $FLIP tokens" />
+            </Head>
+
+            <div className="app" data-theme={theme}>
+                {/* Topbar */}
+                <header className="topbar">
+                    <Link href="/" className="brand">
+                        <img src="/logo.png" alt="Flip Royale" className="logo" style={{ height: 60 }} />
+                    </Link>
+
+                    <nav className="tabs">
+                        <Link href="/" className="tab">FLIP ROYALE</Link>
+                        <Link href="/prices" className="tab">Prices</Link>
+                        <Link href="/guide" className="tab">Guide</Link>
+                        <Link href="/inventory" className="tab">Inventory</Link>
+                        <Link href="/my-packs" className="tab">My Packs</Link>
+                        <Link href="/shop" className="tab active">Shop</Link>
+                        <Link href="/leaderboard" className="tab">Leaderboard</Link>
+                        <Link href="/referrals" className="tab">Referrals</Link>
+                        <Link href="/history" className="tab">History</Link>
+                        <Link href="/litepaper" className="tab">Litepaper</Link>
+                        <Link href="/profile" className="tab">Profile</Link>
+                    </nav>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {isConnected && (
+                            <div className="badge" style={{ fontSize: 14 }}>
+                                💰 {formatFlipAmount(flipBalance)} FLIP
+                            </div>
+                        )}
+                        <ThemeToggle />
+                        <ConnectButton />
+                    </div>
+                </header>
+
+                {/* Main Content */}
+                <main style={{ maxWidth: 1600, margin: '0 auto', padding: '20px 16px' }}>
+                    <h1 style={{
+                        fontSize: 32,
+                        fontWeight: 900,
+                        textAlign: 'center',
+                        marginBottom: 8,
+                        background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent'
+                    }}>
+                        🎴 PACK SHOP
+                    </h1>
+                    <p style={{
+                        textAlign: 'center',
+                        opacity: 0.7,
+                        marginBottom: 32,
+                        fontSize: 16
+                    }}>
+                        Buy card packs with $FLIP tokens. Each pack contains 5 cards!
+                    </p>
+
+                    {/* Pack Grid - 5 columns */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(5, 1fr)',
+                        gap: 16
+                    }}>
+                        {PACK_ORDER.map(packType => {
+                            const info = PACK_INFO[packType]
+                            const price = PACK_PRICES_V2[packType]
+                            const qty = quantities[packType]
+                            const totalPrice = price * qty
+                            const isBuying = buyingPack === packType
+
+                            return (
+                                <div
+                                    key={packType}
+                                    className="panel"
+                                    style={{
+                                        background: info.bgGradient,
+                                        border: `2px solid ${info.color}40`,
+                                        borderRadius: 16,
+                                        overflow: 'hidden',
+                                        transition: 'transform 0.2s, box-shadow 0.2s',
+                                        cursor: 'pointer'
+                                    }}
+                                    onMouseEnter={e => {
+                                        e.currentTarget.style.transform = 'translateY(-4px)'
+                                        e.currentTarget.style.boxShadow = `0 12px 40px ${info.color}30`
+                                    }}
+                                    onMouseLeave={e => {
+                                        e.currentTarget.style.transform = 'translateY(0)'
+                                        e.currentTarget.style.boxShadow = 'none'
+                                    }}
+                                >
+                                    {/* Pack Image */}
+                                    <div style={{
+                                        height: 180,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: 12,
+                                        background: `radial-gradient(circle at center, ${info.color}20, transparent)`
+                                    }}>
+                                        <img
+                                            src={info.image}
+                                            alt={info.name}
+                                            style={{
+                                                maxHeight: '100%',
+                                                maxWidth: '100%',
+                                                objectFit: 'contain',
+                                                filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.4))'
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Pack Info */}
+                                    <div style={{ padding: 12 }}>
+                                        <h3 className="pack-card-text" style={{
+                                            fontSize: 14,
+                                            fontWeight: 800,
+                                            marginBottom: 4,
+                                            textTransform: 'uppercase',
+                                            letterSpacing: 0.5
+                                        }}>
+                                            {info.name}
+                                        </h3>
+                                        <p className="pack-card-text" style={{
+                                            fontSize: 11,
+                                            marginBottom: 10,
+                                            lineHeight: 1.3
+                                        }}>
+                                            {info.description}
+                                        </p>
+
+                                        {/* Price */}
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            marginBottom: 10
+                                        }}>
+                                            <span className="pack-card-text" style={{ fontSize: 11 }}>Price:</span>
+                                            <span className="pack-card-text" style={{
+                                                fontSize: 14,
+                                                fontWeight: 900
+                                            }}>
+                                                {formatFlipAmount(price)} FLIP
+                                            </span>
+                                        </div>
+
+                                        {/* Quantity Selector */}
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 8,
+                                            marginBottom: 10,
+                                            background: 'rgba(0,0,0,0.3)',
+                                            borderRadius: 6,
+                                            padding: '6px 8px'
+                                        }}>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); updateQty(packType, -1) }}
+                                                style={{
+                                                    width: 28,
+                                                    height: 28,
+                                                    borderRadius: 6,
+                                                    border: 'none',
+                                                    background: info.color,
+                                                    color: '#000',
+                                                    fontSize: 16,
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                -
+                                            </button>
+                                            <span className="pack-card-text" style={{
+                                                fontSize: 16,
+                                                fontWeight: 800,
+                                                minWidth: 30,
+                                                textAlign: 'center'
+                                            }}>
+                                                {qty}
+                                            </span>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); updateQty(packType, 1) }}
+                                                style={{
+                                                    width: 28,
+                                                    height: 28,
+                                                    borderRadius: 6,
+                                                    border: 'none',
+                                                    background: info.color,
+                                                    color: '#000',
+                                                    fontSize: 16,
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+
+                                        {/* Total */}
+                                        <div style={{
+                                            textAlign: 'center',
+                                            marginBottom: 10,
+                                            padding: '6px',
+                                            background: 'rgba(0,0,0,0.4)',
+                                            borderRadius: 6
+                                        }}>
+                                            <span className="pack-card-text" style={{ fontSize: 10 }}>Total: </span>
+                                            <span className="pack-card-text" style={{ fontSize: 13, fontWeight: 800 }}>
+                                                {formatFlipAmount(totalPrice)} FLIP
+                                            </span>
+                                        </div>
+
+                                        {/* Buy Button */}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleBuy(packType) }}
+                                            disabled={isBuying || !isConnected}
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                borderRadius: 8,
+                                                border: 'none',
+                                                background: isBuying
+                                                    ? 'rgba(255,255,255,0.2)'
+                                                    : `linear-gradient(135deg, ${info.color}, ${info.color}cc)`,
+                                                color: isBuying ? '#fff' : '#000',
+                                                fontSize: 12,
+                                                fontWeight: 800,
+                                                cursor: isBuying ? 'wait' : 'pointer',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: 0.5,
+                                                boxShadow: `0 4px 20px ${info.color}40`,
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {!isConnected ? 'Connect Wallet' :
+                                                isBuying ? (
+                                                    status === 'approving' ? '⏳ Approving...' :
+                                                        status === 'buying' ? '⏳ Buying...' :
+                                                            status === 'verifying' ? '✅ Verifying...' :
+                                                                '⏳ Processing...'
+                                                ) : `Buy ${qty}x`}
+                                        </button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    {/* Info Section */}
+                    <div className="panel" style={{ marginTop: 32, padding: 24, textAlign: 'center' }}>
+                        <h3 style={{ marginBottom: 12, fontSize: 18, fontWeight: 700 }}>💡 How It Works</h3>
+                        <p style={{ opacity: 0.7, fontSize: 14, lineHeight: 1.6 }}>
+                            1. Connect your wallet and X account<br />
+                            2. Choose a pack type and quantity<br />
+                            3. Approve FLIP tokens (first time only)<br />
+                            4. Confirm the purchase transaction<br />
+                            5. New cards are added to your inventory!
+                        </p>
+                    </div>
+                </main>
+            </div>
+        </>
+    )
+}

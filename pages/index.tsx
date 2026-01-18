@@ -1538,6 +1538,7 @@ export default function Home() {
             <a className="tab" href="/guide">GUIDE</a>
             <a className="tab" href="/inventory">INVENTORY</a>
             <a className="tab" href="/my-packs">MY PACKS</a>
+            <a className="tab" href="/shop">SHOP</a>
             <a className="tab" href="/leaderboard">LEADERBOARD</a>
             <a className="tab" href="/referrals">REFERRALS</a>
             <a className="tab" href="/history">HISTORY</a>
@@ -1764,7 +1765,7 @@ export default function Home() {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(220px, 250px) 1fr minmax(260px, 300px)',
+          gridTemplateColumns: 'minmax(220px, 250px) 1fr',
           gap: 16,
           alignItems: 'start',
           width: '100%'
@@ -1782,7 +1783,7 @@ export default function Home() {
               boxShadow: '0 10px 30px rgba(0,0,0,0.25)'
             }}>
               <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#e0f2fe' }}>
-                Global Movers · Beta #{activeRoundDisplay}
+                Global Movers · Round #{activeRoundDisplay}
               </div>
 
               <div>
@@ -2667,136 +2668,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Sidebar: Packs (Swapped & Resized) */}
-          <div className="panel" style={{ padding: 6, position: 'sticky', top: 16, alignSelf: 'start', background: 'linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.28))', display: 'flex', flexDirection: 'column', gap: 6 }}>
 
-            {/* COMMON PACK */}
-            <div style={{
-              padding: 6,
-              borderRadius: 12,
-              background: 'linear-gradient(180deg,#0f172a,#0b1324)',
-              boxShadow: '0 4px 12px rgba(0,0,0,.32), inset 0 0 0 1px rgba(255,255,255,.05)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6
-            }}>
-              <div className="text-force-white" style={{ fontWeight: 900, letterSpacing: 0.5, fontSize: 13, textAlign: 'center', color: '#cbd5e1' }}>COMMON PACK</div>
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                {/* Image (Resized to 110px) */}
-                <div style={{
-                  flex: '0 0 110px',
-                  height: 175,
-                  borderRadius: 10,
-                  background: 'linear-gradient(180deg,#1e293b,#0f172a)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  overflow: 'hidden',
-                  position: 'relative'
-                }}>
-                  <img src="/common-pack.jpg" alt="Common Pack" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
-
-                {/* Controls & Buttons */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-
-                  {/* Top: Qty & Info */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '2px 4px' }}>
-                      <button onClick={() => setBuyQty(q => Math.max(1, q - 1))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, color: 'white', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>-</button>
-                      <div className="text-force-white" style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{buyQty}</div>
-                      <button onClick={() => setBuyQty(q => Math.min(10, q + 1))} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, color: 'white', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>+</button>
-                    </div>
-                    <div className="text-force-white" style={{ fontSize: 10, color: '#cbd5e1', textAlign: 'center', lineHeight: 1.2, opacity: 0.9 }}>
-                      Standard common pack. The chance of finding a Unicorn card inside is low.
-                    </div>
-                  </div>
-
-                  {/* Bottom: Buttons (Stacked) */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-
-
-                    <BuyButton
-                      userId={user?.id}
-                      onSuccess={() => {
-                        loadUserData(); // Puanı güncelle
-                        setPurchasedPack({ type: 'common', count: buyQty }); // ✨ MODALI AÇ
-                      }}
-                      price={10 * buyQty} // Fiyatı adetle çarpıyoruz
-                      quantity={buyQty} // 🔧 Miktar prop'u eklendi
-                      packType="common"
-                      compact={true}
-                      referrerAddress={user?.referredBy}
-                      xHandle={xHandle}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* RARE PACK */}
-            <div style={{
-              padding: 6,
-              borderRadius: 12,
-              background: 'linear-gradient(180deg,#1e1b4b,#172554)',
-              boxShadow: '0 4px 12px rgba(0,0,0,.32), inset 0 0 0 1px rgba(251,191,36,0.15)',
-              border: '1px solid rgba(251,191,36,0.1)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6
-            }}>
-              <div className="text-force-gold" style={{ fontWeight: 900, letterSpacing: 0.5, fontSize: 13, textAlign: 'center', color: '#fbbf24' }}>RARE PACK</div>
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                {/* Image (Resized to 110px) */}
-                <div style={{
-                  flex: '0 0 110px',
-                  height: 175,
-                  borderRadius: 10,
-                  background: 'linear-gradient(180deg,#312e81,#1e1b4b)',
-                  border: '1px solid rgba(251,191,36,0.2)',
-                  overflow: 'hidden',
-                  position: 'relative'
-                }}>
-                  <img src="/rare-pack.jpg" alt="Rare Pack" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
-
-                {/* Controls & Buttons */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-
-                  {/* Top: Qty & Info */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(251,191,36,0.1)', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(251,191,36,0.2)' }}>
-                      <button onClick={() => setRareBuyQty(q => Math.max(1, q - 1))} style={{ background: 'rgba(251,191,36,0.2)', border: 'none', borderRadius: 4, color: '#fbbf24', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>-</button>
-                      <div className="text-force-gold" style={{ fontWeight: 700, fontSize: 13, color: '#fbbf24' }}>{rareBuyQty}</div>
-                      <button onClick={() => setRareBuyQty(q => Math.min(10, q + 1))} style={{ background: 'rgba(251,191,36,0.2)', border: 'none', borderRadius: 4, color: '#fbbf24', cursor: 'pointer', padding: '0 8px', fontSize: 14, height: 24, display: 'grid', placeItems: 'center' }}>+</button>
-                    </div>
-                    <div className="text-force-gold" style={{ fontSize: 10, color: '#fbbf24', lineHeight: 1.2, textAlign: 'center', opacity: 0.9 }}>
-                      Higher chance! There's a higher chance of including a Unicorn card.
-                    </div>
-                  </div>
-
-                  {/* Bottom: Buttons (Stacked) */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-
-
-                    <BuyButton
-                      userId={user?.id}
-                      onSuccess={() => {
-                        loadUserData();
-                        setPurchasedPack({ type: 'rare', count: rareBuyQty }); // ✨ MODALI AÇ
-                      }}
-                      price={25 * rareBuyQty}
-                      quantity={rareBuyQty} // 🔧 Miktar prop'u eklendi
-                      packType="rare"
-                      compact={true}
-                      referrerAddress={user?.referredBy}
-                      xHandle={xHandle}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div >
 
 

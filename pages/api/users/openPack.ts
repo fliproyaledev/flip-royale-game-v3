@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getUser, updateUser } from '../../../lib/users'
-import { makeRandom5 } from '../../../lib/game-utils'
+import { generatePackCards } from '../../../lib/game-utils'
 import { TOKENS } from '../../../lib/tokens'
 
 // 1. Ortam Değişkenlerini Al
@@ -69,8 +69,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (user.inventory[packKey2] <= 0) delete user.inventory[packKey2]
         }
 
-        // generate cards
-        const newCards: string[] = makeRandom5(TOKENS)
+        // generate cards based on pack type
+        const newCards: string[] = generatePackCards(packType, TOKENS)
         for (const tokenId of newCards) {
             user.inventory[tokenId] = (user.inventory[tokenId] || 0) + 1
         }

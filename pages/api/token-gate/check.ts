@@ -8,6 +8,7 @@ import {
     getFlipPrice,
     getFlipTokenAddress,
     getMinUsdRequired,
+    getMinTokenRequired,
     getDisabledGateResult,
     ERC20_BALANCE_ABI,
     TokenGateResult
@@ -77,6 +78,7 @@ export default async function handler(
     try {
         const tokenAddress = getFlipTokenAddress()
         const minRequired = getMinUsdRequired()
+        const minTokenRequired = getMinTokenRequired()
 
         // Fetch balance
         const balance = await client.readContract({
@@ -93,8 +95,8 @@ export default async function handler(
         const balanceNumber = parseFloat(formatUnits(balance as bigint, 18))
         const usdValue = balanceNumber * tokenPrice
 
-        // Check if meets requirement
-        const allowed = usdValue >= minRequired
+        // Check if meets requirement - PRIMARY: token count (250,000 FLIP)
+        const allowed = balanceNumber >= minTokenRequired
 
         const result: TokenGateResult = {
             enabled: true,
@@ -102,6 +104,7 @@ export default async function handler(
             balance: balanceNumber,
             usdValue,
             minRequired,
+            minTokenRequired,
             tokenPrice,
             tokenAddress
         }
@@ -117,6 +120,7 @@ export default async function handler(
             balance: 0,
             usdValue: 0,
             minRequired: getMinUsdRequired(),
+            minTokenRequired: getMinTokenRequired(),
             tokenPrice: 0,
             tokenAddress: getFlipTokenAddress()
         })

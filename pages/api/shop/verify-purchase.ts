@@ -5,17 +5,26 @@ const ORACLE_SECRET = process.env.ORACLE_SECRET;
 
 import { getUser, updateUser } from '../../../lib/users'
 
-// Paket fiyatları (VIRTUAL cinsinden)
-const PACK_PRICES_VIRTUAL: Record<string, number> = {
-  common: 10,
-  rare: 25
+// Paket fiyatları (FLIP cinsinden)
+const PACK_PRICES_FLIP: Record<string, number> = {
+  common: 50000,
+  rare: 100000,
+  unicorn: 50000,
+  genesis: 50000,
+  sentient: 50000
 }
 
 // Paket fiyatları (USD cinsinden - referral komisyon için)
 const PACK_PRICES: Record<string, number> = {
-  common: 5,
-  rare: 15
+  common: 25,
+  rare: 50,
+  unicorn: 25,
+  genesis: 25,
+  sentient: 25
 }
+
+// Valid pack types
+const VALID_PACK_TYPES = ['common', 'rare', 'unicorn', 'genesis', 'sentient']
 
 // Komisyon oranı
 const COMMISSION_RATE = 0.10 // %10
@@ -33,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const cleanUserId = String(userId).toLowerCase();
     const qty = Number(count) || 1;
-    const validatedPackType = packType === 'rare' ? 'rare' : 'common';
+    const validatedPackType = VALID_PACK_TYPES.includes(packType) ? packType : 'common';
 
     // Get user to check xHandle for ReplyCorp campaign tracking
     const purchaseUser = await getUser(cleanUserId);
@@ -241,10 +250,10 @@ async function sendToReplyCorp(
       return;
     }
 
-    // Calculate VIRTUAL amount
-    const virtualAmount = packType === 'rare' ? 25 * quantity : 10 * quantity;
+    // Calculate FLIP amount
+    const flipAmount = PACK_PRICES_FLIP[packType] ? PACK_PRICES_FLIP[packType] * quantity : 50000 * quantity;
 
-    // Send conversion to ReplyCorp (amount in VIRTUAL)
+    // Send conversion to ReplyCorp (amount in FLIP)
     const response = await fetch(
       `https://prod.api.replycorp.io/api/v1/campaigns/${REPLYCORP_CAMPAIGN_ID}/conversions`,
       {
@@ -256,13 +265,13 @@ async function sendToReplyCorp(
         body: JSON.stringify({
           twitterId: xUserId,
           eventType: 'purchase',
-          amount: virtualAmount,
+          amount: flipAmount,
           walletAddress: walletAddress,
           metadata: {
             txHash: txHash,
             packType: packType,
             quantity: quantity,
-            currency: 'VIRTUAL'
+            currency: 'FLIP'
           }
         })
       }
@@ -272,9 +281,9 @@ async function sendToReplyCorp(
     const sentPayload = {
       twitterId: xUserId,
       eventType: 'purchase',
-      amount: virtualAmount,
+      amount: flipAmount,
       walletAddress: walletAddress,
-      metadata: { txHash, packType, quantity, currency: 'VIRTUAL' }
+      metadata: { txHash, packType, quantity, currency: 'FLIP' }
     };
     console.log(`[ReplyCorp] 📤 Sent payload: ${JSON.stringify(sentPayload)}`);
 

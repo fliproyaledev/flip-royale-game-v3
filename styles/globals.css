@@ -1584,3 +1584,16 @@ html[data-theme="light"] .app .text-force-gold {
   pointer-events: none;
   z-index: 0;
 }
+
+/* =========================================
+   PACK CARD TEXT - Force White
+   ========================================= */
+.pack-card-text,
+.panel .pack-card-text,
+[data-theme="light"] .pack-card-text,
+[data-theme="light"] .panel .pack-card-text,
+[data-theme="light"] .panel p.pack-card-text,
+[data-theme="light"] .panel span.pack-card-text {
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}

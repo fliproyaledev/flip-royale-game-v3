@@ -4,6 +4,7 @@
 const FLIP_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_FLIP_TOKEN_ADDRESS || ''
 const FLIP_PAIR_ADDRESS = process.env.NEXT_PUBLIC_FLIP_PAIR_ADDRESS || ''
 const MIN_USD_VALUE = parseFloat(process.env.NEXT_PUBLIC_TOKEN_GATE_MIN_USD || '100')
+const MIN_TOKEN_COUNT = parseFloat(process.env.NEXT_PUBLIC_TOKEN_GATE_MIN_TOKENS || '250000')
 
 // ERC20 ABI for balanceOf
 export const ERC20_BALANCE_ABI = [
@@ -40,6 +41,13 @@ export function getFlipTokenAddress(): string {
  */
 export function getMinUsdRequired(): number {
     return MIN_USD_VALUE
+}
+
+/**
+ * Get minimum token count required
+ */
+export function getMinTokenRequired(): number {
+    return MIN_TOKEN_COUNT
 }
 
 /**
@@ -95,7 +103,8 @@ export type TokenGateResult = {
     allowed: boolean       // Does user meet requirement?
     balance: number        // User's $FLIP balance
     usdValue: number       // USD value of balance
-    minRequired: number    // Minimum USD required
+    minRequired: number    // Minimum USD required (legacy)
+    minTokenRequired: number // Minimum token count required
     tokenPrice: number     // Current $FLIP price
     tokenAddress: string   // $FLIP token address
 }
@@ -110,6 +119,7 @@ export function getDisabledGateResult(): TokenGateResult {
         balance: 0,
         usdValue: 0,
         minRequired: MIN_USD_VALUE,
+        minTokenRequired: MIN_TOKEN_COUNT,
         tokenPrice: 0,
         tokenAddress: ''
     }

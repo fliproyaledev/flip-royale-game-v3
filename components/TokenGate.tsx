@@ -32,6 +32,7 @@ export default function TokenGate({ children }: TokenGateProps) {
                     balance: 0,
                     usdValue: 0,
                     minRequired: 100,
+                    minTokenRequired: 250000,
                     tokenPrice: 0,
                     tokenAddress: ''
                 })
@@ -59,6 +60,7 @@ export default function TokenGate({ children }: TokenGateProps) {
                     balance: 0,
                     usdValue: 0,
                     minRequired: 100,
+                    minTokenRequired: 250000,
                     tokenPrice: 0,
                     tokenAddress: FLIP_TOKEN_ADDRESS
                 })
@@ -166,8 +168,8 @@ export default function TokenGate({ children }: TokenGateProps) {
                     color: 'rgba(255,255,255,0.7)',
                     marginBottom: 32
                 }}>
-                    Hold <strong style={{ color: '#10b981' }}>${gateResult.minRequired}</strong> worth of{' '}
-                    <strong style={{ color: '#fbbf24' }}>$FLIP</strong> to access Flip Royale
+                    Hold <strong style={{ color: '#10b981' }}>{(gateResult.minTokenRequired || 250000).toLocaleString()}</strong>{' '}
+                    <strong style={{ color: '#fbbf24' }}>$FLIP</strong> tokens to access Flip Royale
                 </p>
 
                 {/* Stats */}
@@ -187,21 +189,11 @@ export default function TokenGate({ children }: TokenGateProps) {
                             alignItems: 'center'
                         }}>
                             <span style={{ color: 'rgba(255,255,255,0.6)' }}>Your Balance</span>
-                            <span style={{ fontWeight: 700, color: 'white' }}>
-                                {gateResult.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })} $FLIP
-                            </span>
-                        </div>
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}>
-                            <span style={{ color: 'rgba(255,255,255,0.6)' }}>Current Value</span>
                             <span style={{
                                 fontWeight: 700,
-                                color: gateResult.usdValue >= gateResult.minRequired ? '#10b981' : '#ef4444'
+                                color: gateResult.balance >= (gateResult.minTokenRequired || 250000) ? '#10b981' : '#ef4444'
                             }}>
-                                ${gateResult.usdValue.toFixed(2)}
+                                {gateResult.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })} $FLIP
                             </span>
                         </div>
                         <div style={{
@@ -211,9 +203,24 @@ export default function TokenGate({ children }: TokenGateProps) {
                         }}>
                             <span style={{ color: 'rgba(255,255,255,0.6)' }}>Required</span>
                             <span style={{ fontWeight: 700, color: '#10b981' }}>
-                                ${gateResult.minRequired.toFixed(2)}
+                                {(gateResult.minTokenRequired || 250000).toLocaleString()} $FLIP
                             </span>
                         </div>
+                        {gateResult.usdValue > 0 && (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                borderTop: '1px solid rgba(255,255,255,0.1)',
+                                paddingTop: 12,
+                                marginTop: 4
+                            }}>
+                                <span style={{ color: 'rgba(255,255,255,0.6)' }}>Value (USD)</span>
+                                <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
+                                    ${gateResult.usdValue.toFixed(2)}
+                                </span>
+                            </div>
+                        )}
                         {gateResult.tokenPrice > 0 && (
                             <div style={{
                                 display: 'flex',
@@ -241,7 +248,7 @@ export default function TokenGate({ children }: TokenGateProps) {
                     marginBottom: 24
                 }}>
                     <div style={{
-                        width: `${Math.min((gateResult.usdValue / gateResult.minRequired) * 100, 100)}%`,
+                        width: `${Math.min((gateResult.balance / (gateResult.minTokenRequired || 250000)) * 100, 100)}%`,
                         height: '100%',
                         background: 'linear-gradient(90deg, #ef4444, #f59e0b, #10b981)',
                         borderRadius: 8,

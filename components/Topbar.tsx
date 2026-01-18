@@ -8,7 +8,7 @@ import { signIn } from 'next-auth/react'
 const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
 type TopbarProps = {
-    activeTab?: 'play' | 'prices' | 'guide' | 'inventory' | 'my-packs' | 'leaderboard' | 'referrals' | 'history' | 'litepaper' | 'profile'
+    activeTab?: 'play' | 'prices' | 'guide' | 'inventory' | 'my-packs' | 'shop' | 'leaderboard' | 'referrals' | 'history' | 'litepaper' | 'profile'
     user?: {
         id?: string
         name?: string
@@ -76,6 +76,7 @@ export default function Topbar({ activeTab, user }: TopbarProps) {
                 <a className={`tab ${activeTab === 'guide' ? 'active' : ''}`} href="/guide">GUIDE</a>
                 <a className={`tab ${activeTab === 'inventory' ? 'active' : ''}`} href="/inventory">INVENTORY</a>
                 <a className={`tab ${activeTab === 'my-packs' ? 'active' : ''}`} href="/my-packs">MY PACKS</a>
+                <a className={`tab ${activeTab === 'shop' ? 'active' : ''}`} href="/shop">SHOP</a>
                 <a className={`tab ${activeTab === 'leaderboard' ? 'active' : ''}`} href="/leaderboard">LEADERBOARD</a>
                 <a className={`tab ${activeTab === 'referrals' ? 'active' : ''}`} href="/referrals">REFERRALS</a>
                 <a className={`tab ${activeTab === 'history' ? 'active' : ''}`} href="/history">HISTORY</a>
