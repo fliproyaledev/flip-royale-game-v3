@@ -1,175 +1,180 @@
 // components/TokenGate.tsx
-// Wrapper component that gates access based on $FLIP holdings
-
-import { useState, useEffect, ReactNode } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { TokenGateResult } from '../lib/tokenGate'
 
 type TokenGateProps = {
-    children: ReactNode
+    isOpen: boolean
+    onClose: () => void
+    onSuccess: () => void
 }
 
 const FLIP_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_FLIP_TOKEN_ADDRESS || ''
 
-export default function TokenGate({ children }: TokenGateProps) {
+export default function TokenGate({ isOpen, onClose, onSuccess }: TokenGateProps) {
     const { address, isConnected } = useAccount()
     const [gateResult, setGateResult] = useState<TokenGateResult | null>(null)
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
     const [checking, setChecking] = useState(false)
 
-    // Quick client-side check if gate is enabled
-    const isGateEnabledClient = FLIP_TOKEN_ADDRESS &&
-        FLIP_TOKEN_ADDRESS.length === 42 &&
-        !FLIP_TOKEN_ADDRESS.includes('placeholder')
-
+    // Reset when opened
     useEffect(() => {
-        async function checkGate() {
-            // If gate not enabled on client, skip API call
-            if (!isGateEnabledClient) {
-                setGateResult({
-                    enabled: false,
-                    allowed: true,
-                    balance: 0,
-                    usdValue: 0,
-                    minRequired: 100,
-                    minTokenRequired: 250000,
-                    tokenPrice: 0,
-                    tokenAddress: ''
-                })
-                setLoading(false)
-                return
-            }
+        if (isOpen) {
+            checkGate()
+        }
+    }, [isOpen, address])
 
-            // If wallet not connected, show gate
-            if (!isConnected || !address) {
-                setLoading(false)
-                return
-            }
-
-            setChecking(true)
-            try {
-                const res = await fetch(`/api/token-gate/check?address=${address}`)
-                const data = await res.json()
-                setGateResult(data)
-            } catch (error) {
-                console.error('[TokenGate] Failed to check:', error)
-                // Fail-open: allow access on error
-                setGateResult({
-                    enabled: true,
-                    allowed: true,
-                    balance: 0,
-                    usdValue: 0,
-                    minRequired: 100,
-                    minTokenRequired: 250000,
-                    tokenPrice: 0,
-                    tokenAddress: FLIP_TOKEN_ADDRESS
-                })
-            } finally {
-                setLoading(false)
-                setChecking(false)
-            }
+    async function checkGate() {
+        if (!FLIP_TOKEN_ADDRESS) {
+            onSuccess();
+            return;
+        }
+        if (!address) {
+            // Wait for user to connect
+            return;
         }
 
-        checkGate()
-    }, [address, isConnected, isGateEnabledClient])
+        setLoading(true)
+        setChecking(true)
+        try {
+            const res = await fetch(`/api/token-gate/check?address=${address}`)
+            const data = await res.json()
+            setGateResult(data)
 
-    // Re-check every 60 seconds
-    useEffect(() => {
-        if (!isGateEnabledClient || !isConnected || !address) return
-
-        const interval = setInterval(async () => {
-            try {
-                const res = await fetch(`/api/token-gate/check?address=${address}`)
-                const data = await res.json()
-                setGateResult(data)
-            } catch (error) {
-                console.error('[TokenGate] Refresh failed:', error)
+            // If allowed (balance high enough or gate disabled)
+            if (data.allowed) {
+                onSuccess()
             }
-        }, 60000)
+        } catch (error) {
+            console.error('[TokenGate] Check error:', error)
+            // Fail open on error to avoid blocking user due to API issues
+            onSuccess()
+        } finally {
+            setLoading(false)
+            setChecking(false)
+        }
+    }
 
-        return () => clearInterval(interval)
-    }, [address, isConnected, isGateEnabledClient])
+    if (!isOpen) return null
 
-    // Loading state
+    // If loading, show spinner overlay
     if (loading) {
         return (
             <div style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 9999,
+                background: 'rgba(0,0,0,0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}>
+                <div className="spinner" style={{
+                    width: 48,
+                    height: 48,
+                    border: '4px solid rgba(255,255,255,0.1)',
+                    borderTopColor: '#10b981',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                }}></div>
+                <style jsx>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            </div>
+        )
+    }
+
+    // If allowed, render nothing (onSuccess should have been called)
+    if (gateResult?.allowed) return null
+
+    // If NOT connected
+    if (!isConnected) {
+        return (
+            <div style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 9999,
+                background: 'rgba(0,0,0,0.85)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                minHeight: '100vh',
-                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
+                backdropFilter: 'blur(5px)'
             }}>
-                <div style={{ textAlign: 'center' }}>
-                    <div className="spinner" style={{
-                        width: 48,
-                        height: 48,
-                        border: '4px solid rgba(255,255,255,0.1)',
-                        borderTopColor: '#10b981',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        margin: '0 auto 16px'
-                    }} />
-                    <div style={{ color: 'rgba(255,255,255,0.7)' }}>Loading...</div>
-                    <style jsx>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+                <div style={{
+                    background: '#1e293b',
+                    padding: 32,
+                    borderRadius: 24,
+                    textAlign: 'center',
+                    maxWidth: 400,
+                    border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                    <h3 style={{ color: 'white', marginTop: 0, fontSize: 24 }}>Connect Wallet</h3>
+                    <p style={{ color: '#94a3b8', marginBottom: 24 }}>Please connect your wallet to verify token holdings.</p>
+                    <button onClick={onClose} style={{
+                        padding: '12px 24px',
+                        background: '#334155',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 12,
+                        cursor: 'pointer',
+                        fontSize: 16,
+                        fontWeight: 600
+                    }}>Close</button>
                 </div>
             </div>
         )
     }
 
-    // Gate not enabled or user allowed
-    if (!gateResult?.enabled || gateResult?.allowed) {
-        return <>{children}</>
-    }
-
-    // Gate Screen - User doesn't meet requirement
+    // Gate Screen - Not Allowed
     return (
         <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.85)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '100vh',
-            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-            padding: 24
+            padding: 24,
+            backdropFilter: 'blur(8px)'
         }}>
             <div style={{
-                background: 'rgba(30, 41, 59, 0.8)',
+                background: 'rgba(30, 41, 59, 0.95)',
                 borderRadius: 24,
                 padding: 48,
-                maxWidth: 500,
+                maxWidth: 480,
                 width: '100%',
                 textAlign: 'center',
                 border: '1px solid rgba(255,255,255,0.1)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.4)'
+                boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+                position: 'relative'
             }}>
-                {/* Lock Icon */}
-                <div style={{
-                    fontSize: 64,
-                    marginBottom: 24
-                }}>
-                    🔒
-                </div>
+                <button
+                    onClick={onClose}
+                    style={{
+                        position: 'absolute',
+                        top: 16,
+                        right: 16,
+                        background: 'none',
+                        border: 'none',
+                        color: 'rgba(255,255,255,0.5)',
+                        fontSize: 24,
+                        cursor: 'pointer',
+                        padding: 8,
+                        lineHeight: 1
+                    }}
+                >
+                    ✕
+                </button>
 
-                {/* Title */}
-                <h1 style={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: '#fbbf24',
-                    marginBottom: 12,
-                    textTransform: 'uppercase',
-                    letterSpacing: 1
-                }}>
-                    Token Gate
-                </h1>
+                <div style={{ fontSize: 64, marginBottom: 24 }}>🔒</div>
 
-                {/* Subtitle */}
                 <p style={{
                     fontSize: 16,
-                    color: 'rgba(255,255,255,0.7)',
-                    marginBottom: 32
+                    color: 'rgba(255,255,255,0.8)',
+                    marginBottom: 32,
+                    lineHeight: 1.6
                 }}>
-                    Hold <strong style={{ color: '#10b981' }}>{(gateResult.minTokenRequired || 250000).toLocaleString()}</strong>{' '}
-                    <strong style={{ color: '#fbbf24' }}>$FLIP</strong> tokens to access Flip Royale
+                    Hold <strong style={{ color: '#10b981' }}>{(gateResult?.minTokenRequired || 250000).toLocaleString()}</strong>{' '}
+                    <strong style={{ color: '#fbbf24' }}>$FLIP</strong> tokens to save your picks for the next round.
                 </p>
 
                 {/* Stats */}
@@ -179,114 +184,65 @@ export default function TokenGate({ children }: TokenGateProps) {
                     padding: 24,
                     marginBottom: 24
                 }}>
-                    <div style={{
-                        display: 'grid',
-                        gap: 16
-                    }}>
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}>
-                            <span style={{ color: 'rgba(255,255,255,0.6)' }}>Your Balance</span>
-                            <span style={{
-                                fontWeight: 700,
-                                color: gateResult.balance >= (gateResult.minTokenRequired || 250000) ? '#10b981' : '#ef4444'
-                            }}>
-                                {gateResult.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })} $FLIP
+                    <div style={{ display: 'grid', gap: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#94a3b8' }}>Your Balance</span>
+                            <span style={{ fontWeight: 700, color: (gateResult?.balance || 0) >= (gateResult?.minTokenRequired || 250000) ? '#10b981' : '#ef4444' }}>
+                                {(gateResult?.balance || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} $FLIP
                             </span>
                         </div>
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}>
-                            <span style={{ color: 'rgba(255,255,255,0.6)' }}>Required</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#94a3b8' }}>Required</span>
                             <span style={{ fontWeight: 700, color: '#10b981' }}>
-                                {(gateResult.minTokenRequired || 250000).toLocaleString()} $FLIP
+                                {(gateResult?.minTokenRequired || 250000).toLocaleString()} $FLIP
                             </span>
                         </div>
-                        {gateResult.usdValue > 0 && (
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                borderTop: '1px solid rgba(255,255,255,0.1)',
-                                paddingTop: 12,
-                                marginTop: 4
-                            }}>
-                                <span style={{ color: 'rgba(255,255,255,0.6)' }}>Value (USD)</span>
-                                <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
-                                    ${gateResult.usdValue.toFixed(2)}
-                                </span>
-                            </div>
-                        )}
-                        {gateResult.tokenPrice > 0 && (
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                borderTop: '1px solid rgba(255,255,255,0.1)',
-                                paddingTop: 12,
-                                marginTop: 4
-                            }}>
-                                <span style={{ color: 'rgba(255,255,255,0.6)' }}>$FLIP Price</span>
-                                <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
-                                    ${gateResult.tokenPrice.toFixed(6)}
-                                </span>
-                            </div>
-                        )}
                     </div>
                 </div>
 
                 {/* Progress Bar */}
                 <div style={{
-                    background: 'rgba(0,0,0,0.3)',
+                    background: 'rgba(255,255,255,0.1)',
                     borderRadius: 8,
-                    height: 8,
+                    height: 6,
                     overflow: 'hidden',
-                    marginBottom: 24
+                    marginBottom: 32
                 }}>
                     <div style={{
-                        width: `${Math.min((gateResult.balance / (gateResult.minTokenRequired || 250000)) * 100, 100)}%`,
+                        width: `${Math.min(((gateResult?.balance || 0) / (gateResult?.minTokenRequired || 250000)) * 100, 100)}%`,
                         height: '100%',
-                        background: 'linear-gradient(90deg, #ef4444, #f59e0b, #10b981)',
-                        borderRadius: 8,
+                        background: (gateResult?.balance || 0) >= (gateResult?.minTokenRequired || 250000) ? '#10b981' : '#ef4444',
                         transition: 'width 0.3s ease'
                     }} />
                 </div>
 
-                {/* Buy Button */}
                 <a
-                    href="https://app.uniswap.org/swap"
+                    href="https://app.virtuals.io/virtuals/41537"
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
+                        display: 'block',
                         background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                         color: 'white',
-                        padding: '16px 32px',
+                        padding: '16px',
                         borderRadius: 12,
                         fontWeight: 700,
                         fontSize: 16,
                         textDecoration: 'none',
-                        boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)',
-                        transition: 'transform 0.2s ease'
+                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                        transition: 'transform 0.2s ease',
+                        marginBottom: 16
                     }}
                 >
-                    <span>💰</span>
-                    <span>Buy $FLIP on Uniswap</span>
+                    Buy $FLIP on Virtuals
                 </a>
 
-                {/* Refresh note */}
                 <p style={{
                     fontSize: 12,
                     color: 'rgba(255,255,255,0.4)',
-                    marginTop: 24
+                    marginTop: 12
                 }}>
-                    {checking ? 'Checking...' : 'Balance updates automatically every 60 seconds'}
+                    Balance updates automatically
                 </p>
             </div>
         </div>

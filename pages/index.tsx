@@ -210,6 +210,7 @@ export default function Home() {
   const [regError, setRegError] = useState('')
   const [showWelcomeGift, setShowWelcomeGift] = useState(false) // Welcome Gift Modal State
   const [purchasedPack, setPurchasedPack] = useState<{ type: string, count: number } | null>(null)
+  const [showTokenGate, setShowTokenGate] = useState(false)
 
   // --- ZAMAN VE FINALIZING KONTROLÜ ---
   const [now, setNow] = useState(Date.now())
@@ -1518,7 +1519,7 @@ export default function Home() {
   const nextRoundDisplay = currentRound + 1
 
   return (
-    <TokenGate>
+    <>
       <div className="app">
         <header className="topbar">
           <div className="brand">
@@ -2547,7 +2548,25 @@ export default function Home() {
                       <>
                         <button
                           type="button"
-                          onClick={(e) => saveNextRoundPicks(e)}
+                          onClick={async (e) => {
+                            if (!user?.id || !address) {
+                              saveNextRoundPicks(e)
+                              return
+                            }
+                            try {
+                              const res = await fetch(`/api/token-gate/check?address=${address}`)
+                              const data = await res.json()
+
+                              if (data.allowed) {
+                                saveNextRoundPicks(e)
+                              } else {
+                                setShowTokenGate(true)
+                              }
+                            } catch (err) {
+                              console.error('Gate check failed', err)
+                              saveNextRoundPicks(e) // Fail open on error
+                            }
+                          }}
                           className="btn"
                           style={{
                             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -3198,6 +3217,12 @@ export default function Home() {
           toast('🎁 Code Redeemed! Check My Packs for your free pack!')
         }}
       />
-    </TokenGate >
+
+      <TokenGate
+        isOpen={showTokenGate}
+        onClose={() => setShowTokenGate(false)}
+        onSuccess={() => setShowTokenGate(false)}
+      />
+    </>
   )
 }
