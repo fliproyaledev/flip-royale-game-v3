@@ -5,6 +5,7 @@ import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } 
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { parseUnits } from 'viem'
 import ThemeToggle from '../components/ThemeToggle'
+import Topbar from '../components/Topbar'
 import { useTheme } from '../lib/theme'
 import { useToast } from '../lib/toast'
 import {
@@ -120,8 +121,19 @@ export default function ShopPage() {
             return
         }
 
-        // Check X account
-        if (!user?.xUserId) {
+        // Check if user is loaded, if not, try to use localStorage fallback for check
+        let hasX = user?.xUserId;
+        if (!hasX) {
+            const stored = localStorage.getItem('flipflop-user')
+            if (stored) {
+                try {
+                    const u = JSON.parse(stored)
+                    if (u.xUserId) hasX = true
+                } catch { }
+            }
+        }
+
+        if (!hasX) {
             toast('Please connect your X account first', 'error')
             return
         }
@@ -182,36 +194,7 @@ export default function ShopPage() {
             </Head>
 
             <div className="app" data-theme={theme}>
-                {/* Topbar */}
-                <header className="topbar">
-                    <Link href="/" className="brand">
-                        <img src="/logo.png" alt="Flip Royale" className="logo" style={{ height: 60 }} />
-                    </Link>
-
-                    <nav className="tabs">
-                        <Link href="/" className="tab">FLIP ROYALE</Link>
-                        <Link href="/prices" className="tab">Prices</Link>
-                        <Link href="/guide" className="tab">Guide</Link>
-                        <Link href="/inventory" className="tab">Inventory</Link>
-                        <Link href="/my-packs" className="tab">My Packs</Link>
-                        <Link href="/shop" className="tab active">Shop</Link>
-                        <Link href="/leaderboard" className="tab">Leaderboard</Link>
-                        <Link href="/referrals" className="tab">Referrals</Link>
-                        <Link href="/history" className="tab">History</Link>
-                        <Link href="/litepaper" className="tab">Litepaper</Link>
-                        <Link href="/profile" className="tab">Profile</Link>
-                    </nav>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        {isConnected && (
-                            <div className="badge" style={{ fontSize: 14 }}>
-                                💰 {formatFlipAmount(flipBalance)} FLIP
-                            </div>
-                        )}
-                        <ThemeToggle />
-                        <ConnectButton />
-                    </div>
-                </header>
+                <Topbar activeTab="shop" user={user} />
 
                 {/* Main Content */}
                 <main style={{ maxWidth: 1600, margin: '0 auto', padding: '20px 16px' }}>
