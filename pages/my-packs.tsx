@@ -234,8 +234,8 @@ export default function MyPacksPage() {
             ) : (
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {Object.entries(packs).map(([type, count]) => {
-                  const typeKey = type.toLowerCase() as any
-                  const info = PACK_INFO[typeKey]
+                  const typeKey = type.toLowerCase()
+                  const info = (PACK_INFO as any)[typeKey]
 
                   // Use info if available, otherwise fallbacks
                   const imgSrc = info?.image || (type.includes('rare') ? '/rare-pack.jpg' : '/common-pack.jpg')
