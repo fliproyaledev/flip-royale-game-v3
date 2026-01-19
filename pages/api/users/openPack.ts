@@ -4,6 +4,7 @@ import { generatePackCards } from '../../../lib/game-utils'
 import { TOKENS } from '../../../lib/tokens'
 
 // 1. Ortam Değişkenlerini Al
+// Force Rebuild: 7652
 const ORACLE_URL = process.env.ORACLE_URL;
 const ORACLE_SECRET = process.env.ORACLE_SECRET;
 
