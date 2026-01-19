@@ -44,6 +44,7 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
                 <title>FLIP ROYALE</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <meta name="base:app_id" content="696ea714f22fe462e74c15d5" />
+                <meta name="fc:miniapp" content='{"version":"next","imageUrl":"https://fliproyale.xyz/heroimage.png","button":{"title":"Play Now","action":{"type":"launch_frame","url":"https://fliproyale.xyz"}}}' />
                 <meta name="virtual-protocol-site-verification" content="32a70cf4dfb561e7918405e64f72e9eb" />
               </Head>
               <Component {...pageProps} />

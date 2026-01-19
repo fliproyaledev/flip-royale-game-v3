@@ -357,30 +357,24 @@ export default function ShopPage() {
                                             {info.description}
                                         </p>
 
-                                        {/* Price - Prominent Display */}
+                                        {/* Price */}
                                         <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            marginBottom: 10,
+                                            padding: '6px 10px',
                                             background: 'rgba(0,0,0,0.25)',
-                                            padding: '8px 10px',
                                             borderRadius: 8,
-                                            marginBottom: 8,
                                             border: '1px solid rgba(255,255,255,0.1)'
                                         }}>
-                                            <div style={{
-                                                fontSize: 9,
-                                                opacity: 0.7,
-                                                marginBottom: 2,
-                                                textTransform: 'uppercase',
-                                                letterSpacing: 0.5
+                                            <span className="pack-card-text" style={{ fontSize: 11 }}>Price:</span>
+                                            <span className="pack-card-text" style={{
+                                                fontSize: 14,
+                                                fontWeight: 900
                                             }}>
-                                                Price per Pack
-                                            </div>
-                                            <div style={{
-                                                fontSize: 15,
-                                                fontWeight: 900,
-                                                color: info.color
-                                            }}>
-                                                {formatFlipAmount(price)} <span style={{ fontSize: 11, opacity: 0.8 }}>FLIP</span>
-                                            </div>
+                                                {formatFlipAmount(price)} FLIP
+                                            </span>
                                         </div>
 
                                         {/* Quantity Selector - Compact */}
