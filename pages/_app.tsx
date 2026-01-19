@@ -1,5 +1,6 @@
 import '@/styles/globals.css';
 import '@/styles/miniapp-mobile.css';
+import '@/styles/page-mobile.css';
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import { ThemeProvider } from '../lib/theme';

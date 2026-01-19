@@ -1,0 +1,330 @@
+/* Page-Specific Mobile Optimizations for Mini App */
+
+/* ========================================
+   SHOP PAGE OPTIMIZATIONS
+   ======================================== */
+
+/* Shop container */
+@media (max-width: 768px) {
+
+    /* Shop header */
+    .shop-header,
+    [class*="shop"] h1,
+    [class*="shop"] h2 {
+        font-size: 18px !important;
+        margin: 8px 0 !important;
+        padding: 8px !important;
+    }
+
+    /* Pack grid - Make horizontal scrollable */
+    .pack-grid,
+    [class*="pack-grid"],
+    div[style*="display: grid"][style*="grid-template-columns"] {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        gap: 12px !important;
+        padding: 12px !important;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Individual pack cards */
+    .pack-card,
+    [class*="pack-card"],
+    div[style*="border-radius"][style*="padding"]:has(button) {
+        min-width: 140px !important;
+        max-width: 160px !important;
+        flex-shrink: 0 !important;
+        padding: 12px !important;
+        scroll-snap-align: start;
+        height: auto !important;
+        max-height: none !important;
+    }
+
+    /* Pack card titles */
+    .pack-card h3,
+    .pack-card h4 {
+        font-size: 13px !important;
+        margin: 4px 0 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    /* Pack card description */
+    .pack-card p,
+    .pack-card small {
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+        margin: 4px 0 !important;
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
+    }
+
+    /* Pack price */
+    .pack-card .price,
+    .pack-card [class*="price"] {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+    }
+
+    /* Quantity selector */
+    .quantity-selector,
+    .pack-card input[type="number"] {
+        width: 50px !important;
+        padding: 4px !important;
+        font-size: 12px !important;
+    }
+
+    /* Buy button */
+    .pack-card button,
+    .pack-card .btn {
+        padding: 6px 12px !important;
+        font-size: 12px !important;
+        margin-top: 8px !important;
+    }
+}
+
+/* ========================================
+   PRICES PAGE OPTIMIZATIONS
+   ======================================== */
+
+@media (max-width: 768px) {
+
+    /* Prices header */
+    .prices-header,
+    [class*="prices"] h1 {
+        font-size: 18px !important;
+        padding: 8px !important;
+    }
+
+    /* Search and filters */
+    .prices-search,
+    .prices-filter,
+    input[type="search"],
+    select {
+        font-size: 12px !important;
+        padding: 6px 8px !important;
+        margin: 4px !important;
+    }
+
+    /* Price table wrapper */
+    .prices-table-wrapper,
+    .table-wrapper,
+    div:has(> table) {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        margin: 8px 0 !important;
+    }
+
+    /* Price table */
+    table {
+        font-size: 11px !important;
+        min-width: 100% !important;
+    }
+
+    table thead th {
+        font-size: 11px !important;
+        padding: 6px 4px !important;
+        white-space: nowrap !important;
+        position: sticky !important;
+        top: 0 !important;
+        background: var(--bg) !important;
+        z-index: 10 !important;
+    }
+
+    table tbody td {
+        padding: 6px 4px !important;
+        font-size: 10px !important;
+    }
+
+    /* Token name/symbol - make compact */
+    table td:first-child,
+    .token-name {
+        max-width: 80px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    /* Token image/icon */
+    table img,
+    .token-icon {
+        width: 24px !important;
+        height: 24px !important;
+    }
+
+    /* Price change percentage */
+    .price-change,
+    [class*="percent"] {
+        font-size: 10px !important;
+        padding: 2px 4px !important;
+    }
+
+    /* Hide less important columns on mobile */
+    table td:nth-child(4),
+    table th:nth-child(4),
+    table td:nth-child(5),
+    table th:nth-child(5) {
+        display: none !important;
+    }
+}
+
+/* ========================================
+   HOMEPAGE (FLIP ROYALE) OPTIMIZATIONS
+   ======================================== */
+
+@media (max-width: 768px) {
+
+    /* Active Round section */
+    .active-round,
+    [class*="active"] {
+        padding: 12px !important;
+        margin: 8px 0 !important;
+    }
+
+    .active-round h2,
+    .next-round h2 {
+        font-size: 16px !important;
+        margin: 6px 0 !important;
+    }
+
+    /* Card slots grid */
+    .card-slots,
+    .cards-grid,
+    div[style*="display: grid"][style*="gap"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+        padding: 8px !important;
+    }
+
+    /* Card slot */
+    .card-slot,
+    [class*="card-slot"] {
+        min-height: 100px !important;
+        max-height: 120px !important;
+        padding: 8px !important;
+    }
+
+    .card-slot img {
+        max-height: 60px !important;
+        width: auto !important;
+    }
+
+    /* Add card button */
+    .add-card-button,
+    button:has(> span:contains("+")) {
+        font-size: 20px !important;
+        padding: 8px !important;
+        min-height: 100px !important;
+    }
+
+    /* Direction indicator (UP/DOWN) */
+    .direction-indicator,
+    .dir-up,
+    .dir-down {
+        font-size: 10px !important;
+        padding: 2px 6px !important;
+    }
+
+    /* Points display */
+    .points,
+    .points-display {
+        font-size: 12px !important;
+    }
+
+    /* Round badge */
+    .round-badge,
+    .badge {
+        font-size: 10px !important;
+        padding: 3px 6px !important;
+    }
+}
+
+/* ========================================
+   INVENTORY & MY PACKS
+   ======================================== */
+
+@media (max-width: 768px) {
+
+    /* Inventory grid */
+    .inventory-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px !important;
+    }
+
+    .inventory-item {
+        padding: 6px !important;
+        font-size: 11px !important;
+    }
+
+    .inventory-item img {
+        max-height: 60px !important;
+    }
+
+    /* Pack list */
+    .pack-list {
+        gap: 8px !important;
+    }
+
+    .pack-item {
+        padding: 10px !important;
+    }
+
+    .pack-item button {
+        font-size: 12px !important;
+        padding: 6px 10px !important;
+    }
+}
+
+/* ========================================
+   SCROLLBAR STYLING
+   ======================================== */
+
+/* Horizontal scrollbars for tables and grids */
+@media (max-width: 768px) {
+
+    .pack-grid::-webkit-scrollbar,
+    .table-wrapper::-webkit-scrollbar,
+    table::-webkit-scrollbar {
+        height: 3px !important;
+    }
+
+    .pack-grid::-webkit-scrollbar-track,
+    .table-wrapper::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    .pack-grid::-webkit-scrollbar-thumb,
+    .table-wrapper::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3) !important;
+        border-radius: 2px !important;
+    }
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+@media (max-width: 768px) {
+
+    /* Hide on mobile */
+    .hide-mobile {
+        display: none !important;
+    }
+
+    /* Full width on mobile */
+    .full-width-mobile {
+        width: 100% !important;
+    }
+
+    /* Compact spacing */
+    .compact-mobile {
+        padding: 6px !important;
+        margin: 4px 0 !important;
+    }
+}
