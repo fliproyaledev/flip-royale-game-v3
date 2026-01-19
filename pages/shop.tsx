@@ -314,50 +314,85 @@ export default function ShopPage() {
                                     </div>
 
                                     {/* Pack Info */}
-                                    <div style={{ padding: 12 }}>
-                                        <h3 className="pack-card-text" style={{
-                                            fontSize: 14,
-                                            fontWeight: 800,
-                                            marginBottom: 4,
-                                            textTransform: 'uppercase',
-                                            letterSpacing: 0.5
-                                        }}>
-                                            {info.name}
-                                        </h3>
-                                        <p className="pack-card-text" style={{
-                                            fontSize: 11,
-                                            marginBottom: 10,
-                                            lineHeight: 1.3
-                                        }}>
-                                            {info.description}
-                                        </p>
-
-                                        {/* Price */}
+                                    <div style={{ padding: '12px 14px' }}>
+                                        {/* Pack Name with Icon */}
                                         <div style={{
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
-                                            marginBottom: 10
+                                            marginBottom: 8
                                         }}>
-                                            <span className="pack-card-text" style={{ fontSize: 11 }}>Price:</span>
-                                            <span className="pack-card-text" style={{
-                                                fontSize: 14,
-                                                fontWeight: 900
+                                            <h3 className="pack-card-text" style={{
+                                                fontSize: 13,
+                                                fontWeight: 800,
+                                                textTransform: 'uppercase',
+                                                letterSpacing: 0.8,
+                                                margin: 0
                                             }}>
-                                                {formatFlipAmount(price)} FLIP
+                                                {info.name}
+                                            </h3>
+                                            <span style={{
+                                                fontSize: 10,
+                                                background: 'rgba(255,255,255,0.15)',
+                                                padding: '2px 6px',
+                                                borderRadius: 4,
+                                                fontWeight: 700
+                                            }}>
+                                                5 Cards
                                             </span>
                                         </div>
 
-                                        {/* Quantity Selector */}
+                                        {/* Description - Compact */}
+                                        <p className="pack-card-text" style={{
+                                            fontSize: 10,
+                                            marginBottom: 8,
+                                            lineHeight: 1.3,
+                                            opacity: 0.85,
+                                            height: 26,
+                                            overflow: 'hidden',
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical'
+                                        }}>
+                                            {info.description}
+                                        </p>
+
+                                        {/* Price - Prominent Display */}
+                                        <div style={{
+                                            background: 'rgba(0,0,0,0.25)',
+                                            padding: '8px 10px',
+                                            borderRadius: 8,
+                                            marginBottom: 8,
+                                            border: '1px solid rgba(255,255,255,0.1)'
+                                        }}>
+                                            <div style={{
+                                                fontSize: 9,
+                                                opacity: 0.7,
+                                                marginBottom: 2,
+                                                textTransform: 'uppercase',
+                                                letterSpacing: 0.5
+                                            }}>
+                                                Price per Pack
+                                            </div>
+                                            <div style={{
+                                                fontSize: 15,
+                                                fontWeight: 900,
+                                                color: info.color
+                                            }}>
+                                                {formatFlipAmount(price)} <span style={{ fontSize: 11, opacity: 0.8 }}>FLIP</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Quantity Selector - Compact */}
                                         <div style={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: 8,
+                                            gap: 6,
                                             marginBottom: 10,
-                                            background: 'rgba(0,0,0,0.3)',
-                                            borderRadius: 6,
-                                            padding: '6px 8px'
+                                            background: 'rgba(0,0,0,0.2)',
+                                            borderRadius: 8,
+                                            padding: '6px 8px',
+                                            border: '1px solid rgba(255,255,255,0.08)'
                                         }}>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); updateQty(packType, -1) }}

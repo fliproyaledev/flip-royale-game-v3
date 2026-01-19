@@ -9,6 +9,7 @@
         "name": "FLIP ROYALE",
         "homeUrl": "https://fliproyale.xyz",
         "iconUrl": "https://fliproyale.xyz/icon.png",
+        "imageUrl": "https://fliproyale.xyz/heroimage.png",
         "splashImageUrl": "https://fliproyale.xyz/splash.png",
         "splashBackgroundColor": "#0a0e27",
         "webhookUrl": "https://fliproyale.xyz/api/miniapp/webhook",
