@@ -88,11 +88,12 @@ export default function ShopPage() {
         }
     })
 
-    // Buy Pack
+    // Buy Pack (dynamic: with or without referrer)
+    const [useBuyWithReferrer, setUseBuyWithReferrer] = useState(false)
     const { writeAsync: buyAsync, data: buyData } = useContractWrite({
         address: PACK_SHOP_V2_ADDRESS as `0x${string}`,
         abi: PACK_SHOP_V2_ABI,
-        functionName: 'buyPack',
+        functionName: useBuyWithReferrer ? 'buyPackWithReferrer' : 'buyPack',
     })
 
     const { isLoading: buyLoading } = useWaitForTransaction({
@@ -173,9 +174,24 @@ export default function ShopPage() {
             // Buy pack
             setStatus('buying')
             toast('Confirming purchase...', 'info')
-            await buyAsync({
-                args: [PACK_INFO[packType].id, BigInt(qty)]
-            })
+
+            // Check if user has a referrer
+            const referrer = user?.referredBy
+            if (referrer && referrer !== '0x0000000000000000000000000000000000000000') {
+                // Use buyPackWithReferrer
+                setUseBuyWithReferrer(true)
+                console.log('🔗 Buying with referrer:', referrer)
+                await buyAsync({
+                    args: [PACK_INFO[packType].id, BigInt(qty), referrer as `0x${string}`]
+                })
+            } else {
+                // Use regular buyPack
+                setUseBuyWithReferrer(false)
+                console.log('📦 Buying without referrer')
+                await buyAsync({
+                    args: [PACK_INFO[packType].id, BigInt(qty)]
+                })
+            }
 
         } catch (e: any) {
             console.error('Buy error:', e)
