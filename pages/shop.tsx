@@ -88,13 +88,22 @@ export default function ShopPage() {
         }
     })
 
-    // Buy Pack (dynamic: with or without referrer)
-    const [useBuyWithReferrer, setUseBuyWithReferrer] = useState(false)
-    const { writeAsync: buyAsync, data: buyData } = useContractWrite({
+    // Buy Pack - Without Referrer
+    const { writeAsync: buyPackAsync, data: buyPackData } = useContractWrite({
         address: PACK_SHOP_V2_ADDRESS as `0x${string}`,
         abi: PACK_SHOP_V2_ABI,
-        functionName: useBuyWithReferrer ? 'buyPackWithReferrer' : 'buyPack',
+        functionName: 'buyPack',
     })
+
+    // Buy Pack - With Referrer
+    const { writeAsync: buyPackWithReferrerAsync, data: buyPackWithReferrerData } = useContractWrite({
+        address: PACK_SHOP_V2_ADDRESS as `0x${string}`,
+        abi: PACK_SHOP_V2_ABI,
+        functionName: 'buyPackWithReferrer',
+    })
+
+    // Unified data and hash for both transactions
+    const buyData = buyPackData || buyPackWithReferrerData
 
     const { isLoading: buyLoading } = useWaitForTransaction({
         hash: buyData?.hash,
@@ -179,16 +188,14 @@ export default function ShopPage() {
             const referrer = user?.referredBy
             if (referrer && referrer !== '0x0000000000000000000000000000000000000000') {
                 // Use buyPackWithReferrer
-                setUseBuyWithReferrer(true)
                 console.log('🔗 Buying with referrer:', referrer)
-                await buyAsync({
+                await buyPackWithReferrerAsync({
                     args: [PACK_INFO[packType].id, BigInt(qty), referrer as `0x${string}`]
                 })
             } else {
                 // Use regular buyPack
-                setUseBuyWithReferrer(false)
                 console.log('📦 Buying without referrer')
-                await buyAsync({
+                await buyPackAsync({
                     args: [PACK_INFO[packType].id, BigInt(qty)]
                 })
             }
