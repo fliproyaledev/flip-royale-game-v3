@@ -249,11 +249,16 @@ export default function ShopPage() {
                         Buy card packs with $FLIP tokens. Each pack contains 5 cards!
                     </p>
 
-                    {/* Pack Grid - 5 columns */}
+                    {/* Pack Grid - Responsive: Desktop grid / Mobile horizontal scroll */}
                     <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(5, 1fr)',
-                        gap: 16
+                        display: 'flex',
+                        flexDirection: 'row',
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        gap: 16,
+                        padding: '0 4px 12px 4px',
+                        WebkitOverflowScrolling: 'touch',
+                        scrollSnapType: 'x mandatory'
                     }}>
                         {PACK_ORDER.map(packType => {
                             const info = PACK_INFO[packType]
@@ -267,6 +272,10 @@ export default function ShopPage() {
                                     key={packType}
                                     className="panel"
                                     style={{
+                                        minWidth: '160px',
+                                        maxWidth: '200px',
+                                        flexShrink: 0,
+                                        scrollSnapAlign: 'start',
                                         background: info.bgGradient,
                                         border: `2px solid ${info.color}40`,
                                         borderRadius: 16,
@@ -285,7 +294,7 @@ export default function ShopPage() {
                                 >
                                     {/* Pack Image */}
                                     <div style={{
-                                        height: 180,
+                                        height: 120,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',

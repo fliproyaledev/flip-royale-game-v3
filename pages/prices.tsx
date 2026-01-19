@@ -267,147 +267,156 @@ export default function PricesPage() {
             Loading live prices...
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Header row */}
+          <div style={{
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch'
+          }}>
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(220px, 2fr) repeat(3, minmax(120px, 1fr)) 160px',
-              gap: 16,
-              alignItems: 'center',
-              padding: '12px 20px',
-              background: 'rgba(255,255,255,0.06)',
-              borderRadius: 12,
-              border: '1px solid rgba(255,255,255,0.1)',
-              fontWeight: 700,
-              fontSize: 13,
-              color: 'rgba(255,255,255,0.9)',
-              textTransform: 'uppercase',
-              letterSpacing: 0.5
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              minWidth: '600px'
             }}>
-              <div>Token</div>
-              <div>Price</div>
-              <div>24h %</div>
-              <div>FDV</div>
-              <div>Source</div>
-            </div>
-            {sortedRows.map(row => {
-              const change = row.changePct ?? 0
-              const positive = change >= 0
-              return (
-                <div key={row.tokenId} className="price-row" style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(220px, 2fr) repeat(3, minmax(120px, 1fr)) 160px',
-                  gap: 16,
-                  alignItems: 'center',
-                  background: 'rgba(255,255,255,0.04)',
-                  borderRadius: 14,
-                  padding: '16px 20px',
-                  border: '1px solid rgba(255,255,255,0.08)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      border: '2px solid rgba(255,255,255,0.18)',
-                      boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
-                      flexShrink: 0
-                    }}>
-                      <img
-                        src={row.logo}
-                        alt={row.symbol}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={handleImageFallback}
-                      />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: 'white' }}>
-                        {row.name}
-                      </div>
-                      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
-                        ${row.symbol}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'white' }}>
-                    {row.price != null ? `$${row.price.toLocaleString(undefined, { maximumFractionDigits: row.price >= 2 ? 2 : 6 })}` : '—'}
-                  </div>
-
-                  <div style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: positive ? '#86efac' : '#fca5a5'
+              {/* Header row */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(180px, 2fr) repeat(3, minmax(100px, 1fr)) 140px',
+                gap: 12,
+                alignItems: 'center',
+                padding: '10px 16px',
+                background: 'rgba(255,255,255,0.06)',
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.1)',
+                fontWeight: 700,
+                fontSize: 11,
+                color: 'rgba(255,255,255,0.9)',
+                textTransform: 'uppercase',
+                letterSpacing: 0.5
+              }}>
+                <div>Token</div>
+                <div>Price</div>
+                <div>24h %</div>
+                <div>FDV</div>
+                <div>Source</div>
+              </div>
+              {sortedRows.map(row => {
+                const change = row.changePct ?? 0
+                const positive = change >= 0
+                return (
+                  <div key={row.tokenId} className="price-row" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(180px, 2fr) repeat(3, minmax(100px, 1fr)) 140px',
+                    gap: 12,
+                    alignItems: 'center',
+                    background: 'rgba(255,255,255,0.04)',
+                    borderRadius: 14,
+                    padding: '12px 16px',
+                    border: '1px solid rgba(255,255,255,0.08)'
                   }}>
-                    {row.changePct != null ? `${positive ? '+' : ''}${row.changePct.toFixed(2)}%` : '—'}
-                  </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        border: '2px solid rgba(255,255,255,0.18)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                        flexShrink: 0
+                      }}>
+                        <img
+                          src={row.logo}
+                          alt={row.symbol}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={handleImageFallback}
+                        />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>
+                          {row.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+                          ${row.symbol}
+                        </div>
+                      </div>
+                    </div>
 
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'white' }}>
-                    {row.fdv != null ? `$${(row.fdv / 1_000_000).toFixed(2)}M` : '—'}
-                  </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>
+                      {row.price != null ? `$${row.price.toLocaleString(undefined, { maximumFractionDigits: row.price >= 2 ? 2 : 6 })}` : '—'}
+                    </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-                    {row.dexscreenerUrl && (
-                      <a
-                        href={row.dexscreenerUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ color: '#93c5fd', textDecoration: 'underline' }}
-                      >
-                        View on Dexscreener
-                      </a>
-                    )}
                     <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: positive ? '#86efac' : '#fca5a5'
                     }}>
-                      <span
-                        className="badge"
-                        style={{
-                          background:
-                            row.source === 'dexscreener'
-                              ? 'rgba(16,185,129,0.18)'
-                              : row.source === 'gecko'
-                                ? 'rgba(59,130,246,0.2)'
-                                : 'rgba(239,68,68,0.2)',
-                          borderColor:
-                            row.source === 'dexscreener'
-                              ? 'rgba(16,185,129,0.3)'
-                              : row.source === 'gecko'
-                                ? 'rgba(59,130,246,0.35)'
-                                : 'rgba(239,68,68,0.35)',
-                          color:
-                            row.source === 'dexscreener'
-                              ? '#86efac'
-                              : row.source === 'gecko'
-                                ? '#bfdbfe'
-                                : '#fca5a5',
-                          fontSize: 11
-                        }}
-                      >
-                        {row.source === 'dexscreener' ? 'Dexscreener' : row.source === 'gecko' ? 'GeckoTerminal' : 'Fallback'}
-                      </span>
-                      {row.error && (
-                        <span style={{ color: '#fca5a5' }}>
-                          {row.error}
-                        </span>
+                      {row.changePct != null ? `${positive ? '+' : ''}${row.changePct.toFixed(2)}%` : '—'}
+                    </div>
+
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>
+                      {row.fdv != null ? `$${(row.fdv / 1_000_000).toFixed(2)}M` : '—'}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
+                      {row.dexscreenerUrl && (
+                        <a
+                          href={row.dexscreenerUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ color: '#93c5fd', textDecoration: 'underline' }}
+                        >
+                          View on Dexscreener
+                        </a>
                       )}
-                      {row.dexNetwork && row.dexPair && (
-                        <span style={{ color: 'rgba(255,255,255,0.45)' }}>
-                          {row.dexNetwork} · {row.dexPair.slice(0, 6)}…{row.dexPair.slice(-4)}
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}>
+                        <span
+                          className="badge"
+                          style={{
+                            background:
+                              row.source === 'dexscreener'
+                                ? 'rgba(16,185,129,0.18)'
+                                : row.source === 'gecko'
+                                  ? 'rgba(59,130,246,0.2)'
+                                  : 'rgba(239,68,68,0.2)',
+                            borderColor:
+                              row.source === 'dexscreener'
+                                ? 'rgba(16,185,129,0.3)'
+                                : row.source === 'gecko'
+                                  ? 'rgba(59,130,246,0.35)'
+                                  : 'rgba(239,68,68,0.35)',
+                            color:
+                              row.source === 'dexscreener'
+                                ? '#86efac'
+                                : row.source === 'gecko'
+                                  ? '#bfdbfe'
+                                  : '#fca5a5',
+                            fontSize: 11
+                          }}
+                        >
+                          {row.source === 'dexscreener' ? 'Dexscreener' : row.source === 'gecko' ? 'GeckoTerminal' : 'Fallback'}
                         </span>
-                      )}
+                        {row.error && (
+                          <span style={{ color: '#fca5a5' }}>
+                            {row.error}
+                          </span>
+                        )}
+                        {row.dexNetwork && row.dexPair && (
+                          <span style={{ color: 'rgba(255,255,255,0.45)' }}>
+                            {row.dexNetwork} · {row.dexPair.slice(0, 6)}…{row.dexPair.slice(-4)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         )}
       </div>
     </div>
   )
 }
-
