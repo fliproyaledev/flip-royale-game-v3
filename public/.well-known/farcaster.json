@@ -1,0 +1,36 @@
+{
+    "accountAssociation": {
+        "header": "",
+        "payload": "",
+        "signature": ""
+    },
+    "miniapp": {
+        "version": "1",
+        "name": "FLIP ROYALE",
+        "homeUrl": "https://fliproyale.xyz",
+        "iconUrl": "https://fliproyale.xyz/icon.png",
+        "splashImageUrl": "https://fliproyale.xyz/splash.png",
+        "splashBackgroundColor": "#0a0e27",
+        "webhookUrl": "https://fliproyale.xyz/api/miniapp/webhook",
+        "subtitle": "Card Trading Game on Base",
+        "description": "Flip cards daily, compete on leaderboards, and collect NFTs in this fast-paced on-chain card game on Base blockchain.",
+        "screenshotUrls": [
+            "https://fliproyale.xyz/screenshots1.png",
+            "https://fliproyale.xyz/screenshots2.png"
+        ],
+        "primaryCategory": "games",
+        "tags": [
+            "trading-card",
+            "nft",
+            "base",
+            "competition",
+            "game"
+        ],
+        "heroImageUrl": "https://fliproyale.xyz/heroimage.png",
+        "tagline": "Flip, Collect, Compete!",
+        "ogTitle": "FLIP ROYALE - On-Chain Card Game",
+        "ogDescription": "Trade cards daily, compete for prizes, and build your collection on Base blockchain.",
+        "ogImageUrl": "https://fliproyale.xyz/heroimage.png",
+        "noindex": false
+    }
+}
