@@ -1,0 +1,166 @@
+/* Mini App Mobile Optimizations */
+
+/* Detect mini app context and apply mobile-first styles */
+@media (max-width: 768px) {
+
+    /* Topbar/Header Optimization */
+    .topbar,
+    header {
+        padding: 8px 12px !important;
+        font-size: 14px !important;
+    }
+
+    .topbar h1,
+    .logo {
+        font-size: 20px !important;
+        margin: 0 !important;
+    }
+
+    /* Navigation Grid - More Compact */
+    .nav-grid,
+    .button-grid {
+        gap: 8px !important;
+        padding: 12px !important;
+    }
+
+    .nav-grid button,
+    .nav-grid a {
+        padding: 10px 12px !important;
+        font-size: 13px !important;
+        min-height: auto !important;
+    }
+
+    /* Pack Cards - Horizontal Scroll Fix */
+    .pack-grid,
+    .packs-container {
+        display: flex !important;
+        overflow-x: auto !important;
+        gap: 12px !important;
+        padding: 12px !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .pack-card {
+        min-width: 140px !important;
+        max-width: 160px !important;
+        flex-shrink: 0 !important;
+        padding: 12px !important;
+    }
+
+    .pack-card h3 {
+        font-size: 14px !important;
+        margin-bottom: 6px !important;
+    }
+
+    .pack-card p {
+        font-size: 11px !important;
+        line-height: 1.3 !important;
+    }
+
+    .pack-card .price {
+        font-size: 13px !important;
+    }
+
+    /* Active/Next Round Cards */
+    .card-slot,
+    .add-card-button {
+        min-height: 120px !important;
+        max-height: 140px !important;
+        font-size: 12px !important;
+    }
+
+    .card-slot img {
+        max-height: 80px !important;
+    }
+
+    /* Section Titles */
+    h2,
+    h3 {
+        font-size: 16px !important;
+        margin: 12px 0 8px 0 !important;
+    }
+
+    /* Panels/Containers */
+    .panel,
+    .container {
+        padding: 12px !important;
+        margin: 8px !important;
+    }
+
+    /* Buttons */
+    .btn,
+    button {
+        padding: 8px 16px !important;
+        font-size: 13px !important;
+    }
+
+    /* Connect Wallet Button */
+    .connect-button,
+    [class*="ConnectButton"] {
+        font-size: 13px !important;
+        padding: 8px 12px !important;
+    }
+
+    /* Leaderboard Table */
+    table {
+        font-size: 12px !important;
+    }
+
+    table th,
+    table td {
+        padding: 6px 8px !important;
+    }
+
+    /* Shop Page Specific */
+    .shop-header {
+        font-size: 18px !important;
+        padding: 12px !important;
+    }
+
+    /* Inventory Grid */
+    .inventory-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
+        gap: 8px !important;
+    }
+}
+
+/* Extra small devices (mini app viewport) */
+@media (max-width: 480px) {
+    body {
+        font-size: 13px !important;
+    }
+
+    .pack-card {
+        min-width: 120px !important;
+        max-width: 140px !important;
+    }
+
+    .nav-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    h1 {
+        font-size: 18px !important;
+    }
+
+    h2 {
+        font-size: 15px !important;
+    }
+}
+
+/* Prevent horizontal scroll */
+body,
+html {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+}
+
+/* Smooth scrolling for pack carousel */
+.pack-grid::-webkit-scrollbar {
+    height: 4px;
+}
+
+.pack-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+}
