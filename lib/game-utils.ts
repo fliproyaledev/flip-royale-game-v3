@@ -14,9 +14,10 @@ const BASIC_TYPES = ['Sentient', 'Pegasus', 'Firstborn'];
 const GENESIS_TYPE = 'Genesis';
 const UNICORN_TYPE = 'Unicorn';
 
-// Filter tokens by their type (about field)
+// Filter tokens by their type (about field) - Case insensitive
 function getCardsByType(tokens: Token[], types: string[]): Token[] {
-  return tokens.filter(t => types.includes(t.about));
+  const lowerTypes = types.map(t => t.toLowerCase());
+  return tokens.filter(t => t.about && lowerTypes.includes(t.about.toLowerCase().trim()));
 }
 
 /**
@@ -31,48 +32,63 @@ export function generatePackCards(packType: string, tokens: Token[]): string[] {
   if (!tokens || tokens.length === 0) return [];
 
   const cards: string[] = [];
+  const pType = packType.toLowerCase().trim();
 
-  // Pre-filter tokens by type
-  const basicCards = getCardsByType(tokens, BASIC_TYPES);
-  const genesisCards = getCardsByType(tokens, [GENESIS_TYPE]);
-  const unicornCards = getCardsByType(tokens, [UNICORN_TYPE]);
-  const sentientCards = getCardsByType(tokens, ['Sentient']);
+  // Helper for safer filtering
+  const filterBy = (keywords: string[]) =>
+    tokens.filter(t => t.about && keywords.some(k => t.about.toLowerCase().includes(k.toLowerCase())));
+
+  // Pre-calculate pools
+  const unicornCards = filterBy(['unicorn']);
+  const genesisCards = filterBy(['genesis']);
+  const sentientCards = filterBy(['sentient']);
+  const basicCards = filterBy(['sentient', 'pegasus', 'firstborn']); // Basic includes Sentient
+
+  // Debug log to ensure pools are populated
+  console.log(`[PackGen] Type: ${pType} | Pools -> Unicorn: ${unicornCards.length}, Genesis: ${genesisCards.length}, Sentient: ${sentientCards.length}, Basic: ${basicCards.length}, Total: ${tokens.length}`);
 
   for (let i = 0; i < 5; i++) {
-    let pool: Token[];
+    let pool: Token[] = [];
 
-    switch (packType.toLowerCase()) {
-      case 'unicorn':
-        pool = unicornCards;
-        break;
-      case 'genesis':
-        pool = genesisCards;
-        break;
-      case 'sentient':
-        pool = sentientCards;
-        break;
-      case 'rare':
-        // 40% basic, 35% genesis, 25% unicorn
-        const rareRoll = Math.random() * 100;
-        if (rareRoll < 40) pool = basicCards;
-        else if (rareRoll < 75) pool = genesisCards;
-        else pool = unicornCards;
-        break;
-      case 'common':
-      default:
-        // 50% basic, 40% genesis, 10% unicorn
-        const commonRoll = Math.random() * 100;
-        if (commonRoll < 50) pool = basicCards;
-        else if (commonRoll < 90) pool = genesisCards;
-        else pool = unicornCards;
-        break;
+    // STRICT TYPE SELECTION
+    if (pType.includes('unicorn')) {
+      pool = unicornCards;
+      if (pool.length === 0) throw new Error(`CRITICAL: No Unicorn cards found in database! Cannot open Unicorn Pack.`);
+    }
+    else if (pType.includes('genesis')) {
+      pool = genesisCards;
+      if (pool.length === 0) throw new Error(`CRITICAL: No Genesis cards found in database! Cannot open Genesis Pack.`);
+    }
+    else if (pType.includes('sentient')) {
+      pool = sentientCards;
+      if (pool.length === 0) throw new Error(`CRITICAL: No Sentient cards found in database! Cannot open Sentient Pack.`);
+    }
+    else if (pType.includes('rare')) {
+      // Rare Pack Logic: 40% Basic, 35% Genesis, 25% Unicorn
+      const roll = Math.random() * 100;
+      if (roll < 40) pool = basicCards;
+      else if (roll < 75) pool = genesisCards;
+      else pool = unicornCards;
+    }
+    else {
+      // Common/Default Logic: 50% Basic, 40% Genesis, 10% Unicorn
+      const roll = Math.random() * 100;
+      if (roll < 50) pool = basicCards;
+      else if (roll < 90) pool = genesisCards;
+      else pool = unicornCards;
     }
 
-    // Pick random card from pool (fallback to all tokens if pool empty)
-    if (pool.length > 0) {
-      cards.push(pool[randInt(pool.length)].id);
-    } else {
-      cards.push(tokens[randInt(tokens.length)].id);
+    // Final Safety Check
+    if (pool.length === 0) {
+      // If pool is empty (e.g. in Common/Rare calculation), fallback to Basic or All, but log warning
+      console.warn(`[PackGen] Empty pool selected for ${pType} (likely due to missing probability tier). Fallback to random.`);
+      pool = tokens;
+    }
+
+    // Pick a random card from the determined pool
+    const selected = pool[randInt(pool.length)];
+    if (selected) {
+      cards.push(selected.id);
     }
   }
 
