@@ -37,7 +37,15 @@ export default function ShopPage() {
     const [status, setStatus] = useState<'idle' | 'approving' | 'buying' | 'verifying'>('idle')
 
     // User data
-    const [user, setUser] = useState<any>(null)
+    const [user, setUser] = useState<any>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const saved = localStorage.getItem('flipflop-user')
+                return saved ? JSON.parse(saved) : null
+            } catch { return null }
+        }
+        return null
+    })
 
     // Fetch user data
     useEffect(() => {
