@@ -47,6 +47,8 @@ export default function Profile() {
   const [isUploading, setIsUploading] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
   const [tempName, setTempName] = useState('')
+  const [referralCode, setReferralCode] = useState('')
+  const [isAddingReferral, setIsAddingReferral] = useState(false)
 
   const saveName = async () => {
     if (!user || !tempName.trim()) return
@@ -70,6 +72,35 @@ export default function Profile() {
     } catch (e) {
       console.error(e)
       toast('Connection error', 'error')
+    }
+  }
+
+  const handleAddReferral = async () => {
+    if (!user || !referralCode.trim()) return
+    if (referralCode.length < 6) return toast("Referral code must be at least 6 characters.", 'error')
+
+    setIsAddingReferral(true)
+    try {
+      const res = await fetch('/api/referral/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, referralCode: referralCode.toUpperCase() })
+      })
+      const data = await res.json()
+      if (data.ok) {
+        const updatedUser = { ...user, referredBy: data.referredBy }
+        setUser(updatedUser)
+        setReferralCode('')
+        toast('✅ Referral code added successfully! Your next pack purchase will give commission to your referrer.', 'success')
+        try { localStorage.setItem('flipflop-user', JSON.stringify(updatedUser)) } catch { }
+      } else {
+        toast(data.error || 'Failed to add referral code', 'error')
+      }
+    } catch (e) {
+      console.error(e)
+      toast('Connection error', 'error')
+    } finally {
+      setIsAddingReferral(false)
     }
   }
 
@@ -279,6 +310,69 @@ export default function Profile() {
                 <div className="muted">Cards Collected</div><div style={{ fontSize: 20, fontWeight: 700 }}>{cardsCollected}</div>
               </div>
             </div>
+          </div>
+          <div style={{ background: 'var(--card-2)', padding: 24, borderRadius: 16, border: '1px solid var(--border)' }}>
+            <h3 style={{ marginBottom: 16, fontSize: 18, fontWeight: 700 }}>🎁 Referral System</h3>
+            {(user as any).referredBy ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <div className="muted" style={{ marginBottom: 4 }}>Referred By</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'monospace', background: 'var(--card)', padding: '8px 12px', borderRadius: 8 }}>
+                    {(user as any).referredBy}
+                  </div>
+                </div>
+                <div className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+                  ✅ You're linked! Your pack purchases give 10% commission to your referrer.
+                </div>
+                {(user as any).totalReferrals > 0 && (
+                  <div>
+                    <div className="muted" style={{ marginBottom: 4 }}>Your Referrals</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>
+                      {(user as any).totalReferrals} users
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  📌 Forgot to use a referral code when you signed up? No problem! Add one now and your next pack purchase will give 10% commission to your referrer.
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="Enter referral code"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))}
+                    disabled={isAddingReferral}
+                    style={{
+                      flex: 1,
+                      background: 'var(--bg)',
+                      border: '1px solid var(--border)',
+                      color: 'white',
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                      fontSize: 14,
+                      fontWeight: 600
+                    }}
+                  />
+                  <button
+                    className="btn primary"
+                    onClick={handleAddReferral}
+                    disabled={isAddingReferral || !referralCode.trim()}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: 14,
+                      whiteSpace: 'nowrap',
+                      opacity: (isAddingReferral || !referralCode.trim()) ? 0.6 : 1,
+                      cursor: (isAddingReferral || !referralCode.trim()) ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {isAddingReferral ? 'Adding...' : 'Add Code'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div>
