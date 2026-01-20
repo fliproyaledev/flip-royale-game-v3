@@ -13,8 +13,8 @@
         "splashImageUrl": "https://fliproyale.xyz/splash.png",
         "splashBackgroundColor": "#0a0e27",
         "webhookUrl": "https://fliproyale.xyz/api/miniapp/webhook",
-        "subtitle": "Daily Flip-or-Flop Token Game",
-        "description": "Trade crypto tokens daily on Base. Choose Up or Down on market movements, collect NFT cards, compete on leaderboards, and earn rewards in this fast-paced on-chain game.",
+        "subtitle": "Flip Royale Card Game",
+        "description": "Trade crypto tokens daily on Base. Choose Up or Down on market movements, collect points, compete on leaderboards, and earn rewards in this fast-paced on-chain game.",
         "screenshotUrls": [
             "https://fliproyale.xyz/screenshots1.png",
             "https://fliproyale.xyz/screenshots2.png"
