@@ -34,7 +34,7 @@ export default async function handler(
             splashBackgroundColor: "#0a0e27",
             webhookUrl: `${baseUrl}/api/miniapp/webhook`,
             subtitle: "Card Trading Game on Base",
-            description: "Flip cards daily, compete on leaderboards, and collect NFTs in this fast-paced on-chain card game on Base blockchain.",
+            description: "Flip cards daily, compete on leaderboards, and collect points in this fast-paced on-chain card game on Base blockchain.",
             screenshotUrls: [
                 `${baseUrl}/screenshots1.png`,
                 `${baseUrl}/screenshots2.png`
