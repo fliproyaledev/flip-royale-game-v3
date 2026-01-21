@@ -1,9 +1,9 @@
-import { getDefaultWallets } from '@rainbow-me/rainbowkit';
+import { getDefaultWallets, connectorsForWallets } from '@rainbow-me/rainbowkit';
+import { coinbaseWallet } from '@rainbow-me/rainbowkit/wallets';
 import { configureChains, createConfig } from 'wagmi';
 import { publicProvider } from 'wagmi/providers/public';
 
-// Eğer Base ağı wagmi/chains içinde yoksa (eski sürümlerde olabilir),
-// onu manuel olarak tanımlayarak hatayı garanti çözeriz:
+// Base chain definition (manually defined for compatibility)
 export const base = {
   id: 8453,
   name: 'Base',
@@ -22,28 +22,39 @@ export const base = {
   },
 } as const;
 
-// Proje ID'si
+// Project ID for WalletConnect
 const projectId = process.env.NEXT_PUBLIC_WALLET_PROJECT_ID || '64eacce4072beecbb82a5c6f1c612552';
 
-// 1. Zincirleri yapılandır
+// 1. Configure chains
 const { chains, publicClient } = configureChains(
   [base],
   [publicProvider()]
 );
 
-// 2. Cüzdanları al
-const { connectors } = getDefaultWallets({
+// 2. Get default wallets
+const { wallets } = getDefaultWallets({
   appName: 'Flip Royale',
   projectId,
   chains
 });
 
-// 3. Config oluştur
+// 3. Create connectors with Coinbase Wallet prioritized for Base Mini App
+const connectors = connectorsForWallets([
+  {
+    groupName: 'Recommended',
+    wallets: [
+      coinbaseWallet({ appName: 'Flip Royale', chains }),
+    ],
+  },
+  ...wallets,
+]);
+
+// 4. Create config
 export const wagmiConfig = createConfig({
   autoConnect: true,
   connectors,
   publicClient
-})
+});
 
-// Zincirleri dışa aktar ( _app.tsx kullanacak )
+// Export chains for _app.tsx
 export { chains };
