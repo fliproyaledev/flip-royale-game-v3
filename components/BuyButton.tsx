@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi';
+import { useState, useEffect } from 'react';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { useToast } from '../lib/toast';
 import { signIn } from 'next-auth/react';
@@ -65,125 +65,100 @@ export default function BuyButton({
   const [status, setStatus] = useState<'idle' | 'approving' | 'settingReferrer' | 'buying' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
 
+  // Transaction hash states for wagmi 2.x
+  const [approveHash, setApproveHash] = useState<`0x${string}` | undefined>();
+  const [setReferrerHash, setSetReferrerHash] = useState<`0x${string}` | undefined>();
+  const [buyHash, setBuyHash] = useState<`0x${string}` | undefined>();
+
   const { toast } = useToast();
   const { address } = useAccount();
   const priceWei = parseUnits(price.toString(), 18);
   const packTypeNum = packType === 'rare' ? PACK_TYPES.RARE : PACK_TYPES.COMMON;
 
-  // Check allowance
-  const { data: allowance, refetch: refetchAllowance } = useContractRead({
+  // Check allowance - wagmi 2.x API
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: VIRTUAL_TOKEN_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
     functionName: 'allowance',
     args: [address!, PACK_SHOP_ADDRESS as `0x${string}`],
-    enabled: Boolean(address),
+    query: { enabled: Boolean(address) },
   });
 
-  // Check balance
-  const { data: balance } = useContractRead({
+  // Check balance - wagmi 2.x API
+  const { data: balance } = useReadContract({
     address: VIRTUAL_TOKEN_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
     args: [address!],
-    enabled: Boolean(address),
+    query: { enabled: Boolean(address) },
   });
 
   // Check if referrer is already set on-chain
-  const { data: onChainReferrer, refetch: refetchReferrer } = useContractRead({
+  const { data: onChainReferrer, refetch: refetchReferrer } = useReadContract({
     address: PACK_SHOP_ADDRESS as `0x${string}`,
     abi: PACK_SHOP_ABI,
     functionName: 'referrerOf',
     args: [address!],
-    enabled: Boolean(address),
+    query: { enabled: Boolean(address) },
   });
 
-  // Approve - sadece gerekli miktar için
-  const {
-    writeAsync: approveAsync,
-    data: approveData,
-  } = useContractWrite({
-    address: VIRTUAL_TOKEN_ADDRESS as `0x${string}`,
-    abi: ERC20_ABI,
-    functionName: 'approve',
+  // Write contract hook - wagmi 2.x API
+  const { writeContractAsync } = useWriteContract();
+
+  // Wait for approve transaction
+  const { isLoading: isApproveWaiting, isSuccess: approveSuccess } = useWaitForTransactionReceipt({
+    hash: approveHash,
   });
 
-  // Wait for approve
-  const { isLoading: isApproveWaiting } = useWaitForTransaction({
-    hash: approveData?.hash,
-    onSuccess: async () => {
+  // Wait for setReferrer transaction
+  const { isLoading: isSetReferrerWaiting, isSuccess: setReferrerSuccess, isError: setReferrerError } = useWaitForTransactionReceipt({
+    hash: setReferrerHash,
+  });
+
+  // Wait for buy transaction
+  const { isLoading: isBuyWaiting, isSuccess: buySuccess, data: buyReceipt } = useWaitForTransactionReceipt({
+    hash: buyHash,
+  });
+
+  // Handle approve success
+  useEffect(() => {
+    if (approveSuccess && status === 'approving') {
       console.log('✅ Approve confirmed!');
-      await refetchAllowance();
-      // After approval, check if we need to set referrer first
-      await executeSetReferrerOrBuy();
-    },
-    onError: (err) => {
-      console.error('Approve error:', err);
-      setError('Approval failed');
-      setStatus('idle');
+      refetchAllowance();
+      executeSetReferrerOrBuy();
     }
-  });
+  }, [approveSuccess]);
 
-  // SetReferrer contract call
-  const {
-    writeAsync: setReferrerAsync,
-    data: setReferrerData,
-  } = useContractWrite({
-    address: PACK_SHOP_ADDRESS as `0x${string}`,
-    abi: PACK_SHOP_ABI,
-    functionName: 'setReferrer',
-  });
-
-  // Wait for setReferrer
-  const { isLoading: isSetReferrerWaiting } = useWaitForTransaction({
-    hash: setReferrerData?.hash,
-    onSuccess: async () => {
+  // Handle setReferrer success or error
+  useEffect(() => {
+    if (setReferrerSuccess && status === 'settingReferrer') {
       console.log('✅ Referrer set! Now buying...');
-      await refetchReferrer();
+      refetchReferrer();
       executeBuy();
-    },
-    onError: (err) => {
-      console.error('SetReferrer error:', err);
-      // Even if setReferrer fails, try to buy anyway
+    }
+    if (setReferrerError && status === 'settingReferrer') {
       console.log('SetReferrer failed, proceeding with buyPack...');
       executeBuy();
     }
-  });
+  }, [setReferrerSuccess, setReferrerError]);
 
-  // Buy pack - ALWAYS use buyPack (not buyPackWithReferrer)
-  const {
-    writeAsync: buyAsync,
-    data: buyData,
-  } = useContractWrite({
-    address: PACK_SHOP_ADDRESS as `0x${string}`,
-    abi: PACK_SHOP_ABI,
-    functionName: 'buyPack',
-  });
-
-  // Wait for buy
-  const { isLoading: isBuyWaiting } = useWaitForTransaction({
-    hash: buyData?.hash,
-    onSuccess: (receipt) => {
-      console.log('✅ Pack purchased!', receipt.transactionHash);
+  // Handle buy success
+  useEffect(() => {
+    if (buySuccess && buyReceipt && buyHash) {
+      console.log('✅ Pack purchased!', buyReceipt.transactionHash);
       setStatus('done');
-      handleBackendVerification(receipt.transactionHash);
-    },
-    onError: (err) => {
-      console.error('Buy error:', err);
-      setError('Purchase failed');
-      setStatus('idle');
+      handleBackendVerification(buyReceipt.transactionHash);
     }
-  });
+  }, [buySuccess, buyReceipt, buyHash]);
 
   // Check if referrer needs to be set on-chain
   function needsReferrerSet(): boolean {
-    // If we have a referrer address from database but not set on-chain
     if (!referrerAddress) {
       return false;
     }
     if (!onChainReferrer) {
       return true;
     }
-    // Check if on-chain referrer is zero address
     return onChainReferrer === '0x0000000000000000000000000000000000000000';
   }
 
@@ -194,16 +169,18 @@ export default function BuyButton({
     try {
       if (needsSet && referrerAddress) {
         setStatus('settingReferrer');
-        await setReferrerAsync({
+        const hash = await writeContractAsync({
+          address: PACK_SHOP_ADDRESS as `0x${string}`,
+          abi: PACK_SHOP_ABI,
+          functionName: 'setReferrer',
           args: [referrerAddress as `0x${string}`]
         });
-        // Wait for transaction will call executeBuy
+        setSetReferrerHash(hash);
       } else {
-        // No referrer needed, buy directly
         executeBuy();
       }
     } catch (err: any) {
-      // If setReferrer fails, still try to buy
+      console.error('SetReferrer error:', err);
       executeBuy();
     }
   }
@@ -214,9 +191,13 @@ export default function BuyButton({
       setStatus('buying');
       console.log('Sending buyPack transaction...');
 
-      await buyAsync({
+      const hash = await writeContractAsync({
+        address: PACK_SHOP_ADDRESS as `0x${string}`,
+        abi: PACK_SHOP_ABI,
+        functionName: 'buyPack',
         args: [packTypeNum, BigInt(quantity)]
       });
+      setBuyHash(hash);
     } catch (err: any) {
       console.error('Buy error:', err);
       setError(err.shortMessage || 'Purchase failed');
@@ -250,7 +231,6 @@ export default function BuyButton({
     // Check if X account is connected (required for ReplyCorp campaign)
     if (!xHandle) {
       toast('Please connect your X account first to purchase packs', 'error');
-      // Redirect to X OAuth
       setTimeout(() => {
         signIn('twitter', { callbackUrl: '/auth/callback' });
       }, 1000);
@@ -274,18 +254,19 @@ export default function BuyButton({
         setStatus('approving');
         console.log('Sending approve for', price, 'VIRTUAL...');
 
-        // Sadece gerekli miktar için izin iste
-        await approveAsync({
+        const hash = await writeContractAsync({
+          address: VIRTUAL_TOKEN_ADDRESS as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: 'approve',
           args: [PACK_SHOP_ADDRESS as `0x${string}`, priceWei]
         });
-        // Wait for approve confirmation (handled by useWaitForTransaction)
+        setApproveHash(hash);
       } catch (err: any) {
         console.error('Approve error:', err);
         setError(err.shortMessage || 'Approval failed');
         setStatus('idle');
       }
     } else {
-      // Already approved, check referrer then buy
       await executeSetReferrerOrBuy();
     }
   };

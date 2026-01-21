@@ -8,7 +8,7 @@ import styles from '../styles/referrals.module.css'
 import { useToast } from '../lib/toast'
 import { useTheme } from '../lib/theme'
 import Topbar from '../components/Topbar'
-import { useContractRead } from 'wagmi'
+import { useReadContract } from 'wagmi'
 import { PACK_SHOP_ADDRESS, PACK_SHOP_ABI } from '../lib/contracts/packShop'
 import { formatUnits } from 'viem'
 
@@ -24,13 +24,13 @@ export default function ReferralsPage() {
     const [copiedCode, setCopiedCode] = useState(false)
     const { toast } = useToast()
 
-    // On-chain earnings from smart contract
-    const { data: onChainEarnings } = useContractRead({
+    // On-chain earnings from smart contract - wagmi 2.x API
+    const { data: onChainEarnings } = useReadContract({
         address: PACK_SHOP_ADDRESS as `0x${string}`,
         abi: PACK_SHOP_ABI,
         functionName: 'totalEarnedByReferrer',
         args: [walletAddress as `0x${string}`],
-        enabled: Boolean(walletAddress),
+        query: { enabled: Boolean(walletAddress) },
     })
 
     // Cüzdan bağlantısını kontrol et

@@ -1,60 +1,29 @@
-import { getDefaultWallets, connectorsForWallets } from '@rainbow-me/rainbowkit';
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
+import { http } from 'wagmi';
+import { base } from 'wagmi/chains';
+import { farcasterFrame } from '@farcaster/miniapp-wagmi-connector';
 import { coinbaseWallet } from '@rainbow-me/rainbowkit/wallets';
-import { configureChains, createConfig } from 'wagmi';
-import { publicProvider } from 'wagmi/providers/public';
-
-// Base chain definition (manually defined for compatibility)
-export const base = {
-  id: 8453,
-  name: 'Base',
-  network: 'base',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'Ether',
-    symbol: 'ETH',
-  },
-  rpcUrls: {
-    public: { http: ['https://mainnet.base.org'] },
-    default: { http: ['https://mainnet.base.org'] },
-  },
-  blockExplorers: {
-    default: { name: 'Basescan', url: 'https://basescan.org' },
-  },
-} as const;
 
 // Project ID for WalletConnect
 const projectId = process.env.NEXT_PUBLIC_WALLET_PROJECT_ID || '64eacce4072beecbb82a5c6f1c612552';
 
-// 1. Configure chains
-const { chains, publicClient } = configureChains(
-  [base],
-  [publicProvider()]
-);
-
-// 2. Get default wallets
-const { wallets } = getDefaultWallets({
+// RainbowKit v2 configuration with Farcaster connector for Base Mini App
+export const config = getDefaultConfig({
   appName: 'Flip Royale',
   projectId,
-  chains
-});
-
-// 3. Create connectors with Coinbase Wallet prioritized for Base Mini App
-const connectors = connectorsForWallets([
-  {
-    groupName: 'Recommended',
-    wallets: [
-      coinbaseWallet({ appName: 'Flip Royale', chains }),
-    ],
+  chains: [base],
+  transports: {
+    [base.id]: http('https://mainnet.base.org'),
   },
-  ...wallets,
-]);
-
-// 4. Create config
-export const wagmiConfig = createConfig({
-  autoConnect: true,
-  connectors,
-  publicClient
+  // Coinbase Wallet prioritized for Base Mini App
+  wallets: [
+    {
+      groupName: 'Recommended',
+      wallets: [coinbaseWallet],
+    },
+  ],
 });
 
-// Export chains for _app.tsx
-export { chains };
+// Export for backward compatibility
+export const wagmiConfig = config;
+export const chains = [base];

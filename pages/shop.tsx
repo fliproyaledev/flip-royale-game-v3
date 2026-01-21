@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
-import { useAccount, useContractRead, useContractWrite, useWaitForTransaction } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { parseUnits } from 'viem'
 import ThemeToggle from '../components/ThemeToggle'
@@ -56,60 +56,52 @@ export default function ShopPage() {
             .catch(() => { })
     }, [address])
 
-    // Check FLIP allowance
-    const { data: allowance, refetch: refetchAllowance } = useContractRead({
+    // Transaction hash states for wagmi 2.x
+    const [approveHash, setApproveHash] = useState<`0x${string}` | undefined>()
+    const [buyHash, setBuyHash] = useState<`0x${string}` | undefined>()
+
+    // Check FLIP allowance - wagmi 2.x API
+    const { data: allowance, refetch: refetchAllowance } = useReadContract({
         address: FLIP_TOKEN_ADDRESS as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'allowance',
         args: [address!, PACK_SHOP_V2_ADDRESS as `0x${string}`],
-        enabled: Boolean(address),
+        query: { enabled: Boolean(address) },
     })
 
-    // Check FLIP balance
-    const { data: balance } = useContractRead({
+    // Check FLIP balance - wagmi 2.x API
+    const { data: balance } = useReadContract({
         address: FLIP_TOKEN_ADDRESS as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'balanceOf',
         args: [address!],
-        enabled: Boolean(address),
+        query: { enabled: Boolean(address) },
     })
 
-    // Approve FLIP
-    const { writeAsync: approveAsync, data: approveData } = useContractWrite({
-        address: FLIP_TOKEN_ADDRESS as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: 'approve',
+    // Write contract hook - wagmi 2.x API
+    const { writeContractAsync } = useWriteContract()
+
+    // Wait for approve transaction
+    const { isLoading: approveLoading, isSuccess: approveSuccess } = useWaitForTransactionReceipt({
+        hash: approveHash,
     })
 
-    const { isLoading: approveLoading } = useWaitForTransaction({
-        hash: approveData?.hash,
-        onSuccess: () => {
+    // Refetch allowance when approve succeeds
+    useEffect(() => {
+        if (approveSuccess) {
             refetchAllowance()
         }
+    }, [approveSuccess, refetchAllowance])
+
+    // Wait for buy transaction
+    const { isLoading: buyLoading, isSuccess: buySuccess } = useWaitForTransactionReceipt({
+        hash: buyHash,
     })
 
-    // Buy Pack - Without Referrer
-    const { writeAsync: buyPackAsync, data: buyPackData } = useContractWrite({
-        address: PACK_SHOP_V2_ADDRESS as `0x${string}`,
-        abi: PACK_SHOP_V2_ABI,
-        functionName: 'buyPack',
-    })
-
-    // Buy Pack - With Referrer
-    const { writeAsync: buyPackWithReferrerAsync, data: buyPackWithReferrerData } = useContractWrite({
-        address: PACK_SHOP_V2_ADDRESS as `0x${string}`,
-        abi: PACK_SHOP_V2_ABI,
-        functionName: 'buyPackWithReferrer',
-    })
-
-    // Unified data and hash for both transactions
-    const buyData = buyPackData || buyPackWithReferrerData
-
-    const { isLoading: buyLoading } = useWaitForTransaction({
-        hash: buyData?.hash,
-        onSuccess: async () => {
-            if (buyingPack && address) {
-                // Verify purchase on backend
+    // Handle buy success
+    useEffect(() => {
+        const verifyPurchase = async () => {
+            if (buySuccess && buyingPack && address && buyHash) {
                 setStatus('verifying')
                 try {
                     await fetch('/api/shop/verify-purchase', {
@@ -117,7 +109,7 @@ export default function ShopPage() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             userId: address.toLowerCase(),
-                            txHash: buyData?.hash,
+                            txHash: buyHash,
                             packType: buyingPack,
                             count: quantities[buyingPack]
                         })
@@ -126,11 +118,13 @@ export default function ShopPage() {
                 } catch (e) {
                     console.error('Verify error:', e)
                 }
+                setStatus('idle')
+                setBuyingPack(null)
+                setBuyHash(undefined)
             }
-            setStatus('idle')
-            setBuyingPack(null)
         }
-    })
+        verifyPurchase()
+    }, [buySuccess, buyingPack, address, buyHash])
 
     // Handle buy
     const handleBuy = async (packType: PackTypeV2) => {
@@ -173,10 +167,14 @@ export default function ShopPage() {
             if (!allowance || allowance < priceWei) {
                 setStatus('approving')
                 toast('Approving FLIP...', 'info')
-                await approveAsync({
+                const hash = await writeContractAsync({
+                    address: FLIP_TOKEN_ADDRESS as `0x${string}`,
+                    abi: ERC20_ABI,
+                    functionName: 'approve',
                     args: [PACK_SHOP_V2_ADDRESS as `0x${string}`, priceWei * BigInt(2)]
                 })
-                await new Promise(r => setTimeout(r, 2000))
+                setApproveHash(hash)
+                await new Promise(r => setTimeout(r, 3000))
                 await refetchAllowance()
             }
 
@@ -186,19 +184,27 @@ export default function ShopPage() {
 
             // Check if user has a referrer
             const referrer = user?.referredBy
+            let txHash: `0x${string}`
             if (referrer && referrer !== '0x0000000000000000000000000000000000000000') {
                 // Use buyPackWithReferrer
                 console.log('🔗 Buying with referrer:', referrer)
-                await buyPackWithReferrerAsync({
+                txHash = await writeContractAsync({
+                    address: PACK_SHOP_V2_ADDRESS as `0x${string}`,
+                    abi: PACK_SHOP_V2_ABI,
+                    functionName: 'buyPackWithReferrer',
                     args: [PACK_INFO[packType].id, BigInt(qty), referrer as `0x${string}`]
                 })
             } else {
                 // Use regular buyPack
                 console.log('📦 Buying without referrer')
-                await buyPackAsync({
+                txHash = await writeContractAsync({
+                    address: PACK_SHOP_V2_ADDRESS as `0x${string}`,
+                    abi: PACK_SHOP_V2_ABI,
+                    functionName: 'buyPack',
                     args: [PACK_INFO[packType].id, BigInt(qty)]
                 })
             }
+            setBuyHash(txHash)
 
         } catch (e: any) {
             console.error('Buy error:', e)

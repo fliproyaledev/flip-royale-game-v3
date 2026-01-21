@@ -8,14 +8,18 @@ import { ToastProvider } from '../lib/toast';
 import { SessionProvider } from 'next-auth/react';
 import { useEffect } from 'react';
 
-// Web3 v1 Imports
+// Web3 v2 Imports - Updated for wagmi 2.x
 import '@rainbow-me/rainbowkit/styles.css';
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
-import { WagmiConfig } from 'wagmi';
-import { chains, wagmiConfig } from '../lib/wagmi';
+import { WagmiProvider } from 'wagmi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { config } from '../lib/wagmi';
 
 // Mini App SDK
 import { isInMiniApp, notifyMiniAppReady } from '../lib/miniapp';
+
+// Create QueryClient for React Query (required for wagmi 2.x)
+const queryClient = new QueryClient();
 
 export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   // Initialize mini app SDK if running inside Base App
@@ -28,30 +32,31 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
 
   return (
     <SessionProvider session={session}>
-      <WagmiConfig config={wagmiConfig}>
-        <RainbowKitProvider
-          chains={chains}
-          theme={darkTheme({
-            accentColor: '#10b981',
-            borderRadius: 'medium',
-          })}
-          modalSize="compact"
-          locale="en"
-        >
-          <ThemeProvider>
-            <ToastProvider>
-              <Head>
-                <title>FLIP ROYALE</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <meta name="base:app_id" content="696ea714f22fe462e74c15d5" />
-                <meta name="fc:miniapp" content='{"version":"next","imageUrl":"https://fliproyale.xyz/heroimage.png","button":{"title":"Play Now","action":{"type":"launch_frame","url":"https://fliproyale.xyz"}}}' />
-                <meta name="virtual-protocol-site-verification" content="32a70cf4dfb561e7918405e64f72e9eb" />
-              </Head>
-              <Component {...pageProps} />
-            </ToastProvider>
-          </ThemeProvider>
-        </RainbowKitProvider>
-      </WagmiConfig>
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider
+            theme={darkTheme({
+              accentColor: '#10b981',
+              borderRadius: 'medium',
+            })}
+            modalSize="compact"
+            locale="en"
+          >
+            <ThemeProvider>
+              <ToastProvider>
+                <Head>
+                  <title>FLIP ROYALE</title>
+                  <meta name="viewport" content="width=device-width, initial-scale=1" />
+                  <meta name="base:app_id" content="696ea714f22fe462e74c15d5" />
+                  <meta name="fc:miniapp" content='{"version":"next","imageUrl":"https://fliproyale.xyz/heroimage.png","button":{"title":"Play Now","action":{"type":"launch_frame","url":"https://fliproyale.xyz"}}}' />
+                  <meta name="virtual-protocol-site-verification" content="32a70cf4dfb561e7918405e64f72e9eb" />
+                </Head>
+                <Component {...pageProps} />
+              </ToastProvider>
+            </ThemeProvider>
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
     </SessionProvider>
   );
 }
