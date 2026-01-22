@@ -10,6 +10,7 @@ import { useToast } from '../lib/toast'
 import TokenGate from '../components/TokenGate'
 import RedeemCodeModal from '../components/RedeemCodeModal'
 import { signIn } from 'next-auth/react'
+import Head from 'next/head'
 
 type RoundPick = { tokenId: string; dir: 'UP' | 'DOWN'; duplicateIndex: number; locked: boolean; pLock?: number; pointsLocked?: number; startPrice?: number }
 
@@ -1520,6 +1521,9 @@ export default function Home() {
 
   return (
     <>
+      <Head>
+      <meta name="base:app_id" content="696ea714f22fe462e74c15d5" />
+    </Head>
       <div className="app">
         <header className="topbar">
           <div className="brand">
