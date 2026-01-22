@@ -1,21 +1,25 @@
 // lib/verify.ts
-import { verifyMessage } from 'viem'
+import { createPublicClient, http } from 'viem'
+import { base } from 'viem/chains'
+
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(),
+})
 
 /**
  * Kullanıcının gönderdiği imzayı doğrular.
- * @param address - Kullanıcının cüzdan adresi (0x...)
- * @param message - İmzalanan metin (Örn: "Save Picks")
- * @param signature - Cüzdandan gelen kriptografik imza
+ * EOA + Smart Wallet (Base App) uyumludur.
  */
 export async function verifyUserSignature(
-  address: string, 
-  message: string, 
+  address: string,
+  message: string,
   signature: string
 ): Promise<boolean> {
   try {
-    const valid = await verifyMessage({
+    const valid = await publicClient.verifyMessage({
       address: address as `0x${string}`,
-      message: message,
+      message,
       signature: signature as `0x${string}`,
     })
     return valid
