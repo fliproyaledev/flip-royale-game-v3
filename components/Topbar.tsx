@@ -9,7 +9,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 const DEFAULT_AVATAR = '/avatars/default-avatar.png'
 
 type TopbarProps = {
-    activeTab?: 'play' | 'prices' | 'guide' | 'inventory' | 'my-packs' | 'shop' | 'leaderboard' | 'referrals' | 'history' | 'litepaper' | 'profile'
+    activeTab?: 'play' | 'prices' | 'guide' | 'inventory' | 'my-packs' | 'shop' | 'leaderboard' | 'referrals' | 'history' | 'litepaper' | 'profile' | 'arena'
     user?: {
         id?: string
         name?: string
