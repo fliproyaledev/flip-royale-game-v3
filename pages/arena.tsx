@@ -47,6 +47,17 @@ export default function ArenaPage() {
       href: '/arena/taso',
       features: ['1v1 card flip', 'Loser card wrecked', 'High risk, high reward']
     },
+    {
+      id: 'rewards',
+      name: 'Rewards',
+      emoji: '💰',
+      description: 'Claim your winnings',
+      subtitle: 'Withdraw $FLIP to your wallet',
+      color: '#10b981',
+      gradient: 'linear-gradient(135deg, #10b981, #059669)',
+      href: '/rewards',
+      features: ['View balance', 'Withdraw $FLIP', 'Claim history']
+    },
   ]
 
   return (

@@ -1,11 +1,14 @@
 /**
- * POST /api/arena/duel/join - Flip Duel odasına katıl
+ * POST /api/arena/duel/join - Join Flip Duel room
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { joinFlipDuel, resolveFlipDuel, getFlipDuel, CARDS_PER_DUEL, DuelCard, getTokenFDV } from '../../../../lib/duelV2';
+import { kv } from '@vercel/kv';
+import { joinFlipDuel, getFlipDuel, CARDS_PER_DUEL, DuelCard, getTokenFDV, DUEL_TIERS, FlipDuel } from '../../../../lib/duelV2';
 import { getUser } from '../../../../lib/users';
 import { getTokenById } from '../../../../lib/tokens';
+
+const DUEL_PREFIX = 'duel_v2:';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
@@ -65,11 +68,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const selectedTokenIds = allCards.slice(0, CARDS_PER_DUEL);
 
-        // Build DuelCard objects
+        // Build DuelCard objects with FDV fetched immediately
         const duelCards: DuelCard[] = [];
         for (const tokenId of selectedTokenIds) {
             const token = getTokenById(tokenId);
             if (token) {
+                // Fetch FDV immediately for player2
+                const fdv = token.dexscreenerPair ? await getTokenFDV(token.dexscreenerPair) : 0;
                 duelCards.push({
                     cardId: `${tokenId}_${Date.now()}`,
                     tokenId,
@@ -77,44 +82,66 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     name: token.name,
                     logo: token.logo,
                     cardType: token.about || 'common',
-                    fdv: 0,
+                    fdv,
                 });
             }
         }
 
-        // Join duel
-        let duel = await joinFlipDuel(duelId, cleanWallet, duelCards);
-        if (!duel) {
-            return res.status(400).json({ ok: false, error: 'Failed to join duel' });
-        }
-
-        // Now fetch FDV for all cards and resolve
-        // Fetch FDV for player1 cards
-        for (const card of duel.player1.cards) {
-            const token = getTokenById(card.tokenId);
-            if (token?.dexscreenerPair) {
-                card.fdv = await getTokenFDV(token.dexscreenerPair);
-            }
-        }
-        duel.player1.totalFdv = duel.player1.cards.reduce((sum, c) => sum + c.fdv, 0);
-
-        // Fetch FDV for player2 cards
-        if (duel.player2) {
-            for (const card of duel.player2.cards) {
+        // Also fetch FDV for player1's cards that are missing
+        for (const card of existingDuel.player1.cards) {
+            if (card.fdv === 0) {
                 const token = getTokenById(card.tokenId);
                 if (token?.dexscreenerPair) {
                     card.fdv = await getTokenFDV(token.dexscreenerPair);
                 }
             }
-            duel.player2.totalFdv = duel.player2.cards.reduce((sum, c) => sum + c.fdv, 0);
+        }
+        existingDuel.player1.totalFdv = existingDuel.player1.cards.reduce((sum, c) => sum + c.fdv, 0);
+
+        // Join duel with FDV-populated cards
+        const player2TotalFdv = duelCards.reduce((sum, c) => sum + c.fdv, 0);
+
+        // Build the matched duel object with all FDV data
+        const matchedDuel: FlipDuel = {
+            ...existingDuel,
+            status: 'matched',
+            matchedAt: Date.now(),
+            player1: existingDuel.player1, // Already has FDV updated
+            player2: {
+                wallet: cleanWallet,
+                cards: duelCards,
+                totalFdv: player2TotalFdv,
+            }
+        };
+
+        // Determine winner
+        if (matchedDuel.player1.totalFdv > player2TotalFdv) {
+            matchedDuel.winner = matchedDuel.player1.wallet;
+        } else if (player2TotalFdv > matchedDuel.player1.totalFdv) {
+            matchedDuel.winner = cleanWallet;
+        } else {
+            // Tie - random selection
+            matchedDuel.winner = Math.random() > 0.5 ? matchedDuel.player1.wallet : cleanWallet;
         }
 
-        // Resolve duel
-        duel = await resolveFlipDuel(duelId);
+        matchedDuel.status = 'resolved';
+        matchedDuel.resolvedAt = Date.now();
+
+        // Credit winner's rewards balance
+        const winnerWallet = matchedDuel.winner;
+        const rewardsKey = `rewards:${winnerWallet}`;
+        const currentRewards = await kv.get<number>(rewardsKey) || 0;
+        await kv.set(rewardsKey, currentRewards + matchedDuel.winnerPayout);
+
+        // Save the fully resolved duel with FDV data
+        await kv.set(`${DUEL_PREFIX}${duelId}`, matchedDuel);
+
+        // Remove from open duels
+        await kv.srem('duels_v2:open', duelId);
 
         return res.status(200).json({
             ok: true,
-            duel,
+            duel: matchedDuel,
         });
     } catch (error: any) {
         console.error('Join duel error:', error);
