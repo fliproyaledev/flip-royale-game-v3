@@ -165,8 +165,8 @@ export default function TasoGamePage() {
                             🃏 Taso Game
                         </h1>
                         <p style={{ opacity: 0.7 }}>
-                            {game.status === 'waiting' && '⏳ Waiting for opponent...'}
-                            {game.status === 'choosing' && '🎯 Both players make their choice!'}
+                            {game.status === 'open' && '⏳ Waiting for opponent...'}
+                            {game.status === 'waiting_choices' && '🎯 Both players make their choice!'}
                             {game.status === 'resolved' && '✅ Game completed!'}
                         </p>
                     </div>
@@ -317,7 +317,7 @@ export default function TasoGamePage() {
                     </div>
 
                     {/* Choice Selection - Only for players who haven't chosen yet */}
-                    {game.status === 'choosing' && isPlayer && myPlayer && !myPlayer.choice && (
+                    {game.status === 'waiting_choices' && isPlayer && myPlayer && !myPlayer.choice && (
                         <div className="panel" style={{ padding: 24, textAlign: 'center' }}>
                             <h3 style={{ marginBottom: 16, color: '#ec4899' }}>🎯 Make Your Choice!</h3>
                             <p style={{ marginBottom: 16, opacity: 0.7 }}>Will the card show Front or Back?</p>
