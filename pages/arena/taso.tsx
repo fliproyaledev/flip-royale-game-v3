@@ -12,8 +12,17 @@ import Topbar from '../../components/Topbar'
 import { useTheme } from '../../lib/theme'
 import { useToast } from '../../lib/toast'
 
+type TasoTier = 'low' | 'mid' | 'high'
+
+const TIER_INFO: Record<TasoTier, { name: string; stake: string; color: string }> = {
+    low: { name: 'Low', stake: '25K', color: '#10b981' },
+    mid: { name: 'Medium', stake: '50K', color: '#f59e0b' },
+    high: { name: 'High', stake: '100K', color: '#ef4444' },
+}
+
 interface TasoGame {
     id: string
+    tier: TasoTier
     status: string
     stake: number
     player1: {
@@ -33,7 +42,7 @@ export default function TasoLobby() {
     const [loading, setLoading] = useState(true)
     const [creating, setCreating] = useState(false)
     const [joining, setJoining] = useState<string | null>(null)
-    const [stakeAmount, setStakeAmount] = useState(10000)
+    const [selectedTier, setSelectedTier] = useState<TasoTier>('low')
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -72,7 +81,7 @@ export default function TasoLobby() {
             const res = await fetch('/api/arena/taso/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet: address, stake: stakeAmount })
+                body: JSON.stringify({ wallet: address, tier: selectedTier })
             })
             const data = await res.json()
 
@@ -173,27 +182,28 @@ export default function TasoLobby() {
                                     🆕 Create New Game
                                 </h2>
 
-                                {/* Stake Selection */}
+                                {/* Tier Selection */}
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: 'block', marginBottom: 8, opacity: 0.7 }}>
-                                        Stake Amount ($FLIP)
+                                        Select Stake Tier
                                     </label>
                                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                                        {[10000, 25000, 50000, 100000].map(amount => (
+                                        {(Object.keys(TIER_INFO) as TasoTier[]).map(tier => (
                                             <button
-                                                key={amount}
-                                                onClick={() => setStakeAmount(amount)}
+                                                key={tier}
+                                                onClick={() => setSelectedTier(tier)}
                                                 style={{
-                                                    padding: '10px 20px',
+                                                    padding: '12px 24px',
                                                     borderRadius: 10,
-                                                    border: stakeAmount === amount ? '2px solid #ec4899' : '2px solid transparent',
-                                                    background: stakeAmount === amount ? 'rgba(236, 72, 153, 0.2)' : 'rgba(255,255,255,0.05)',
-                                                    color: stakeAmount === amount ? '#ec4899' : 'inherit',
+                                                    border: selectedTier === tier ? `2px solid ${TIER_INFO[tier].color}` : '2px solid transparent',
+                                                    background: selectedTier === tier ? `${TIER_INFO[tier].color}20` : 'rgba(255,255,255,0.05)',
+                                                    color: selectedTier === tier ? TIER_INFO[tier].color : 'inherit',
                                                     fontWeight: 700,
-                                                    cursor: 'pointer'
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s'
                                                 }}
                                             >
-                                                {(amount / 1000).toFixed(0)}K
+                                                {TIER_INFO[tier].name} ({TIER_INFO[tier].stake} $FLIP)
                                             </button>
                                         ))}
                                     </div>
@@ -239,12 +249,22 @@ export default function TasoLobby() {
                                                     justifyContent: 'space-between',
                                                     padding: 16,
                                                     borderRadius: 12,
-                                                    background: 'rgba(236, 72, 153, 0.1)',
-                                                    border: '1px solid rgba(236, 72, 153, 0.3)'
+                                                    background: `${TIER_INFO[game.tier]?.color || '#ec4899'}10`,
+                                                    border: `1px solid ${TIER_INFO[game.tier]?.color || '#ec4899'}30`
                                                 }}
                                             >
                                                 <div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                                        <span style={{
+                                                            background: TIER_INFO[game.tier]?.color || '#ec4899',
+                                                            color: '#000',
+                                                            padding: '2px 8px',
+                                                            borderRadius: 4,
+                                                            fontSize: 11,
+                                                            fontWeight: 700
+                                                        }}>
+                                                            {TIER_INFO[game.tier]?.name || game.tier}
+                                                        </span>
                                                         <span style={{ opacity: 0.7, fontSize: 13 }}>
                                                             {shortenAddress(game.player1.wallet)}
                                                         </span>

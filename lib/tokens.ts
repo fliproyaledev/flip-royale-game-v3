@@ -105,10 +105,10 @@ const seedTokens: Token[] = [
     symbol: 'VIRTUAL',
     name: 'Virtual Protocol',
     logo: '/token-logos/virtual.png',
-    about: 'Virtual Protocol native token.',
-    dexscreenerUrl: 'https://dexscreener.com/base/0xcd5cfbc08bf9e8feab77c16ed7d19a2bb0ce6f7b',
+    about: 'Sentient',
+    dexscreenerUrl: 'https://dexscreener.com/base/0x8e0defc5262862977ee4c2f37adf52ad0a19e014',
     dexscreenerNetwork: 'base',
-    dexscreenerPair: '0xcd5cfbc08bf9e8feab77c16ed7d19a2bb0ce6f7b', // VIRTUAL/WETH pair on Base
+    dexscreenerPair: '0x8e0defc5262862977ee4c2f37adf52ad0a19e014', // VIRTUAL/WETH Uniswap V3 on Base
   },
 ]
 
