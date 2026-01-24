@@ -91,13 +91,13 @@ export default function FlipDuelLobby() {
             const data = await res.json()
 
             if (data.ok) {
-                toast(`⚔️ Duel odası oluşturuldu! ID: ${data.duel.id.slice(-6)}`, 'success')
+                toast(`⚔️ Duel room created! ID: ${data.duel.id.slice(-6)}`, 'success')
                 loadDuels()
             } else {
-                toast(data.error || 'Oda oluşturulamadı', 'error')
+                toast(data.error || 'Failed to create room', 'error')
             }
         } catch (err: any) {
-            toast(err.message || 'Hata', 'error')
+            toast(err.message || 'Error', 'error')
         } finally {
             setCreating(false)
         }
@@ -116,14 +116,13 @@ export default function FlipDuelLobby() {
             const data = await res.json()
 
             if (data.ok) {
-                toast('🎯 Duel sonuçlandı!', 'success')
-                // Navigate to result page
+                toast('🎯 Duel resolved!', 'success')
                 router.push(`/arena/duel/${duelId}`)
             } else {
-                toast(data.error || 'Katılım başarısız', 'error')
+                toast(data.error || 'Failed to join', 'error')
             }
         } catch (err: any) {
-            toast(err.message || 'Hata', 'error')
+            toast(err.message || 'Error', 'error')
         } finally {
             setJoining(null)
         }
@@ -135,7 +134,7 @@ export default function FlipDuelLobby() {
         <>
             <Head>
                 <title>Flip Duel | FLIP ROYALE</title>
-                <meta name="description" content="FDV tabanlı 1v1 PvP - Kartlarının FDV değerini test et!" />
+                <meta name="description" content="FDV-based 1v1 PvP - Test your cards' FDV value!" />
             </Head>
 
             <div className="app" data-theme={theme}>
@@ -157,7 +156,7 @@ export default function FlipDuelLobby() {
 
                     {!isConnected ? (
                         <div className="panel" style={{ textAlign: 'center', padding: 32 }}>
-                            <p style={{ marginBottom: 16 }}>Duel'e girmek için cüzdanını bağla</p>
+                            <p style={{ marginBottom: 16 }}>Connect your wallet to enter duels</p>
                             <ConnectButton />
                         </div>
                     ) : (
@@ -165,7 +164,7 @@ export default function FlipDuelLobby() {
                             {/* Create Duel Section */}
                             <div className="panel" style={{ padding: 24, marginBottom: 24 }}>
                                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    🆕 Yeni Duel Oluştur
+                                    🆕 Create New Duel
                                 </h2>
 
                                 {/* Tier Selection */}
@@ -205,20 +204,20 @@ export default function FlipDuelLobby() {
                                         opacity: creating ? 0.6 : 1
                                     }}
                                 >
-                                    {creating ? '⏳ Oluşturuluyor...' : '⚔️ Oda Oluştur'}
+                                    {creating ? '⏳ Creating...' : '⚔️ Create Room'}
                                 </button>
                             </div>
 
                             {/* Open Duels */}
                             <div className="panel" style={{ padding: 24 }}>
                                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    🔥 Açık Odalar ({openDuels.length})
+                                    🔥 Open Rooms ({openDuels.length})
                                 </h2>
 
                                 {loading ? (
-                                    <p style={{ opacity: 0.6 }}>Yükleniyor...</p>
+                                    <p style={{ opacity: 0.6 }}>Loading...</p>
                                 ) : openDuels.length === 0 ? (
-                                    <p style={{ opacity: 0.6 }}>Açık oda yok. İlk sen oluştur!</p>
+                                    <p style={{ opacity: 0.6 }}>No open rooms. Be the first to create one!</p>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                         {openDuels.map(duel => (
@@ -273,10 +272,10 @@ export default function FlipDuelLobby() {
                                                     }}
                                                 >
                                                     {duel.player1.wallet.toLowerCase() === address?.toLowerCase()
-                                                        ? 'Senin Odan'
+                                                        ? 'Your Room'
                                                         : joining === duel.id
-                                                            ? '⏳ Katılıyor...'
-                                                            : '🎯 Katıl'}
+                                                            ? '⏳ Joining...'
+                                                            : '🎯 Join'}
                                                 </button>
                                             </div>
                                         ))}

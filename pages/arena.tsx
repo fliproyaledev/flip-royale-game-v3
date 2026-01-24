@@ -1,5 +1,5 @@
 /**
- * Arena Hub - Oyun modları seçimi
+ * Arena Hub - Game Mode Selection
  */
 
 import { useState, useEffect } from 'react'
@@ -29,23 +29,23 @@ export default function ArenaPage() {
       id: 'duel',
       name: 'Flip Duel',
       emoji: '⚔️',
-      description: 'FDV tabanlı 1v1 PvP',
-      subtitle: 'En yüksek FDV toplamı kazanır',
+      description: 'FDV-based 1v1 PvP battle',
+      subtitle: 'Highest FDV total wins',
       color: '#f59e0b',
       gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
       href: '/arena/duel',
-      features: ['3 kart vs 3 kart', 'FDV bazlı kazanan', '%10 komisyon']
+      features: ['3 vs 3 cards', 'FDV-based winner', '10% house fee']
     },
     {
       id: 'taso',
       name: 'Taso',
       emoji: '🃏',
-      description: 'Kart flip showdown',
-      subtitle: 'Ön veya Arka - Şansını dene!',
+      description: 'Card flip showdown',
+      subtitle: 'Front or Back - Test your luck!',
       color: '#ec4899',
       gradient: 'linear-gradient(135deg, #ec4899, #db2777)',
       href: '/arena/taso',
-      features: ['1v1 card flip', 'Kaybeden kart yanar', 'Yüksek risk, yüksek ödül']
+      features: ['1v1 card flip', 'Loser card wrecked', 'High risk, high reward']
     },
   ]
 
@@ -53,7 +53,7 @@ export default function ArenaPage() {
     <>
       <Head>
         <title>Arena | FLIP ROYALE</title>
-        <meta name="description" content="PvP oyun modları - Flip Duel & Taso" />
+        <meta name="description" content="PvP game modes - Flip Duel & Taso" />
       </Head>
 
       <div className="app" data-theme={theme}>
@@ -73,7 +73,7 @@ export default function ArenaPage() {
               🏟️ ARENA
             </h1>
             <p style={{ opacity: 0.7, fontSize: 16 }}>
-              PvP oyun modları - $FLIP stake et ve kazan!
+              PvP game modes - Stake $FLIP and win!
             </p>
           </div>
 
@@ -85,7 +85,7 @@ export default function ArenaPage() {
               marginBottom: 32
             }}>
               <p style={{ marginBottom: 16, opacity: 0.8 }}>
-                Arena'ya girmek için cüzdanını bağla
+                Connect your wallet to enter the Arena
               </p>
               <ConnectButton />
             </div>
@@ -188,7 +188,7 @@ export default function ArenaPage() {
                       letterSpacing: 1
                     }}
                   >
-                    {isConnected ? 'Giriş Yap →' : 'Cüzdan Bağla'}
+                    {isConnected ? 'Enter →' : 'Connect Wallet'}
                   </button>
                 </div>
               </Link>
@@ -203,7 +203,7 @@ export default function ArenaPage() {
             opacity: 0.6
           }}>
             <p style={{ fontSize: 14 }}>
-              🚧 Daha fazla oyun modu yakında...
+              🚧 More game modes coming soon...
             </p>
           </div>
         </main>

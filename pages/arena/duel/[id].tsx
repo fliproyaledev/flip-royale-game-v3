@@ -65,7 +65,6 @@ export default function DuelReplayPage() {
             const data = await res.json()
             if (data.ok) {
                 setDuel(data.duel)
-                // Start reveal animation
                 startRevealAnimation(data.duel)
             }
         } catch (err) {
@@ -76,7 +75,6 @@ export default function DuelReplayPage() {
     }
 
     const startRevealAnimation = (duel: Duel) => {
-        // Reveal cards one by one
         const totalCards = (duel.player1?.cards?.length || 0) + (duel.player2?.cards?.length || 0)
         for (let i = 0; i < totalCards; i++) {
             setTimeout(() => {
@@ -99,7 +97,7 @@ export default function DuelReplayPage() {
             <div className="app" data-theme={theme}>
                 <Topbar activeTab="arena" user={user} />
                 <main style={{ padding: 40, textAlign: 'center' }}>
-                    <p>⏳ Yükleniyor...</p>
+                    <p>⏳ Loading...</p>
                 </main>
             </div>
         )
@@ -110,8 +108,8 @@ export default function DuelReplayPage() {
             <div className="app" data-theme={theme}>
                 <Topbar activeTab="arena" user={user} />
                 <main style={{ padding: 40, textAlign: 'center' }}>
-                    <p>Duel bulunamadı</p>
-                    <Link href="/arena/duel">← Geri Dön</Link>
+                    <p>Duel not found</p>
+                    <Link href="/arena/duel">← Go Back</Link>
                 </main>
             </div>
         )
@@ -120,7 +118,7 @@ export default function DuelReplayPage() {
     return (
         <>
             <Head>
-                <title>Duel Sonucu | FLIP ROYALE</title>
+                <title>Duel Result | FLIP ROYALE</title>
             </Head>
 
             <div className="app" data-theme={theme}>
@@ -130,10 +128,10 @@ export default function DuelReplayPage() {
                     {/* Header */}
                     <div style={{ textAlign: 'center', marginBottom: 32 }}>
                         <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>
-                            ⚔️ Duel Sonucu
+                            ⚔️ Duel Result
                         </h1>
                         <p style={{ opacity: 0.7 }}>
-                            {duel.status === 'resolved' ? '✅ Tamamlandı' : `⏳ ${duel.status}`}
+                            {duel.status === 'resolved' ? '✅ Completed' : `⏳ ${duel.status}`}
                         </p>
                     </div>
 
@@ -252,7 +250,7 @@ export default function DuelReplayPage() {
                                     </p>
                                 </>
                             ) : (
-                                <p style={{ opacity: 0.5 }}>Rakip bekliyor...</p>
+                                <p style={{ opacity: 0.5 }}>Waiting for opponent...</p>
                             )}
                         </div>
                     </div>
@@ -265,7 +263,7 @@ export default function DuelReplayPage() {
                             background: 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.05))',
                             border: '1px solid rgba(16,185,129,0.3)'
                         }}>
-                            <p style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>🏆 Kazanan</p>
+                            <p style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>🏆 Winner</p>
                             <p style={{ fontSize: 18, fontWeight: 800 }}>{shortenAddress(duel.winner)}</p>
                             <p style={{ fontSize: 24, fontWeight: 900, color: '#10b981', marginTop: 8 }}>
                                 +{(duel.winnerPayout / 1000).toFixed(0)}K $FLIP
@@ -287,7 +285,7 @@ export default function DuelReplayPage() {
                                 fontWeight: 700
                             }}
                         >
-                            ← Lobby'ye Dön
+                            ← Back to Lobby
                         </Link>
                     </div>
                 </main>
