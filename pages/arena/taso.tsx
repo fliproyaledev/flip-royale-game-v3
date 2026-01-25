@@ -1,5 +1,6 @@
 /**
  * Taso Lobby - Card Flip Game
+ * Oda kurma ve katılma sırasında front/back seçimi yapılır
  */
 
 import { useState, useEffect } from 'react'
@@ -13,6 +14,7 @@ import { useTheme } from '../../lib/theme'
 import { useToast } from '../../lib/toast'
 
 type TasoTier = 'low' | 'mid' | 'high'
+type TasoChoice = 'front' | 'back'
 
 const TIER_INFO: Record<TasoTier, { name: string; stake: string; color: string }> = {
     low: { name: 'Low', stake: '25K', color: '#10b981' },
@@ -31,6 +33,145 @@ interface TasoGame {
     }
 }
 
+// Choice Selection Modal
+function ChoiceModal({
+    isOpen,
+    title,
+    onClose,
+    onSelect,
+    loading
+}: {
+    isOpen: boolean
+    title: string
+    onClose: () => void
+    onSelect: (choice: TasoChoice) => void
+    loading: boolean
+}) {
+    if (!isOpen) return null
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.8)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20
+        }}>
+            <div style={{
+                background: 'linear-gradient(180deg, #1a1a2e, #0f0f1a)',
+                borderRadius: 24,
+                padding: 32,
+                maxWidth: 400,
+                width: '100%',
+                border: '2px solid rgba(236, 72, 153, 0.4)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            }}>
+                <h2 style={{
+                    textAlign: 'center',
+                    marginBottom: 8,
+                    fontSize: 24,
+                    fontWeight: 900,
+                    color: '#ec4899'
+                }}>
+                    🎯 {title}
+                </h2>
+                <p style={{
+                    textAlign: 'center',
+                    marginBottom: 24,
+                    opacity: 0.7,
+                    fontSize: 14
+                }}>
+                    Kartlar döndükten sonra hangi yüz gelecek?
+                </p>
+
+                <div style={{
+                    display: 'flex',
+                    gap: 16,
+                    marginBottom: 24
+                }}>
+                    <button
+                        onClick={() => onSelect('front')}
+                        disabled={loading}
+                        style={{
+                            flex: 1,
+                            padding: '24px 16px',
+                            borderRadius: 16,
+                            border: '3px solid #10b981',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#10b981',
+                            fontSize: 18,
+                            fontWeight: 800,
+                            cursor: loading ? 'wait' : 'pointer',
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 8
+                        }}
+                    >
+                        <span style={{ fontSize: 40 }}>🎴</span>
+                        FRONT
+                    </button>
+                    <button
+                        onClick={() => onSelect('back')}
+                        disabled={loading}
+                        style={{
+                            flex: 1,
+                            padding: '24px 16px',
+                            borderRadius: 16,
+                            border: '3px solid #8b5cf6',
+                            background: 'rgba(139, 92, 246, 0.15)',
+                            color: '#8b5cf6',
+                            fontSize: 18,
+                            fontWeight: 800,
+                            cursor: loading ? 'wait' : 'pointer',
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 8
+                        }}
+                    >
+                        <span style={{ fontSize: 40 }}>🔙</span>
+                        BACK
+                    </button>
+                </div>
+
+                {loading && (
+                    <p style={{ textAlign: 'center', color: '#ec4899', fontWeight: 600 }}>
+                        ⏳ İşleniyor...
+                    </p>
+                )}
+
+                <button
+                    onClick={onClose}
+                    disabled={loading}
+                    style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: 'rgba(255,255,255,0.1)',
+                        color: '#fff',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        opacity: loading ? 0.5 : 1
+                    }}
+                >
+                    İptal
+                </button>
+            </div>
+        </div>
+    )
+}
+
 export default function TasoLobby() {
     const { theme } = useTheme()
     const { toast } = useToast()
@@ -40,9 +181,13 @@ export default function TasoLobby() {
     const [user, setUser] = useState<any>(null)
     const [openGames, setOpenGames] = useState<TasoGame[]>([])
     const [loading, setLoading] = useState(true)
-    const [creating, setCreating] = useState(false)
-    const [joining, setJoining] = useState<string | null>(null)
     const [selectedTier, setSelectedTier] = useState<TasoTier>('low')
+
+    // Modal states
+    const [showCreateModal, setShowCreateModal] = useState(false)
+    const [showJoinModal, setShowJoinModal] = useState(false)
+    const [selectedGameId, setSelectedGameId] = useState<string | null>(null)
+    const [processing, setProcessing] = useState(false)
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -73,53 +218,65 @@ export default function TasoLobby() {
         }
     }
 
-    const createGame = async () => {
+    const handleCreateClick = () => {
+        setShowCreateModal(true)
+    }
+
+    const handleCreateConfirm = async (choice: TasoChoice) => {
         if (!address) return
-        setCreating(true)
+        setProcessing(true)
 
         try {
             const res = await fetch('/api/arena/taso/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet: address, tier: selectedTier })
+                body: JSON.stringify({ wallet: address, tier: selectedTier, choice })
             })
             const data = await res.json()
 
             if (data.ok) {
-                toast(`🃏 Taso room created! ID: ${data.game.id.slice(-6)}`, 'success')
+                toast(`🃏 Oda kuruldu! Seçimin: ${choice === 'front' ? 'FRONT' : 'BACK'}`, 'success')
+                setShowCreateModal(false)
                 loadGames()
             } else {
-                toast(data.error || 'Failed to create room', 'error')
+                toast(data.error || 'Oda kurulamadı', 'error')
             }
         } catch (err: any) {
-            toast(err.message || 'Error', 'error')
+            toast(err.message || 'Hata', 'error')
         } finally {
-            setCreating(false)
+            setProcessing(false)
         }
     }
 
-    const joinGame = async (gameId: string) => {
-        if (!address) return
-        setJoining(gameId)
+    const handleJoinClick = (gameId: string) => {
+        setSelectedGameId(gameId)
+        setShowJoinModal(true)
+    }
+
+    const handleJoinConfirm = async (choice: TasoChoice) => {
+        if (!address || !selectedGameId) return
+        setProcessing(true)
 
         try {
             const res = await fetch('/api/arena/taso/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet: address, gameId })
+                body: JSON.stringify({ wallet: address, gameId: selectedGameId, choice })
             })
             const data = await res.json()
 
             if (data.ok) {
-                toast('🎯 Joined game!', 'success')
-                router.push(`/arena/taso/${gameId}`)
+                toast('🎯 Oyuna katıldın! Sonuç açıklanıyor...', 'success')
+                router.push(`/arena/taso/${selectedGameId}`)
             } else {
-                toast(data.error || 'Failed to join', 'error')
+                toast(data.error || 'Katılınamadı', 'error')
             }
         } catch (err: any) {
-            toast(err.message || 'Error', 'error')
+            toast(err.message || 'Hata', 'error')
         } finally {
-            setJoining(null)
+            setProcessing(false)
+            setShowJoinModal(false)
+            setSelectedGameId(null)
         }
     }
 
@@ -149,6 +306,23 @@ export default function TasoLobby() {
                         </h1>
                     </div>
 
+                    {/* How to Play */}
+                    <div style={{
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1))',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        borderRadius: 12,
+                        padding: 16,
+                        marginBottom: 16
+                    }}>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: 14, color: '#8b5cf6' }}>🎮 Nasıl Oynanır?</h3>
+                        <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, opacity: 0.85, lineHeight: 1.6 }}>
+                            <li>Oda kur veya bir odaya katıl</li>
+                            <li><strong>Seçimini yap:</strong> FRONT veya BACK</li>
+                            <li>Kartlar döner ve sonuç belirlenir</li>
+                            <li>Tahmin eden kazanır, kaybeden kart WRECKED olur!</li>
+                        </ol>
+                    </div>
+
                     {/* Warning */}
                     <div style={{
                         background: 'rgba(239, 68, 68, 0.15)',
@@ -162,16 +336,16 @@ export default function TasoLobby() {
                     }}>
                         <span style={{ fontSize: 24 }}>⚠️</span>
                         <div>
-                            <p style={{ margin: 0, fontWeight: 700, color: '#ef4444' }}>Card Risk Warning</p>
+                            <p style={{ margin: 0, fontWeight: 700, color: '#ef4444' }}>Kart Risk Uyarısı</p>
                             <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
-                                The loser's card becomes <strong>WRECKED</strong> in Taso mode. Wrecked cards cannot be used in any game mode!
+                                Kaybeden kart <strong>WRECKED</strong> olur. Wrecked kartlar hiçbir modda kullanılamaz!
                             </p>
                         </div>
                     </div>
 
                     {!isConnected ? (
                         <div className="panel" style={{ textAlign: 'center', padding: 32 }}>
-                            <p style={{ marginBottom: 16 }}>Connect your wallet to play Taso</p>
+                            <p style={{ marginBottom: 16 }}>Taso oynamak için cüzdanını bağla</p>
                             <ConnectButton />
                         </div>
                     ) : (
@@ -179,13 +353,13 @@ export default function TasoLobby() {
                             {/* Create Game */}
                             <div className="panel" style={{ padding: 24, marginBottom: 24 }}>
                                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    🆕 Create New Game
+                                    🆕 Yeni Oda Kur
                                 </h2>
 
                                 {/* Tier Selection */}
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: 'block', marginBottom: 8, opacity: 0.7 }}>
-                                        Select Stake Tier
+                                        Stake Seviyesi Seç
                                     </label>
                                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                                         {(Object.keys(TIER_INFO) as TasoTier[]).map(tier => (
@@ -210,8 +384,7 @@ export default function TasoLobby() {
                                 </div>
 
                                 <button
-                                    onClick={createGame}
-                                    disabled={creating}
+                                    onClick={handleCreateClick}
                                     style={{
                                         padding: '12px 32px',
                                         borderRadius: 10,
@@ -220,24 +393,23 @@ export default function TasoLobby() {
                                         color: '#fff',
                                         fontSize: 14,
                                         fontWeight: 800,
-                                        cursor: creating ? 'wait' : 'pointer',
-                                        opacity: creating ? 0.6 : 1
+                                        cursor: 'pointer'
                                     }}
                                 >
-                                    {creating ? '⏳ Creating...' : '🃏 Create Room'}
+                                    🃏 Oda Kur & Seçim Yap
                                 </button>
                             </div>
 
                             {/* Open Games */}
                             <div className="panel" style={{ padding: 24 }}>
                                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    🔥 Open Rooms ({openGames.length})
+                                    🔥 Açık Odalar ({openGames.length})
                                 </h2>
 
                                 {loading ? (
-                                    <p style={{ opacity: 0.6 }}>Loading...</p>
+                                    <p style={{ opacity: 0.6 }}>Yükleniyor...</p>
                                 ) : openGames.length === 0 ? (
-                                    <p style={{ opacity: 0.6 }}>No open rooms. Be the first to create one!</p>
+                                    <p style={{ opacity: 0.6 }}>Açık oda yok. İlk sen oluştur!</p>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                         {openGames.map(game => (
@@ -275,8 +447,8 @@ export default function TasoLobby() {
                                                 </div>
 
                                                 <button
-                                                    onClick={() => joinGame(game.id)}
-                                                    disabled={joining === game.id || game.player1.wallet.toLowerCase() === address?.toLowerCase()}
+                                                    onClick={() => handleJoinClick(game.id)}
+                                                    disabled={game.player1.wallet.toLowerCase() === address?.toLowerCase()}
                                                     style={{
                                                         padding: '10px 20px',
                                                         borderRadius: 8,
@@ -287,15 +459,13 @@ export default function TasoLobby() {
                                                         color: '#fff',
                                                         fontSize: 13,
                                                         fontWeight: 700,
-                                                        cursor: joining === game.id ? 'wait' : 'pointer',
+                                                        cursor: 'pointer',
                                                         opacity: game.player1.wallet.toLowerCase() === address?.toLowerCase() ? 0.5 : 1
                                                     }}
                                                 >
                                                     {game.player1.wallet.toLowerCase() === address?.toLowerCase()
-                                                        ? 'Your Room'
-                                                        : joining === game.id
-                                                            ? '⏳ Joining...'
-                                                            : '🎯 Join'}
+                                                        ? 'Senin Odan'
+                                                        : '🎯 Katıl & Seçim Yap'}
                                                 </button>
                                             </div>
                                         ))}
@@ -305,6 +475,27 @@ export default function TasoLobby() {
                         </>
                     )}
                 </main>
+
+                {/* Create Modal */}
+                <ChoiceModal
+                    isOpen={showCreateModal}
+                    title="Oda Kur"
+                    onClose={() => setShowCreateModal(false)}
+                    onSelect={handleCreateConfirm}
+                    loading={processing}
+                />
+
+                {/* Join Modal */}
+                <ChoiceModal
+                    isOpen={showJoinModal}
+                    title="Odaya Katıl"
+                    onClose={() => {
+                        setShowJoinModal(false)
+                        setSelectedGameId(null)
+                    }}
+                    onSelect={handleJoinConfirm}
+                    loading={processing}
+                />
             </div>
         </>
     )
