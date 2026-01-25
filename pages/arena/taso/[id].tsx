@@ -664,7 +664,7 @@ export default function TasoGamePage() {
                                 🎯 Make Your Choice!
                             </h3>
                             <p style={{ marginBottom: 24, opacity: 0.7 }}>
-                                Will the card land on Front or Back?
+                                Will the card land on its Front or Back?
                             </p>
 
                             <div style={{ display: 'flex', gap: 24, justifyContent: 'center' }}>

@@ -106,9 +106,9 @@ const seedTokens: Token[] = [
     name: 'Virtual Protocol',
     logo: '/token-logos/virtual.png',
     about: 'Sentient',
-    dexscreenerUrl: 'https://dexscreener.com/base/0x8e0defc5262862977ee4c2f37adf52ad0a19e014',
+    dexscreenerUrl: 'https://dexscreener.com/base/0x3f0296bf652e19bca772ec3df08b32732f93014a',
     dexscreenerNetwork: 'base',
-    dexscreenerPair: '0x8e0defc5262862977ee4c2f37adf52ad0a19e014', // VIRTUAL/WETH Uniswap V3 on Base
+    dexscreenerPair: '0x3f0296bf652e19bca772ec3df08b32732f93014a', // VIRTUAL/WETH Aerodrome on Base
   },
 ]
 

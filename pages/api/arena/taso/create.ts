@@ -1,9 +1,10 @@
 /**
  * POST /api/arena/taso/create - Yeni Taso odası oluştur
+ * Oda kurucusu hemen seçimini yapar (front/back)
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createTasoGame, TASO_TIERS, TasoTier, TasoCard, selectRandomCard } from '../../../../lib/tasoGame';
+import { createTasoGame, TASO_TIERS, TasoTier, TasoCard, TasoChoice } from '../../../../lib/tasoGame';
 import { getUser } from '../../../../lib/users';
 import { getTokenById } from '../../../../lib/tokens';
 
@@ -13,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-        const { wallet, tier } = req.body;
+        const { wallet, tier, choice } = req.body;
 
         if (!wallet) {
             return res.status(400).json({ ok: false, error: 'Wallet address required' });
@@ -21,6 +22,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (!tier || !TASO_TIERS[tier as TasoTier]) {
             return res.status(400).json({ ok: false, error: 'Invalid tier' });
+        }
+
+        // Validate choice
+        if (!choice || (choice !== 'front' && choice !== 'back')) {
+            return res.status(400).json({ ok: false, error: 'Choice must be front or back' });
         }
 
         const cleanWallet = wallet.toLowerCase();
@@ -57,12 +63,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             cardType: token.about || 'common',
         };
 
-        // Create game
-        const game = await createTasoGame(cleanWallet, tier as TasoTier, tasoCard);
+        // Create game with choice
+        const game = await createTasoGame(cleanWallet, tier as TasoTier, tasoCard, choice as TasoChoice);
+
+        // Don't expose player1's choice in response
+        const safeGame = {
+            ...game,
+            player1: {
+                ...game.player1,
+                choice: undefined, // Hide choice
+            }
+        };
 
         return res.status(200).json({
             ok: true,
-            game,
+            game: safeGame,
+            yourChoice: choice, // Only tell creator their own choice
         });
     } catch (error: any) {
         console.error('Create taso error:', error);

@@ -122,12 +122,13 @@ export function determineWinner(
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Yeni taso odası oluştur
+ * Yeni taso odası oluştur - oyuncu hemen seçim yapar
  */
 export async function createTasoGame(
     wallet: string,
     tier: TasoTier,
-    card: TasoCard
+    card: TasoCard,
+    choice: TasoChoice  // Room creator picks immediately
 ): Promise<TasoGame> {
     const tierConfig = TASO_TIERS[tier];
     const id = generateTasoId();
@@ -141,6 +142,7 @@ export async function createTasoGame(
         player1: {
             wallet: wallet.toLowerCase(),
             card,
+            choice,  // Save choice immediately
         },
 
         stake: tierConfig.stake,
@@ -156,12 +158,13 @@ export async function createTasoGame(
 }
 
 /**
- * Taso oyununa katıl
+ * Taso oyununa katıl - katılan oyuncu da seçim yapar ve oyun otomatik çözülür
  */
 export async function joinTasoGame(
     gameId: string,
     wallet: string,
-    card: TasoCard
+    card: TasoCard,
+    choice: TasoChoice  // Joining player picks immediately
 ): Promise<TasoGame | null> {
     const game = await kv.get<TasoGame>(`${TASO_PREFIX}${gameId}`);
 
@@ -176,9 +179,39 @@ export async function joinTasoGame(
     game.player2 = {
         wallet: wallet.toLowerCase(),
         card,
+        choice,  // Save choice immediately
     };
-    game.status = 'waiting_choices';
     game.matchedAt = Date.now();
+
+    // Both players have chosen, resolve immediately
+    // (player1 chose when creating, player2 chose when joining)
+    if (game.player1.choice && game.player2.choice) {
+        // Perform flip and determine winner
+        const flipResult = performFlip();
+        const winnerResult = determineWinner(game.player1.choice, game.player2.choice, flipResult);
+
+        game.flipResult = flipResult;
+        game.resolvedAt = Date.now();
+
+        if (winnerResult === 'player1') {
+            game.winner = game.player1.wallet;
+            game.loserCardWrecked = game.player2.card.cardId;
+            game.status = 'resolved';
+        } else if (winnerResult === 'player2') {
+            game.winner = game.player2.wallet;
+            game.loserCardWrecked = game.player1.card.cardId;
+            game.status = 'resolved';
+        } else {
+            // Draw - random winner
+            game.winner = Math.random() > 0.5 ? game.player1.wallet : game.player2.wallet;
+            const loser = game.winner === game.player1.wallet ? game.player2 : game.player1;
+            game.loserCardWrecked = loser.card.cardId;
+            game.status = 'resolved';
+        }
+    } else {
+        // Shouldn't happen with new flow, but fallback
+        game.status = 'waiting_choices';
+    }
 
     await kv.set(`${TASO_PREFIX}${gameId}`, game);
     await kv.srem(OPEN_TASO_KEY, gameId);

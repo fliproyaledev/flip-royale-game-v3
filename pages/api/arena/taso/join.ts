@@ -1,9 +1,10 @@
 /**
  * POST /api/arena/taso/join - Taso oyununa katıl
+ * Katılan oyuncu seçimini yapar ve oyun otomatik çözülür
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { joinTasoGame, getTasoGame, TasoCard } from '../../../../lib/tasoGame';
+import { joinTasoGame, getTasoGame, TasoCard, TasoChoice } from '../../../../lib/tasoGame';
 import { getUser } from '../../../../lib/users';
 import { getTokenById } from '../../../../lib/tokens';
 
@@ -13,10 +14,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-        const { wallet, gameId } = req.body;
+        const { wallet, gameId, choice } = req.body;
 
         if (!wallet || !gameId) {
             return res.status(400).json({ ok: false, error: 'Wallet and gameId required' });
+        }
+
+        // Validate choice
+        if (!choice || (choice !== 'front' && choice !== 'back')) {
+            return res.status(400).json({ ok: false, error: 'Choice must be front or back' });
         }
 
         const cleanWallet = wallet.toLowerCase();
@@ -61,15 +67,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             cardType: token.about || 'common',
         };
 
-        // Join game
-        const game = await joinTasoGame(gameId, cleanWallet, tasoCard);
+        // Join game with choice - game auto-resolves
+        const game = await joinTasoGame(gameId, cleanWallet, tasoCard, choice as TasoChoice);
         if (!game) {
             return res.status(400).json({ ok: false, error: 'Failed to join game' });
         }
 
         return res.status(200).json({
             ok: true,
-            game,
+            game, // Game is already resolved, can show results
+            yourChoice: choice,
         });
     } catch (error: any) {
         console.error('Join taso error:', error);
