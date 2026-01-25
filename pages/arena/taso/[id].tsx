@@ -125,14 +125,21 @@ function SpinningCard({
                     const progress = elapsed / totalDuration
                     const easeOut = 1 - Math.pow(1 - progress, 3) // Cubic ease out
 
-                    // 6 full rotations (2160 degrees) with easing
-                    const degrees = easeOut * 2160
+                    // Calculate target rotation based on finalSide
+                    // front = 180° (or odd multiples), back = 0° (or even multiples)
+                    // Do 5 full rotations + land on correct side
+                    const targetRotation = finalSide === 'front'
+                        ? (5 * 360) + 180  // 1980° - ends showing front
+                        : (6 * 360)         // 2160° - ends showing back
+
+                    const degrees = easeOut * targetRotation
                     setRotation(degrees)
 
                     animationRef.current = requestAnimationFrame(animate)
                 } else {
-                    // Animation complete
-                    setRotation(2160) // End at full rotations
+                    // Animation complete - set final rotation
+                    const finalRotation = finalSide === 'front' ? 1980 : 2160
+                    setRotation(finalRotation)
                 }
             }
 
@@ -144,7 +151,7 @@ function SpinningCard({
                 }
             }
         }
-    }, [isSpinning])
+    }, [isSpinning, finalSide])
 
     // Calculate final rotation
     const getFinalRotation = () => {
