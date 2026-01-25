@@ -101,7 +101,10 @@ export function selectRandomCard(cards: CardInstance[]): CardInstance {
 // ─────────────────────────────────────────────────────────────
 
 export function performFlip(): TasoChoice {
-    return Math.random() > 0.5 ? 'front' : 'back';
+    // Use crypto for truly random 50/50 flip
+    const crypto = require('crypto');
+    const randomBit = crypto.randomInt(0, 2); // Returns 0 or 1
+    return randomBit === 0 ? 'front' : 'back';
 }
 
 export function determineWinner(
