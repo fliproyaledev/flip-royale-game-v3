@@ -115,21 +115,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
         };
 
-        // Apply luck factor - 0-15% random bonus to each player
-        const crypto = require('crypto');
-        const p1LuckBonus = crypto.randomInt(0, 16) / 100; // 0-15%
-        const p2LuckBonus = crypto.randomInt(0, 16) / 100; // 0-15%
-
-        const p1EffectiveFdv = matchedDuel.player1.totalFdv * (1 + p1LuckBonus);
-        const p2EffectiveFdv = player2TotalFdv * (1 + p2LuckBonus);
-
-        // Determine winner with luck applied
-        if (p1EffectiveFdv > p2EffectiveFdv) {
+        // Determine winner - highest total FDV wins
+        if (matchedDuel.player1.totalFdv > player2TotalFdv) {
             matchedDuel.winner = matchedDuel.player1.wallet;
-        } else if (p2EffectiveFdv > p1EffectiveFdv) {
+        } else if (player2TotalFdv > matchedDuel.player1.totalFdv) {
             matchedDuel.winner = cleanWallet;
         } else {
             // Tie - random selection
+            const crypto = require('crypto');
             matchedDuel.winner = crypto.randomInt(0, 2) === 0 ? matchedDuel.player1.wallet : cleanWallet;
         }
 
