@@ -52,10 +52,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             });
         }
 
-        // Select random cards from inventory
+        // Select random cards from inventory (exclude Virtual - no reliable FDV)
         const availableCards: { tokenId: string; count: number }[] = [];
+        const EXCLUDED_TOKENS = ['virtual']; // Tokens to exclude from Duel
+
         for (const [tokenId, count] of Object.entries(inventory)) {
-            if (!tokenId.includes('_pack') && count > 0) {
+            if (!tokenId.includes('_pack') && count > 0 && !EXCLUDED_TOKENS.includes(tokenId.toLowerCase())) {
                 availableCards.push({ tokenId, count: count as number });
             }
         }

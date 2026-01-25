@@ -50,10 +50,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             });
         }
 
-        // Select random cards
+        // Select random cards (exclude Virtual - no reliable FDV)
+        const EXCLUDED_TOKENS = ['virtual'];
         const allCards: string[] = [];
         for (const [tokenId, count] of Object.entries(inventory)) {
-            if (!tokenId.includes('_pack') && typeof count === 'number' && count > 0) {
+            if (!tokenId.includes('_pack') && typeof count === 'number' && count > 0 && !EXCLUDED_TOKENS.includes(tokenId.toLowerCase())) {
                 for (let i = 0; i < count; i++) {
                     allCards.push(tokenId);
                 }

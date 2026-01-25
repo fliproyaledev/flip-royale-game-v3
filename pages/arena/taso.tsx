@@ -1,6 +1,6 @@
 /**
  * Taso Lobby - Card Flip Game
- * Oda kurma ve katılma sırasında front/back seçimi yapılır
+ * Players pick front/back when creating or joining rooms
  */
 
 import { useState, useEffect } from 'react'
@@ -87,7 +87,7 @@ function ChoiceModal({
                     opacity: 0.7,
                     fontSize: 14
                 }}>
-                    Kartlar döndükten sonra hangi yüz gelecek?
+                    Which side will the card land on?
                 </p>
 
                 <div style={{
@@ -145,7 +145,7 @@ function ChoiceModal({
 
                 {loading && (
                     <p style={{ textAlign: 'center', color: '#ec4899', fontWeight: 600 }}>
-                        ⏳ İşleniyor...
+                        ⏳ Processing...
                     </p>
                 )}
 
@@ -165,7 +165,7 @@ function ChoiceModal({
                         opacity: loading ? 0.5 : 1
                     }}
                 >
-                    İptal
+                    Cancel
                 </button>
             </div>
         </div>
@@ -235,14 +235,14 @@ export default function TasoLobby() {
             const data = await res.json()
 
             if (data.ok) {
-                toast(`🃏 Oda kuruldu! Seçimin: ${choice === 'front' ? 'FRONT' : 'BACK'}`, 'success')
+                toast(`🃏 Room created! Your choice: ${choice === 'front' ? 'FRONT' : 'BACK'}`, 'success')
                 setShowCreateModal(false)
                 loadGames()
             } else {
-                toast(data.error || 'Oda kurulamadı', 'error')
+                toast(data.error || 'Failed to create room', 'error')
             }
         } catch (err: any) {
-            toast(err.message || 'Hata', 'error')
+            toast(err.message || 'Error', 'error')
         } finally {
             setProcessing(false)
         }
@@ -266,13 +266,13 @@ export default function TasoLobby() {
             const data = await res.json()
 
             if (data.ok) {
-                toast('🎯 Oyuna katıldın! Sonuç açıklanıyor...', 'success')
+                toast('🎯 Joined game! Revealing result...', 'success')
                 router.push(`/arena/taso/${selectedGameId}`)
             } else {
-                toast(data.error || 'Katılınamadı', 'error')
+                toast(data.error || 'Failed to join', 'error')
             }
         } catch (err: any) {
-            toast(err.message || 'Hata', 'error')
+            toast(err.message || 'Error', 'error')
         } finally {
             setProcessing(false)
             setShowJoinModal(false)
@@ -314,12 +314,12 @@ export default function TasoLobby() {
                         padding: 16,
                         marginBottom: 16
                     }}>
-                        <h3 style={{ margin: '0 0 8px 0', fontSize: 14, color: '#8b5cf6' }}>🎮 Nasıl Oynanır?</h3>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: 14, color: '#8b5cf6' }}>🎮 How to Play</h3>
                         <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, opacity: 0.85, lineHeight: 1.6 }}>
-                            <li>Oda kur veya bir odaya katıl</li>
-                            <li><strong>Seçimini yap:</strong> FRONT veya BACK</li>
-                            <li>Kartlar döner ve sonuç belirlenir</li>
-                            <li>Tahmin eden kazanır, kaybeden kart WRECKED olur!</li>
+                            <li>Create a room or join an existing one</li>
+                            <li><strong>Make your choice:</strong> FRONT or BACK</li>
+                            <li>Cards flip and the result is determined</li>
+                            <li>The correct guess wins, loser's card becomes WRECKED!</li>
                         </ol>
                     </div>
 
@@ -336,16 +336,16 @@ export default function TasoLobby() {
                     }}>
                         <span style={{ fontSize: 24 }}>⚠️</span>
                         <div>
-                            <p style={{ margin: 0, fontWeight: 700, color: '#ef4444' }}>Kart Risk Uyarısı</p>
+                            <p style={{ margin: 0, fontWeight: 700, color: '#ef4444' }}>Card Risk Warning</p>
                             <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
-                                Kaybeden kart <strong>WRECKED</strong> olur. Wrecked kartlar hiçbir modda kullanılamaz!
+                                The loser's card becomes <strong>WRECKED</strong>. Wrecked cards cannot be used in any mode!
                             </p>
                         </div>
                     </div>
 
                     {!isConnected ? (
                         <div className="panel" style={{ textAlign: 'center', padding: 32 }}>
-                            <p style={{ marginBottom: 16 }}>Taso oynamak için cüzdanını bağla</p>
+                            <p style={{ marginBottom: 16 }}>Connect your wallet to play Taso</p>
                             <ConnectButton />
                         </div>
                     ) : (
@@ -353,13 +353,13 @@ export default function TasoLobby() {
                             {/* Create Game */}
                             <div className="panel" style={{ padding: 24, marginBottom: 24 }}>
                                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    🆕 Yeni Oda Kur
+                                    🆕 Create New Room
                                 </h2>
 
                                 {/* Tier Selection */}
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: 'block', marginBottom: 8, opacity: 0.7 }}>
-                                        Stake Seviyesi Seç
+                                        Select Stake Tier
                                     </label>
                                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                                         {(Object.keys(TIER_INFO) as TasoTier[]).map(tier => (
@@ -396,20 +396,20 @@ export default function TasoLobby() {
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    🃏 Oda Kur & Seçim Yap
+                                    🃏 Create Room & Choose
                                 </button>
                             </div>
 
                             {/* Open Games */}
                             <div className="panel" style={{ padding: 24 }}>
                                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    🔥 Açık Odalar ({openGames.length})
+                                    🔥 Open Rooms ({openGames.length})
                                 </h2>
 
                                 {loading ? (
-                                    <p style={{ opacity: 0.6 }}>Yükleniyor...</p>
+                                    <p style={{ opacity: 0.6 }}>Loading...</p>
                                 ) : openGames.length === 0 ? (
-                                    <p style={{ opacity: 0.6 }}>Açık oda yok. İlk sen oluştur!</p>
+                                    <p style={{ opacity: 0.6 }}>No open rooms. Be the first to create one!</p>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                         {openGames.map(game => (
@@ -464,8 +464,8 @@ export default function TasoLobby() {
                                                     }}
                                                 >
                                                     {game.player1.wallet.toLowerCase() === address?.toLowerCase()
-                                                        ? 'Senin Odan'
-                                                        : '🎯 Katıl & Seçim Yap'}
+                                                        ? 'Your Room'
+                                                        : '🎯 Join & Choose'}
                                                 </button>
                                             </div>
                                         ))}
@@ -479,7 +479,7 @@ export default function TasoLobby() {
                 {/* Create Modal */}
                 <ChoiceModal
                     isOpen={showCreateModal}
-                    title="Oda Kur"
+                    title="Create Room"
                     onClose={() => setShowCreateModal(false)}
                     onSelect={handleCreateConfirm}
                     loading={processing}
