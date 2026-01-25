@@ -94,12 +94,12 @@ interface TasoGame {
 // 3D Flippable Card Component
 function FlippableCard({
     card,
-    isFlipped,
+    showFront,  // true = show front, false = show back
     isWrecked = false,
     isWinner = false,
 }: {
     card: TasoCard
-    isFlipped: boolean
+    showFront: boolean
     isWrecked?: boolean
     isWinner?: boolean
 }) {
@@ -112,6 +112,7 @@ function FlippableCard({
                 width: 180,
                 height: 280,
                 perspective: 1000,
+                position: 'relative',
             }}
         >
             <div
@@ -122,10 +123,10 @@ function FlippableCard({
                     position: 'relative',
                     transformStyle: 'preserve-3d',
                     transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                    transform: showFront ? 'rotateY(180deg)' : 'rotateY(0deg)',
                 }}
             >
-                {/* Back Side - Shows First */}
+                {/* Back Side - Default position */}
                 <div
                     className="card-face card-back"
                     style={{
@@ -135,8 +136,13 @@ function FlippableCard({
                         backfaceVisibility: 'hidden',
                         borderRadius: 16,
                         overflow: 'hidden',
-                        border: '3px solid #d4a017',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                        border: isWinner ? '3px solid #10b981' : isWrecked ? '3px solid #ef4444' : '3px solid #d4a017',
+                        boxShadow: isWinner
+                            ? '0 0 30px rgba(16, 185, 129, 0.5)'
+                            : isWrecked
+                                ? '0 0 20px rgba(239, 68, 68, 0.4)'
+                                : '0 8px 32px rgba(0,0,0,0.4)',
+                        filter: isWrecked ? 'grayscale(50%) brightness(0.8)' : 'none',
                     }}
                 >
                     <img
@@ -148,6 +154,50 @@ function FlippableCard({
                             objectFit: 'cover',
                         }}
                     />
+                    {/* Card name label on back */}
+                    <div style={{
+                        position: 'absolute',
+                        bottom: 40,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'rgba(0,0,0,0.8)',
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        border: `2px solid ${styles.borderColor}`,
+                    }}>
+                        <div style={{
+                            fontSize: 14,
+                            fontWeight: 800,
+                            color: '#fff',
+                            textAlign: 'center',
+                        }}>
+                            {card.symbol}
+                        </div>
+                        <div style={{
+                            fontSize: 10,
+                            color: styles.typeColor,
+                            textAlign: 'center',
+                        }}>
+                            {card.cardType}
+                        </div>
+                    </div>
+                    {/* Winner/Loser badge on back */}
+                    {(isWinner || isWrecked) && (
+                        <div style={{
+                            position: 'absolute',
+                            top: 10,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: isWinner ? '#10b981' : '#ef4444',
+                            color: '#fff',
+                            padding: '4px 12px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 800,
+                        }}>
+                            {isWinner ? '🏆 WINNER' : '💀 WRECKED'}
+                        </div>
+                    )}
                 </div>
 
                 {/* Front Side - Shows After Flip */}
@@ -453,7 +503,7 @@ export default function TasoGamePage() {
 
                             <FlippableCard
                                 card={game.player1.card}
-                                isFlipped={cardsFlipped}
+                                showFront={showResult && game.flipResult === 'front'}
                                 isWinner={showResult && !!isP1Winner}
                                 isWrecked={showResult && !isP1Winner}
                             />
@@ -542,7 +592,7 @@ export default function TasoGamePage() {
 
                                     <FlippableCard
                                         card={game.player2.card}
-                                        isFlipped={cardsFlipped}
+                                        showFront={showResult && game.flipResult === 'front'}
                                         isWinner={showResult && !!isP2Winner}
                                         isWrecked={showResult && !isP2Winner}
                                     />
