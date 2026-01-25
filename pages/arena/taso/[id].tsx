@@ -1,6 +1,6 @@
 /**
  * Taso Game - Card Flip Choice & Result Page
- * Enhanced with 3D card flip animation showing front/back
+ * Casino-style exciting card flip animation
  */
 
 import { useState, useEffect, useRef } from 'react'
@@ -91,19 +91,36 @@ interface TasoGame {
     resolvedAt?: number
 }
 
-// 3D Flippable Card Component
-function FlippableCard({
+// Spinning Card Component with multi-rotation animation
+function SpinningCard({
     card,
-    showFront,  // true = show front, false = show back
+    spinPhase, // 'idle' | 'spinning' | 'slowing' | 'final'
+    finalSide, // 'front' | 'back'
     isWrecked = false,
     isWinner = false,
 }: {
     card: TasoCard
-    showFront: boolean
+    spinPhase: 'idle' | 'spinning' | 'slowing' | 'final'
+    finalSide: 'front' | 'back'
     isWrecked?: boolean
     isWinner?: boolean
 }) {
     const styles = getCardCSSStyles(card.cardType)
+
+    // Calculate rotation based on phase
+    const getRotation = () => {
+        if (spinPhase === 'idle') return 0
+        if (spinPhase === 'final') {
+            return finalSide === 'front' ? 180 : 0
+        }
+        return 0 // Animation handles spinning
+    }
+
+    const getAnimationClass = () => {
+        if (spinPhase === 'spinning') return 'card-spin-fast'
+        if (spinPhase === 'slowing') return 'card-spin-slow'
+        return ''
+    }
 
     return (
         <div
@@ -111,22 +128,22 @@ function FlippableCard({
             style={{
                 width: 180,
                 height: 280,
-                perspective: 1000,
+                perspective: 1200,
                 position: 'relative',
             }}
         >
             <div
-                className="card-flipper"
+                className={`card-flipper ${getAnimationClass()}`}
                 style={{
                     width: '100%',
                     height: '100%',
                     position: 'relative',
                     transformStyle: 'preserve-3d',
-                    transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: showFront ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                    transition: spinPhase === 'final' ? 'transform 0.5s ease-out' : 'none',
+                    transform: spinPhase === 'final' ? `rotateY(${getRotation()}deg)` : undefined,
                 }}
             >
-                {/* Back Side - Default position */}
+                {/* Back Side */}
                 <div
                     className="card-face card-back"
                     style={{
@@ -136,13 +153,15 @@ function FlippableCard({
                         backfaceVisibility: 'hidden',
                         borderRadius: 16,
                         overflow: 'hidden',
-                        border: isWinner ? '3px solid #10b981' : isWrecked ? '3px solid #ef4444' : '3px solid #d4a017',
-                        boxShadow: isWinner
-                            ? '0 0 30px rgba(16, 185, 129, 0.5)'
-                            : isWrecked
-                                ? '0 0 20px rgba(239, 68, 68, 0.4)'
+                        border: spinPhase === 'final'
+                            ? (isWinner ? '4px solid #10b981' : isWrecked ? '4px solid #ef4444' : '3px solid #d4a017')
+                            : '3px solid #d4a017',
+                        boxShadow: spinPhase === 'final' && isWinner
+                            ? '0 0 40px rgba(16, 185, 129, 0.6)'
+                            : spinPhase === 'final' && isWrecked
+                                ? '0 0 30px rgba(239, 68, 68, 0.5)'
                                 : '0 8px 32px rgba(0,0,0,0.4)',
-                        filter: isWrecked ? 'grayscale(50%) brightness(0.8)' : 'none',
+                        filter: spinPhase === 'final' && isWrecked ? 'grayscale(50%) brightness(0.7)' : 'none',
                     }}
                 >
                     <img
@@ -154,53 +173,45 @@ function FlippableCard({
                             objectFit: 'cover',
                         }}
                     />
-                    {/* Card name label on back */}
+                    {/* Card name on back */}
                     <div style={{
                         position: 'absolute',
-                        bottom: 40,
+                        bottom: 35,
                         left: '50%',
                         transform: 'translateX(-50%)',
-                        background: 'rgba(0,0,0,0.8)',
+                        background: 'rgba(0,0,0,0.85)',
                         padding: '8px 16px',
                         borderRadius: 8,
                         border: `2px solid ${styles.borderColor}`,
                     }}>
-                        <div style={{
-                            fontSize: 14,
-                            fontWeight: 800,
-                            color: '#fff',
-                            textAlign: 'center',
-                        }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', textAlign: 'center' }}>
                             {card.symbol}
                         </div>
-                        <div style={{
-                            fontSize: 10,
-                            color: styles.typeColor,
-                            textAlign: 'center',
-                        }}>
+                        <div style={{ fontSize: 10, color: styles.typeColor, textAlign: 'center' }}>
                             {card.cardType}
                         </div>
                     </div>
-                    {/* Winner/Loser badge on back */}
-                    {(isWinner || isWrecked) && (
+                    {/* Winner/Loser badge */}
+                    {spinPhase === 'final' && (isWinner || isWrecked) && (
                         <div style={{
                             position: 'absolute',
-                            top: 10,
+                            top: 12,
                             left: '50%',
                             transform: 'translateX(-50%)',
                             background: isWinner ? '#10b981' : '#ef4444',
                             color: '#fff',
-                            padding: '4px 12px',
-                            borderRadius: 6,
-                            fontSize: 11,
+                            padding: '6px 14px',
+                            borderRadius: 8,
+                            fontSize: 12,
                             fontWeight: 800,
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
                         }}>
                             {isWinner ? '🏆 WINNER' : '💀 WRECKED'}
                         </div>
                     )}
                 </div>
 
-                {/* Front Side - Shows After Flip */}
+                {/* Front Side */}
                 <div
                     className="card-face card-front"
                     style={{
@@ -210,14 +221,16 @@ function FlippableCard({
                         backfaceVisibility: 'hidden',
                         transform: 'rotateY(180deg)',
                         background: styles.background,
-                        border: `3px solid ${isWinner ? '#10b981' : isWrecked ? '#ef4444' : styles.borderColor}`,
+                        border: spinPhase === 'final'
+                            ? (isWinner ? '4px solid #10b981' : isWrecked ? '4px solid #ef4444' : `3px solid ${styles.borderColor}`)
+                            : `3px solid ${styles.borderColor}`,
                         borderRadius: 16,
-                        boxShadow: isWinner
-                            ? '0 0 30px rgba(16, 185, 129, 0.5)'
-                            : isWrecked
+                        boxShadow: spinPhase === 'final' && isWinner
+                            ? '0 0 40px rgba(16, 185, 129, 0.6)'
+                            : spinPhase === 'final' && isWrecked
                                 ? '0 0 30px rgba(239, 68, 68, 0.5)'
                                 : styles.boxShadow,
-                        filter: isWrecked ? 'grayscale(70%) brightness(0.7)' : 'none',
+                        filter: spinPhase === 'final' && isWrecked ? 'grayscale(70%) brightness(0.7)' : 'none',
                     }}
                 >
                     {/* Glowing ring */}
@@ -247,11 +260,7 @@ function FlippableCard({
                         <img
                             src={card.logo}
                             alt={card.symbol}
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover'
-                            }}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             onError={e => { (e.target as HTMLImageElement).src = '/token-logos/placeholder.png' }}
                         />
                     </div>
@@ -265,25 +274,16 @@ function FlippableCard({
                         textAlign: 'center',
                         width: '90%'
                     }}>
-                        <div style={{
-                            fontSize: 18,
-                            fontWeight: 900,
-                            color: styles.textColor,
-                        }}>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: styles.textColor }}>
                             {card.symbol}
                         </div>
-                        <div style={{
-                            fontSize: 12,
-                            fontWeight: 700,
-                            color: styles.typeColor,
-                            marginTop: 2
-                        }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: styles.typeColor, marginTop: 2 }}>
                             {card.cardType}
                         </div>
                     </div>
 
                     {/* Winner/Loser badge */}
-                    {(isWinner || isWrecked) && (
+                    {spinPhase === 'final' && (isWinner || isWrecked) && (
                         <div style={{
                             position: 'absolute',
                             top: '78%',
@@ -295,6 +295,7 @@ function FlippableCard({
                             borderRadius: 8,
                             fontSize: 12,
                             fontWeight: 800,
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
                         }}>
                             {isWinner ? '🏆 WINNER' : '💀 WRECKED'}
                         </div>
@@ -319,9 +320,7 @@ export default function TasoGamePage() {
     const [user, setUser] = useState<any>(null)
 
     // Animation states
-    const [cardsFlipped, setCardsFlipped] = useState(false)
-    const [showResult, setShowResult] = useState(false)
-    const [isColliding, setIsColliding] = useState(false)
+    const [animPhase, setAnimPhase] = useState<'waiting' | 'collide' | 'spinning' | 'slowing' | 'final'>('waiting')
     const animationRan = useRef(false)
 
     useEffect(() => {
@@ -362,25 +361,23 @@ export default function TasoGamePage() {
     }
 
     const startFlipAnimation = () => {
-        // Phase 1: Cards fly toward each other
-        setTimeout(() => {
-            setIsColliding(true)
-        }, 500)
+        // Phase 1: Cards fly toward each other and collide
+        setAnimPhase('collide')
 
-        // Phase 2: Collision shake
+        // Phase 2: Fast spinning (1.5s)
         setTimeout(() => {
-            setIsColliding(false)
-        }, 1200)
+            setAnimPhase('spinning')
+        }, 800)
 
-        // Phase 3: Cards flip to reveal front
+        // Phase 3: Slowing down (1.5s)
         setTimeout(() => {
-            setCardsFlipped(true)
-        }, 1500)
+            setAnimPhase('slowing')
+        }, 2300)
 
-        // Phase 4: Show result
+        // Phase 4: Final reveal
         setTimeout(() => {
-            setShowResult(true)
-        }, 2500)
+            setAnimPhase('final')
+        }, 3800)
     }
 
     const submitChoice = async (choice: 'front' | 'back') => {
@@ -446,6 +443,7 @@ export default function TasoGamePage() {
 
     const isP1Winner = game.winner === game.player1.wallet
     const isP2Winner = game.player2 && game.winner === game.player2.wallet
+    const spinPhase = animPhase === 'spinning' || animPhase === 'slowing' ? animPhase : animPhase === 'final' ? 'final' : 'idle'
 
     return (
         <>
@@ -465,7 +463,8 @@ export default function TasoGamePage() {
                         <p style={{ opacity: 0.7 }}>
                             {game.status === 'open' && '⏳ Waiting for opponent...'}
                             {game.status === 'waiting_choices' && '🎯 Choose: Front or Back!'}
-                            {game.status === 'resolved' && '✅ Game completed!'}
+                            {game.status === 'resolved' && animPhase !== 'final' && '🎰 Flipping...'}
+                            {game.status === 'resolved' && animPhase === 'final' && '✅ Game completed!'}
                         </p>
                     </div>
 
@@ -481,41 +480,43 @@ export default function TasoGamePage() {
                     }}>
                         {/* Player 1 Card */}
                         <div
-                            className={`player-card ${isColliding ? 'collide-right' : ''}`}
+                            className={animPhase === 'collide' ? 'collide-right' : ''}
                             style={{
                                 textAlign: 'center',
-                                transition: 'transform 0.5s ease',
-                                transform: showResult && !isP1Winner ? 'translateY(30px) rotate(-5deg)' : 'none',
-                                opacity: showResult && !isP1Winner ? 0.7 : 1,
+                                transition: 'all 0.5s ease',
+                                transform: animPhase === 'final' && !isP1Winner ? 'translateY(20px) rotate(-3deg)' : 'none',
+                                opacity: animPhase === 'final' && !isP1Winner ? 0.75 : 1,
                             }}
                         >
                             <p style={{
                                 fontWeight: 700,
                                 marginBottom: 12,
-                                color: showResult
+                                fontSize: 14,
+                                color: animPhase === 'final'
                                     ? (isP1Winner ? '#10b981' : '#ef4444')
                                     : '#ec4899'
                             }}>
-                                {showResult && isP1Winner && '🏆 '}
-                                {showResult && !isP1Winner && '💀 '}
+                                {animPhase === 'final' && isP1Winner && '🏆 '}
+                                {animPhase === 'final' && !isP1Winner && '💀 '}
                                 {shortenAddress(game.player1.wallet)}
                             </p>
 
-                            <FlippableCard
+                            <SpinningCard
                                 card={game.player1.card}
-                                showFront={showResult && game.flipResult === 'front'}
-                                isWinner={showResult && !!isP1Winner}
-                                isWrecked={showResult && !isP1Winner}
+                                spinPhase={spinPhase}
+                                finalSide={game.flipResult || 'front'}
+                                isWinner={animPhase === 'final' && !!isP1Winner}
+                                isWrecked={animPhase === 'final' && !isP1Winner}
                             />
 
-                            {showResult && game.player1.choice && (
-                                <p style={{ marginTop: 12, fontSize: 14, color: '#888' }}>
+                            {animPhase === 'final' && game.player1.choice && (
+                                <p style={{ marginTop: 12, fontSize: 13, color: '#888' }}>
                                     Choice: {game.player1.choice === 'front' ? '🎴 Front' : '🔙 Back'}
                                 </p>
                             )}
                         </div>
 
-                        {/* Center - Result Display */}
+                        {/* Center - Spinning indicator or Result */}
                         <div style={{
                             textAlign: 'center',
                             zIndex: 10,
@@ -526,32 +527,46 @@ export default function TasoGamePage() {
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
-                                    opacity: showResult ? 1 : 0.5,
-                                    transition: 'opacity 0.5s ease',
                                 }}>
-                                    <div style={{
-                                        fontSize: 60,
-                                        marginBottom: 8,
-                                        animation: isColliding ? 'spin3d 0.6s ease' : 'none',
-                                    }}>
-                                        {showResult
+                                    <div
+                                        className={animPhase === 'spinning' ? 'center-spin-fast' : animPhase === 'slowing' ? 'center-spin-slow' : ''}
+                                        style={{
+                                            fontSize: 70,
+                                            marginBottom: 12,
+                                            filter: animPhase !== 'final' ? 'drop-shadow(0 0 20px rgba(236, 72, 153, 0.8))' : 'none',
+                                        }}
+                                    >
+                                        {animPhase === 'final'
                                             ? (game.flipResult === 'front' ? '🎴' : '🔙')
                                             : '❓'}
                                     </div>
-                                    {showResult && (
-                                        <div style={{
-                                            background: game.flipResult === 'front'
-                                                ? 'linear-gradient(135deg, #10b981, #059669)'
-                                                : 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-                                            padding: '10px 20px',
-                                            borderRadius: 12,
-                                            fontWeight: 900,
-                                            fontSize: 18,
-                                            color: '#fff',
-                                            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-                                        }}>
-                                            {game.flipResult === 'front' ? 'FRONT' : 'BACK'}
+                                    {animPhase === 'final' && (
+                                        <div
+                                            className="result-reveal"
+                                            style={{
+                                                background: game.flipResult === 'front'
+                                                    ? 'linear-gradient(135deg, #10b981, #059669)'
+                                                    : 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                                                padding: '12px 28px',
+                                                borderRadius: 14,
+                                                fontWeight: 900,
+                                                fontSize: 22,
+                                                color: '#fff',
+                                                boxShadow: '0 6px 25px rgba(0,0,0,0.4)',
+                                                animation: 'popIn 0.4s ease-out',
+                                            }}
+                                        >
+                                            {game.flipResult === 'front' ? 'FRONT!' : 'BACK!'}
                                         </div>
+                                    )}
+                                    {animPhase !== 'final' && animPhase !== 'waiting' && (
+                                        <p style={{
+                                            color: '#ec4899',
+                                            fontWeight: 700,
+                                            animation: 'pulse 0.5s ease infinite'
+                                        }}>
+                                            Flipping...
+                                        </p>
                                     )}
                                 </div>
                             ) : (
@@ -568,12 +583,12 @@ export default function TasoGamePage() {
 
                         {/* Player 2 Card */}
                         <div
-                            className={`player-card ${isColliding ? 'collide-left' : ''}`}
+                            className={animPhase === 'collide' ? 'collide-left' : ''}
                             style={{
                                 textAlign: 'center',
-                                transition: 'transform 0.5s ease',
-                                transform: showResult && !isP2Winner ? 'translateY(30px) rotate(5deg)' : 'none',
-                                opacity: showResult && !isP2Winner && game.player2 ? 0.7 : 1,
+                                transition: 'all 0.5s ease',
+                                transform: animPhase === 'final' && !isP2Winner && game.player2 ? 'translateY(20px) rotate(3deg)' : 'none',
+                                opacity: animPhase === 'final' && !isP2Winner && game.player2 ? 0.75 : 1,
                             }}
                         >
                             {game.player2 ? (
@@ -581,24 +596,26 @@ export default function TasoGamePage() {
                                     <p style={{
                                         fontWeight: 700,
                                         marginBottom: 12,
-                                        color: showResult
+                                        fontSize: 14,
+                                        color: animPhase === 'final'
                                             ? (isP2Winner ? '#10b981' : '#ef4444')
                                             : '#ec4899'
                                     }}>
-                                        {showResult && isP2Winner && '🏆 '}
-                                        {showResult && !isP2Winner && '💀 '}
+                                        {animPhase === 'final' && isP2Winner && '🏆 '}
+                                        {animPhase === 'final' && !isP2Winner && '💀 '}
                                         {shortenAddress(game.player2.wallet)}
                                     </p>
 
-                                    <FlippableCard
+                                    <SpinningCard
                                         card={game.player2.card}
-                                        showFront={showResult && game.flipResult === 'front'}
-                                        isWinner={showResult && !!isP2Winner}
-                                        isWrecked={showResult && !isP2Winner}
+                                        spinPhase={spinPhase}
+                                        finalSide={game.flipResult || 'front'}
+                                        isWinner={animPhase === 'final' && !!isP2Winner}
+                                        isWrecked={animPhase === 'final' && !isP2Winner}
                                     />
 
-                                    {showResult && game.player2.choice && (
-                                        <p style={{ marginTop: 12, fontSize: 14, color: '#888' }}>
+                                    {animPhase === 'final' && game.player2.choice && (
+                                        <p style={{ marginTop: 12, fontSize: 13, color: '#888' }}>
                                             Choice: {game.player2.choice === 'front' ? '🎴 Front' : '🔙 Back'}
                                         </p>
                                     )}
@@ -639,6 +656,7 @@ export default function TasoGamePage() {
                                 <button
                                     onClick={() => submitChoice('front')}
                                     disabled={submitting}
+                                    className="choice-btn"
                                     style={{
                                         padding: '20px 40px',
                                         borderRadius: 16,
@@ -655,6 +673,7 @@ export default function TasoGamePage() {
                                 <button
                                     onClick={() => submitChoice('back')}
                                     disabled={submitting}
+                                    className="choice-btn"
                                     style={{
                                         padding: '20px 40px',
                                         borderRadius: 16,
@@ -685,27 +704,28 @@ export default function TasoGamePage() {
                     )}
 
                     {/* Result */}
-                    {game.status === 'resolved' && showResult && game.winner && (
-                        <div className="panel" style={{
+                    {game.status === 'resolved' && animPhase === 'final' && game.winner && (
+                        <div className="panel result-panel" style={{
                             textAlign: 'center',
                             padding: 32,
                             background: game.winner.toLowerCase() === address?.toLowerCase()
-                                ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.15), transparent)'
-                                : 'linear-gradient(180deg, rgba(239, 68, 68, 0.15), transparent)',
+                                ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.2), transparent)'
+                                : 'linear-gradient(180deg, rgba(239, 68, 68, 0.2), transparent)',
                             border: game.winner.toLowerCase() === address?.toLowerCase()
-                                ? '2px solid rgba(16, 185, 129, 0.4)'
-                                : '2px solid rgba(239, 68, 68, 0.4)'
+                                ? '3px solid rgba(16, 185, 129, 0.5)'
+                                : '3px solid rgba(239, 68, 68, 0.5)',
+                            animation: 'fadeInUp 0.5s ease-out'
                         }}>
                             {game.winner.toLowerCase() === address?.toLowerCase() ? (
                                 <>
-                                    <p style={{ fontSize: 32, marginBottom: 8 }}>🎉 You Won!</p>
-                                    <p style={{ fontSize: 28, fontWeight: 900, color: '#10b981' }}>
+                                    <p style={{ fontSize: 36, marginBottom: 8 }}>🎉 You Won!</p>
+                                    <p style={{ fontSize: 32, fontWeight: 900, color: '#10b981' }}>
                                         +{((game.stake * 2 * 0.9) / 1000).toFixed(0)}K $FLIP
                                     </p>
                                 </>
                             ) : myPlayer ? (
                                 <>
-                                    <p style={{ fontSize: 32, marginBottom: 8 }}>😢 You Lost</p>
+                                    <p style={{ fontSize: 36, marginBottom: 8 }}>😢 You Lost</p>
                                     <p style={{ fontSize: 14, color: '#ef4444' }}>
                                         Your card has been wrecked.
                                     </p>
@@ -740,39 +760,104 @@ export default function TasoGamePage() {
                 </main>
 
                 <style jsx global>{`
+          /* Card Collision Animations */
           @keyframes collideRight {
             0% { transform: translateX(0); }
-            50% { transform: translateX(40px); }
-            70% { transform: translateX(30px) rotate(3deg); }
-            100% { transform: translateX(0); }
+            50% { transform: translateX(50px) scale(1.05); }
+            70% { transform: translateX(40px) rotate(5deg); }
+            85% { transform: translateX(45px) rotate(-3deg); }
+            100% { transform: translateX(0) rotate(0deg); }
           }
           
           @keyframes collideLeft {
             0% { transform: translateX(0); }
-            50% { transform: translateX(-40px); }
-            70% { transform: translateX(-30px) rotate(-3deg); }
-            100% { transform: translateX(0); }
+            50% { transform: translateX(-50px) scale(1.05); }
+            70% { transform: translateX(-40px) rotate(-5deg); }
+            85% { transform: translateX(-45px) rotate(3deg); }
+            100% { transform: translateX(0) rotate(0deg); }
           }
           
-          @keyframes spin3d {
+          .collide-right {
+            animation: collideRight 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+          }
+          
+          .collide-left {
+            animation: collideLeft 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+          }
+          
+          /* Card Multi-Spin Animations */
+          @keyframes spinFast {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(1440deg); } /* 4 full rotations */
+          }
+          
+          @keyframes spinSlow {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(720deg); } /* 2 rotations, slowing */
+          }
+          
+          .card-spin-fast .card-flipper {
+            animation: spinFast 1.5s linear;
+          }
+          
+          .card-spin-slow .card-flipper {
+            animation: spinSlow 1.5s cubic-bezier(0.33, 1, 0.68, 1);
+          }
+          
+          /* Center Emoji Spin */
+          @keyframes centerSpinFast {
+            0% { transform: rotateY(0deg) scale(1); }
+            50% { transform: rotateY(360deg) scale(1.2); }
+            100% { transform: rotateY(720deg) scale(1); }
+          }
+          
+          @keyframes centerSpinSlow {
             0% { transform: rotateY(0deg); }
             100% { transform: rotateY(360deg); }
           }
           
-          @keyframes shake {
-            0%, 100% { transform: translateX(0) rotate(0deg); }
-            20% { transform: translateX(-8px) rotate(-3deg); }
-            40% { transform: translateX(8px) rotate(3deg); }
-            60% { transform: translateX(-6px) rotate(-2deg); }
-            80% { transform: translateX(6px) rotate(2deg); }
+          .center-spin-fast {
+            animation: centerSpinFast 1.5s linear;
+            transform-style: preserve-3d;
           }
           
-          .collide-right {
-            animation: collideRight 0.7s ease forwards, shake 0.3s ease 0.7s;
+          .center-spin-slow {
+            animation: centerSpinSlow 1.5s cubic-bezier(0.33, 1, 0.68, 1);
+            transform-style: preserve-3d;
           }
           
-          .collide-left {
-            animation: collideLeft 0.7s ease forwards, shake 0.3s ease 0.7s;
+          /* Result Reveal Animations */
+          @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          
+          @keyframes fadeInUp {
+            0% { transform: translateY(30px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+          }
+          
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+          
+          .result-reveal {
+            animation: popIn 0.4s ease-out;
+          }
+          
+          .result-panel {
+            animation: fadeInUp 0.5s ease-out;
+          }
+          
+          /* Choice Button Hover */
+          .choice-btn {
+            transition: all 0.2s ease;
+          }
+          .choice-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
           }
         `}</style>
             </div>
