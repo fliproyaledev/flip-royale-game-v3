@@ -124,7 +124,7 @@ export default function RewardsPage() {
             </Head>
 
             <div className="app" data-theme={theme}>
-                <Topbar activeTab="arena" user={user} />
+                <Topbar activeTab="rewards" user={user} />
 
                 <main style={{ maxWidth: 800, margin: '0 auto', padding: '20px 16px' }}>
                     {/* Header */}
