@@ -75,7 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const token = getTokenById(tokenId);
             if (token) {
                 // Fetch FDV immediately for player2
-                const fdv = token.dexscreenerPair ? await getTokenFDV(token.dexscreenerPair) : 0;
+                const fdv = token.dexscreenerPair ? await getTokenFDV(token.dexscreenerPair, token.symbol) : await getTokenFDV(undefined, token.symbol);
                 duelCards.push({
                     cardId: `${tokenId}_${Date.now()}`,
                     tokenId,
@@ -93,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (card.fdv === 0) {
                 const token = getTokenById(card.tokenId);
                 if (token?.dexscreenerPair) {
-                    card.fdv = await getTokenFDV(token.dexscreenerPair);
+                    card.fdv = await getTokenFDV(token.dexscreenerPair, token.symbol);
                 }
             }
         }

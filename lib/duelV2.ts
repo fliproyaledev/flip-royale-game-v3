@@ -84,23 +84,56 @@ export function generateDuelId(): string {
 // FDV FETCHING
 // ─────────────────────────────────────────────────────────────
 
-export async function getTokenFDV(dexscreenerPair?: string): Promise<number> {
-    if (!dexscreenerPair) return 0;
+/**
+ * Fetch token FDV using DexScreener's search API (more reliable than pair lookup)
+ * Falls back to pair lookup if symbol search fails
+ */
+export async function getTokenFDV(symbolOrPair?: string, symbol?: string): Promise<number> {
+    if (!symbolOrPair && !symbol) return 0;
 
-    try {
-        const res = await fetch(
-            `https://api.dexscreener.com/latest/dex/pairs/base/${dexscreenerPair}`,
-            { next: { revalidate: 60 } } // Cache for 1 minute
-        );
+    // Try symbol-based search first (more reliable)
+    const searchSymbol = symbol || symbolOrPair;
+    if (searchSymbol) {
+        try {
+            const searchRes = await fetch(
+                `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(searchSymbol)}`,
+                { next: { revalidate: 60 } }
+            );
 
-        if (!res.ok) return 0;
-
-        const data = await res.json();
-        return data.pair?.fdv || 0;
-    } catch (error) {
-        console.error('Failed to fetch FDV:', error);
-        return 0;
+            if (searchRes.ok) {
+                const searchData = await searchRes.json();
+                // Find the first Base chain pair with FDV
+                const basePair = searchData.pairs?.find(
+                    (p: any) => p.chainId === 'base' && p.fdv && p.fdv > 0
+                );
+                if (basePair?.fdv) {
+                    return basePair.fdv;
+                }
+            }
+        } catch (error) {
+            console.error('FDV search failed, trying pair lookup:', error);
+        }
     }
+
+    // Fallback to pair address lookup
+    if (symbolOrPair && symbolOrPair.startsWith('0x')) {
+        try {
+            const res = await fetch(
+                `https://api.dexscreener.com/latest/dex/pairs/base/${symbolOrPair}`,
+                { next: { revalidate: 60 } }
+            );
+
+            if (!res.ok) return 0;
+
+            const data = await res.json();
+            return data.pair?.fdv || 0;
+        } catch (error) {
+            console.error('Failed to fetch FDV via pair:', error);
+            return 0;
+        }
+    }
+
+    return 0;
 }
 
 // ─────────────────────────────────────────────────────────────
