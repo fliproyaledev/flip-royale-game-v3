@@ -1,9 +1,10 @@
 /**
- * POST /api/arena/duel/create - Yeni Flip Duel odası oluştur
+ * POST /api/arena/duel/create - Create new Flip Duel room
+ * RULE: Cards with FDV=0 are NOT allowed in duels
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createFlipDuel, checkDailyLimit, DUEL_TIERS, DuelTier, CARDS_PER_DUEL, DuelCard } from '../../../../lib/duelV2';
+import { createFlipDuel, checkDailyLimit, DUEL_TIERS, DuelTier, CARDS_PER_DUEL, DuelCard, getTokenFDV } from '../../../../lib/duelV2';
 import { getUser } from '../../../../lib/users';
 import { getTokenById } from '../../../../lib/tokens';
 
@@ -34,17 +35,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Count active cards (for now using legacy inventory)
         const inventory = user.inventory || {};
         const cardTokenIds = Object.keys(inventory).filter(k => !k.includes('_pack'));
-        const activeCardCount = cardTokenIds.reduce((sum, id) => sum + (inventory[id] || 0), 0);
 
-        if (activeCardCount < CARDS_PER_DUEL) {
+        // First, filter out cards that don't have valid pair addresses
+        // We need to verify FDV before allowing in duel
+        const validCards: { tokenId: string; count: number; fdv: number }[] = [];
+        const invalidCards: string[] = [];
+
+        for (const tokenId of cardTokenIds) {
+            const count = inventory[tokenId] || 0;
+            if (count <= 0) continue;
+
+            const token = getTokenById(tokenId);
+            if (!token) continue;
+
+            // STRICT RULE: Check if token has valid pair address and non-zero FDV
+            if (!token.dexscreenerPair) {
+                invalidCards.push(token.symbol);
+                continue;
+            }
+
+            // Fetch FDV using ONLY the pair address from token-list.json
+            const fdv = await getTokenFDV(token.dexscreenerPair);
+
+            // STRICT RULE: Cards with FDV=0 are NOT allowed
+            if (fdv === 0) {
+                invalidCards.push(token.symbol);
+                continue;
+            }
+
+            validCards.push({ tokenId, count, fdv });
+        }
+
+        // Count total valid cards
+        const validCardCount = validCards.reduce((sum, c) => sum + c.count, 0);
+
+        if (validCardCount < CARDS_PER_DUEL) {
             return res.status(400).json({
                 ok: false,
-                error: `Need at least ${CARDS_PER_DUEL} cards. You have ${activeCardCount}`
+                error: `Need at least ${CARDS_PER_DUEL} cards with valid FDV. You have ${validCardCount} valid cards.`,
+                invalidCards: invalidCards.length > 0 ? invalidCards : undefined
             });
         }
 
         // Check daily limit
-        const limitCheck = await checkDailyLimit(cleanWallet, activeCardCount);
+        const limitCheck = await checkDailyLimit(cleanWallet, validCardCount);
         if (!limitCheck.allowed) {
             return res.status(400).json({
                 ok: false,
@@ -52,21 +86,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             });
         }
 
-        // Select random cards from inventory (exclude Virtual - no reliable FDV)
-        const availableCards: { tokenId: string; count: number }[] = [];
-        const EXCLUDED_TOKENS = ['virtual']; // Tokens to exclude from Duel
-
-        for (const [tokenId, count] of Object.entries(inventory)) {
-            if (!tokenId.includes('_pack') && count > 0 && !EXCLUDED_TOKENS.includes(tokenId.toLowerCase())) {
-                availableCards.push({ tokenId, count: count as number });
-            }
-        }
-
-        // Flatten and shuffle
-        const allCards: string[] = [];
-        for (const { tokenId, count } of availableCards) {
+        // Flatten and shuffle valid cards only
+        const allCards: { tokenId: string; fdv: number }[] = [];
+        for (const { tokenId, count, fdv } of validCards) {
             for (let i = 0; i < count; i++) {
-                allCards.push(tokenId);
+                allCards.push({ tokenId, fdv });
             }
         }
 
@@ -76,28 +100,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
         }
 
-        const selectedTokenIds = allCards.slice(0, CARDS_PER_DUEL);
+        const selectedCards = allCards.slice(0, CARDS_PER_DUEL);
 
-        // Build DuelCard objects with FDV
+        // Build DuelCard objects with pre-fetched FDV
         const duelCards: DuelCard[] = [];
-        for (const tokenId of selectedTokenIds) {
+        for (const { tokenId, fdv } of selectedCards) {
             const token = getTokenById(tokenId);
             if (token) {
-                // TODO: Fetch real FDV from DexScreener
                 duelCards.push({
-                    cardId: `${tokenId}_${Date.now()}`,
+                    cardId: `${tokenId}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
                     tokenId,
                     symbol: token.symbol,
                     name: token.name,
                     logo: token.logo,
                     cardType: token.about || 'common',
-                    fdv: 0, // Will be fetched when match resolves
+                    fdv, // Pre-fetched FDV from pair address
                 });
             }
         }
 
         if (duelCards.length < CARDS_PER_DUEL) {
-            return res.status(400).json({ ok: false, error: 'Could not build card set' });
+            return res.status(400).json({ ok: false, error: 'Could not build card set with valid FDV' });
         }
 
         // Create duel

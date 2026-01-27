@@ -85,55 +85,28 @@ export function generateDuelId(): string {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Fetch token FDV using DexScreener's search API (more reliable than pair lookup)
- * Falls back to pair lookup if symbol search fails
+ * Fetch token FDV using ONLY the pair address from token-list.json
+ * If pair address is invalid or returns null, FDV will be 0
+ * Cards with FDV=0 should NOT be included in duels
  */
-export async function getTokenFDV(symbolOrPair?: string, symbol?: string): Promise<number> {
-    if (!symbolOrPair && !symbol) return 0;
+export async function getTokenFDV(pairAddress?: string): Promise<number> {
+    if (!pairAddress) return 0;
 
-    // Try symbol-based search first (more reliable)
-    const searchSymbol = symbol || symbolOrPair;
-    if (searchSymbol) {
-        try {
-            const searchRes = await fetch(
-                `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(searchSymbol)}`,
-                { next: { revalidate: 60 } }
-            );
+    // Only use pair address lookup - no symbol search
+    try {
+        const res = await fetch(
+            `https://api.dexscreener.com/latest/dex/pairs/base/${pairAddress}`,
+            { next: { revalidate: 60 } } // Cache for 1 minute
+        );
 
-            if (searchRes.ok) {
-                const searchData = await searchRes.json();
-                // Find the first Base chain pair with FDV
-                const basePair = searchData.pairs?.find(
-                    (p: any) => p.chainId === 'base' && p.fdv && p.fdv > 0
-                );
-                if (basePair?.fdv) {
-                    return basePair.fdv;
-                }
-            }
-        } catch (error) {
-            console.error('FDV search failed, trying pair lookup:', error);
-        }
+        if (!res.ok) return 0;
+
+        const data = await res.json();
+        return data.pair?.fdv || 0;
+    } catch (error) {
+        console.error('Failed to fetch FDV:', error);
+        return 0;
     }
-
-    // Fallback to pair address lookup
-    if (symbolOrPair && symbolOrPair.startsWith('0x')) {
-        try {
-            const res = await fetch(
-                `https://api.dexscreener.com/latest/dex/pairs/base/${symbolOrPair}`,
-                { next: { revalidate: 60 } }
-            );
-
-            if (!res.ok) return 0;
-
-            const data = await res.json();
-            return data.pair?.fdv || 0;
-        } catch (error) {
-            console.error('Failed to fetch FDV via pair:', error);
-            return 0;
-        }
-    }
-
-    return 0;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -322,6 +295,26 @@ export async function listOpenDuels(tier?: DuelTier): Promise<FlipDuel[]> {
  */
 export async function getFlipDuel(duelId: string): Promise<FlipDuel | null> {
     return await kv.get<FlipDuel>(`${DUEL_PREFIX}${duelId}`);
+}
+
+/**
+ * Save/update a complete duel object (used when API builds the matched duel)
+ */
+export async function saveFlipDuel(duel: FlipDuel): Promise<void> {
+    await kv.set(`${DUEL_PREFIX}${duel.id}`, duel);
+
+    // If duel is no longer open, remove from open duels set
+    if (duel.status !== 'open') {
+        await kv.srem(OPEN_DUELS_KEY, duel.id);
+    }
+
+    // Add to user duel histories
+    if (duel.player1?.wallet) {
+        await kv.lpush(`${USER_DUELS_PREFIX}${duel.player1.wallet}`, duel.id);
+    }
+    if (duel.player2?.wallet) {
+        await kv.lpush(`${USER_DUELS_PREFIX}${duel.player2.wallet}`, duel.id);
+    }
 }
 
 /**
