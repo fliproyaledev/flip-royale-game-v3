@@ -37,14 +37,11 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
     uint256 public constant REPLYCORP_RATE = 50;      // 5%
     uint256 public constant RATE_DENOMINATOR = 1000;
     
-    // Room expiration time (24 hours)
-    uint256 public constant ROOM_EXPIRATION = 24 hours;
-    
     // ─────────────────────────────────────────────────────────────
     // ENUMS & STRUCTS
     // ─────────────────────────────────────────────────────────────
     
-    enum RoomStatus { Open, Filled, Resolved, Cancelled, Expired }
+    enum RoomStatus { Open, Filled, Resolved, Cancelled }
     enum GameMode { Duel, Taso }
     
     struct Room {
@@ -121,11 +118,6 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
     );
     
     event RoomCancelled(
-        bytes32 indexed roomId,
-        address indexed player1
-    );
-    
-    event RoomExpiredRefund(
         bytes32 indexed roomId,
         address indexed player1
     );
@@ -224,7 +216,6 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
         require(room.player1 != address(0), "Room not found");
         require(room.status == RoomStatus.Open, "Room not open");
         require(room.player1 != msg.sender, "Cannot join own room");
-        require(block.timestamp < room.createdAt + ROOM_EXPIRATION, "Room expired");
         
         // Transfer stake to contract
         usdc.safeTransferFrom(msg.sender, address(this), room.stake);
@@ -255,25 +246,6 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
         usdc.safeTransfer(msg.sender, room.stake);
         
         emit RoomCancelled(roomId, msg.sender);
-    }
-    
-    /**
-     * @notice Claim refund for expired room
-     * @param roomId The expired room
-     */
-    function claimExpiredRefund(bytes32 roomId) external nonReentrant {
-        Room storage room = rooms[roomId];
-        
-        require(room.player1 == msg.sender, "Not room creator");
-        require(room.status == RoomStatus.Open, "Not eligible");
-        require(block.timestamp >= room.createdAt + ROOM_EXPIRATION, "Not expired yet");
-        
-        room.status = RoomStatus.Expired;
-        
-        // Refund stake
-        usdc.safeTransfer(msg.sender, room.stake);
-        
-        emit RoomExpiredRefund(roomId, msg.sender);
     }
     
     // ─────────────────────────────────────────────────────────────
@@ -414,8 +386,7 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
         for (uint256 i = 0; i < allRoomIds.length; i++) {
             Room storage room = rooms[allRoomIds[i]];
             if (room.tier == tier && 
-                room.status == RoomStatus.Open &&
-                block.timestamp < room.createdAt + ROOM_EXPIRATION) {
+                room.status == RoomStatus.Open) {
                 count++;
             }
         }
@@ -437,8 +408,7 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
         for (uint256 i = 0; i < allRoomIds.length && added < resultSize; i++) {
             Room storage room = rooms[allRoomIds[i]];
             if (room.tier == tier && 
-                room.status == RoomStatus.Open &&
-                block.timestamp < room.createdAt + ROOM_EXPIRATION) {
+                room.status == RoomStatus.Open) {
                 if (found >= offset) {
                     roomIds[added] = allRoomIds[i];
                     added++;
