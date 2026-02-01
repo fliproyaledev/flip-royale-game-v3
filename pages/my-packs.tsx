@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
+import { useAccount } from 'wagmi'
 import { useToast } from '../lib/toast'
 import Topbar from '../components/Topbar'
 import { TOKENS, getTokenById } from '../lib/tokens'
@@ -85,6 +86,8 @@ export default function MyPacksPage() {
   const router = useRouter()
   const { toast } = useToast()
 
+  const { address } = useAccount()
+
   useEffect(() => {
     const saved = localStorage.getItem('flipflop-user')
     if (saved) {
@@ -131,12 +134,16 @@ export default function MyPacksPage() {
 
   async function openPack(packType: string) {
     if (!user?.id) return toast('Please login first', 'error')
+
+    // Prefer connected wallet address for card storage
+    const targetUserId = address ? address.toLowerCase() : String(user.id).toLowerCase()
+
     setOpening(true)
     try {
       const res = await fetch('/api/users/openPack', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id).toLowerCase() },
-        body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType })
+        headers: { 'Content-Type': 'application/json', 'x-user-id': targetUserId },
+        body: JSON.stringify({ userId: targetUserId, packType })
       })
       const data = await res.json()
       if (!res.ok) return toast(data?.error || 'Failed to open pack', 'error')
@@ -153,6 +160,10 @@ export default function MyPacksPage() {
 
   async function openAll(packType: string) {
     if (!user?.id) return toast('Please login first', 'error')
+
+    // Prefer connected wallet address for card storage
+    const targetUserId = address ? address.toLowerCase() : String(user.id).toLowerCase()
+
     const count = packs[packType] || 0
     if (count < 1) return toast('No packs to open', 'error')
     setOpening(true)
@@ -161,8 +172,8 @@ export default function MyPacksPage() {
       for (let i = 0; i < count; i++) {
         const res = await fetch('/api/users/openPack', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id).toLowerCase() },
-          body: JSON.stringify({ userId: String(user.id).toLowerCase(), packType })
+          headers: { 'Content-Type': 'application/json', 'x-user-id': targetUserId },
+          body: JSON.stringify({ userId: targetUserId, packType })
         })
         const data = await res.json()
         if (!res.ok) {

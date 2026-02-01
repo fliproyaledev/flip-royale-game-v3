@@ -2,7 +2,7 @@
 // FlipRoyaleRewardsClaim contract integration
 
 // Contract will be deployed - placeholder for now
-export const REWARDS_CLAIM_ADDRESS = process.env.NEXT_PUBLIC_REWARDS_CLAIM_CONTRACT || "";
+export const REWARDS_CLAIM_ADDRESS = process.env.NEXT_PUBLIC_REWARDS_CLAIM_CONTRACT || "0x773e5a48D29F87238688Acd34dC1522416908CF0";
 export const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC_ADDRESS || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 // ABI for rewards claim contract
