@@ -41,7 +41,7 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
     // ENUMS & STRUCTS
     // ─────────────────────────────────────────────────────────────
     
-    enum RoomStatus { Open, Filled, Resolved, Cancelled }
+    enum RoomStatus { Open, Filled, Resolved, Draw, Cancelled }
     enum GameMode { Duel, Taso }
     
     struct Room {
@@ -115,6 +115,13 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
         uint256 winnerPayout,
         uint256 teamFee,
         uint256 replyCorpFee
+    );
+    
+    event RoomDraw(
+        bytes32 indexed roomId,
+        address indexed player1,
+        address indexed player2,
+        uint256 refundAmount
     );
     
     event RoomCancelled(
@@ -305,6 +312,43 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
         usdc.safeTransfer(treasury, teamFee);
         
         emit RoomResolved(roomId, winner, winnerPayout, teamFee, replyCorpFee);
+    }
+    
+    /**
+     * @notice Resolve room as draw - both players get refunded
+     * @param roomId The room to resolve as draw
+     * @param nonce Unique nonce for replay protection
+     * @param signature Oracle signature of (roomId, address(0), nonce) - address(0) indicates draw
+     */
+    function resolveRoomDraw(
+        bytes32 roomId,
+        bytes32 nonce,
+        bytes calldata signature
+    ) external nonReentrant {
+        Room storage room = rooms[roomId];
+        
+        require(room.status == RoomStatus.Filled, "Room not filled");
+        require(!usedNonces[nonce], "Nonce already used");
+        
+        // Verify oracle signature - address(0) indicates draw
+        bytes32 messageHash = keccak256(abi.encodePacked(roomId, address(0), nonce));
+        bytes32 ethSignedHash = messageHash.toEthSignedMessageHash();
+        address signer = ethSignedHash.recover(signature);
+        require(signer == oracle, "Invalid oracle signature");
+        
+        // Mark nonce as used
+        usedNonces[nonce] = true;
+        
+        // Update room
+        room.status = RoomStatus.Draw;
+        room.winner = address(0);
+        room.resolvedAt = block.timestamp;
+        
+        // Refund both players - no fees charged
+        usdc.safeTransfer(room.player1, room.stake);
+        usdc.safeTransfer(room.player2, room.stake);
+        
+        emit RoomDraw(roomId, room.player1, room.player2, room.stake);
     }
     
     // ─────────────────────────────────────────────────────────────
