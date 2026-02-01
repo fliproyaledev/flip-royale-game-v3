@@ -1,8 +1,8 @@
 // lib/contracts/packShopV2.ts
-// FlipRoyalePackShopV2 kontrat entegrasyonu - $FLIP token ile 5 paket tipi
+// FlipRoyalePackShopV3 contract integration - Virtual token with 5 pack types
 
-export const PACK_SHOP_V2_ADDRESS = process.env.NEXT_PUBLIC_PACK_SHOP_V2_CONTRACT || "0x1BA19f1A9DDcAFA1e0fCd4A4A919364cEE8Aa22e";
-export const FLIP_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_FLIP_TOKEN_ADDRESS || "0xB8E4a7b56BDc2a2598C2011e61eF7669Ee3F589e";
+export const PACK_SHOP_V2_ADDRESS = process.env.NEXT_PUBLIC_PACK_SHOP_CONTRACT || "0xe2DB819F068d8e3040C66154dC10A057206f5120";
+export const VIRTUAL_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_VIRTUAL_TOKEN || "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b";
 
 // Pack Types
 export const PACK_TYPES_V2 = {
@@ -15,13 +15,13 @@ export const PACK_TYPES_V2 = {
 
 export type PackTypeV2 = 'common' | 'rare' | 'unicorn' | 'genesis' | 'sentient';
 
-// Pack Prices (FLIP tokens)
+// Pack Prices (Virtual tokens)
 export const PACK_PRICES_V2: Record<PackTypeV2, number> = {
-    common: 50000,
-    rare: 100000,
-    unicorn: 50000,
-    genesis: 50000,
-    sentient: 50000
+    common: 15,
+    rare: 25,
+    unicorn: 35,
+    genesis: 20,
+    sentient: 20
 };
 
 // Pack Info

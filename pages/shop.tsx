@@ -10,7 +10,7 @@ import { useTheme } from '../lib/theme'
 import { useToast } from '../lib/toast'
 import {
     PACK_SHOP_V2_ADDRESS,
-    FLIP_TOKEN_ADDRESS,
+    VIRTUAL_TOKEN_ADDRESS,
     PACK_SHOP_V2_ABI,
     ERC20_ABI,
     PACK_INFO,
@@ -62,7 +62,7 @@ export default function ShopPage() {
 
     // Check FLIP allowance - wagmi 2.x API
     const { data: allowance, refetch: refetchAllowance } = useReadContract({
-        address: FLIP_TOKEN_ADDRESS as `0x${string}`,
+        address: VIRTUAL_TOKEN_ADDRESS as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'allowance',
         args: [address!, PACK_SHOP_V2_ADDRESS as `0x${string}`],
@@ -71,7 +71,7 @@ export default function ShopPage() {
 
     // Check FLIP balance - wagmi 2.x API
     const { data: balance } = useReadContract({
-        address: FLIP_TOKEN_ADDRESS as `0x${string}`,
+        address: VIRTUAL_TOKEN_ADDRESS as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'balanceOf',
         args: [address!],
@@ -168,7 +168,7 @@ export default function ShopPage() {
                 setStatus('approving')
                 toast('Approving FLIP...', 'info')
                 const hash = await writeContractAsync({
-                    address: FLIP_TOKEN_ADDRESS as `0x${string}`,
+                    address: VIRTUAL_TOKEN_ADDRESS as `0x${string}`,
                     abi: ERC20_ABI,
                     functionName: 'approve',
                     args: [PACK_SHOP_V2_ADDRESS as `0x${string}`, priceWei * BigInt(2)]

@@ -33,8 +33,7 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
     
     // Fee rates (1000 = 100%)
     uint256 public constant WINNER_RATE = 900;        // 90%
-    uint256 public constant TEAM_RATE = 50;           // 5%
-    uint256 public constant REPLYCORP_RATE = 50;      // 5%
+    uint256 public constant FEE_RATE = 100;           // 10% to treasury
     uint256 public constant RATE_DENOMINATOR = 1000;
     
     // ─────────────────────────────────────────────────────────────
@@ -68,12 +67,8 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
     uint256 public diamondStake = 100 * 10**6;  // $100
     
     // Wallets
-    address public treasury;        // Team wallet (5%)
+    address public treasury;        // Fee wallet (10%)
     address public oracle;          // Signer for resolving games
-    
-    // ReplyCorp tracking (accumulated, paid later)
-    uint256 public pendingReplyCorpFees;
-    uint256 public totalReplyCorpPaid;
     
     // Room storage
     mapping(bytes32 => Room) public rooms;
@@ -127,11 +122,6 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
     event RoomCancelled(
         bytes32 indexed roomId,
         address indexed player1
-    );
-    
-    event ReplyCorpFeesWithdrawn(
-        address indexed to,
-        uint256 amount
     );
     
     event OracleUpdated(address indexed newOracle);
@@ -289,9 +279,8 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
         
         // Calculate payouts
         uint256 totalPot = room.stake * 2;
-        uint256 winnerPayout = (totalPot * WINNER_RATE) / RATE_DENOMINATOR;    // 90%
-        uint256 teamFee = (totalPot * TEAM_RATE) / RATE_DENOMINATOR;           // 5%
-        uint256 replyCorpFee = (totalPot * REPLYCORP_RATE) / RATE_DENOMINATOR; // 5%
+        uint256 winnerPayout = (totalPot * WINNER_RATE) / RATE_DENOMINATOR;  // 90%
+        uint256 fee = (totalPot * FEE_RATE) / RATE_DENOMINATOR;              // 10%
         
         // Update room
         room.status = RoomStatus.Resolved;
@@ -304,14 +293,11 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
         userLosses[loser]++;
         userTotalWinnings[winner] += winnerPayout;
         
-        // Accumulate ReplyCorp fee
-        pendingReplyCorpFees += replyCorpFee;
-        
         // Transfer payouts
         usdc.safeTransfer(winner, winnerPayout);
-        usdc.safeTransfer(treasury, teamFee);
+        usdc.safeTransfer(treasury, fee);
         
-        emit RoomResolved(roomId, winner, winnerPayout, teamFee, replyCorpFee);
+        emit RoomResolved(roomId, winner, winnerPayout, fee, 0);
     }
     
     /**
@@ -499,23 +485,6 @@ contract FlipRoyaleArena is Ownable, ReentrancyGuard, Pausable {
         require(_oracle != address(0), "Invalid oracle");
         oracle = _oracle;
         emit OracleUpdated(_oracle);
-    }
-    
-    /**
-     * @notice Withdraw accumulated ReplyCorp fees
-     * @param to ReplyCorp wallet address
-     * @param amount Amount to withdraw
-     */
-    function withdrawReplyCorpFees(address to, uint256 amount) external onlyOwner {
-        require(to != address(0), "Invalid address");
-        require(amount <= pendingReplyCorpFees, "Insufficient pending fees");
-        
-        pendingReplyCorpFees -= amount;
-        totalReplyCorpPaid += amount;
-        
-        usdc.safeTransfer(to, amount);
-        
-        emit ReplyCorpFeesWithdrawn(to, amount);
     }
     
     /**

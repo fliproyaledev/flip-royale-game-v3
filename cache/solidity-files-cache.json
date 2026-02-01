@@ -375,8 +375,8 @@
       ]
     },
     "D:\\flip-royale-game-v3-main\\contracts\\FlipRoyaleArena.sol": {
-      "lastModificationDate": 1769974918483,
-      "contentHash": "29428e5a42f16834b8e77f510383c755",
+      "lastModificationDate": 1769981604090,
+      "contentHash": "4780d66735750e9b0a27a34dc56d89fb",
       "sourceName": "contracts/FlipRoyaleArena.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -758,6 +758,47 @@
       ],
       "artifacts": [
         "FlipRoyalePackShopV2"
+      ]
+    },
+    "D:\\flip-royale-game-v3-main\\contracts\\FlipRoyalePackShopV3.sol": {
+      "lastModificationDate": 1769984375122,
+      "contentHash": "ba14c98e9039084a372561463250e5b7",
+      "sourceName": "contracts/FlipRoyalePackShopV3.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "FlipRoyalePackShopV3"
       ]
     }
   }

@@ -1,5 +1,5 @@
 /**
- * Taso Lobby - Card Flip Game
+ * Flip Flop Lobby - Card Flip Game
  * Players pick front/back when creating or joining rooms
  */
 
@@ -285,7 +285,7 @@ export default function TasoLobby() {
     return (
         <>
             <Head>
-                <title>Taso | FLIP ROYALE</title>
+                <title>Flip Flop | FLIP ROYALE</title>
                 <meta name="description" content="Card flip game - Front or Back, test your luck!" />
             </Head>
 
@@ -302,7 +302,7 @@ export default function TasoLobby() {
                             margin: 0,
                             color: '#ec4899'
                         }}>
-                            🃏 Taso
+                            🃏 Flip Flop
                         </h1>
                     </div>
 
@@ -345,7 +345,7 @@ export default function TasoLobby() {
 
                     {!isConnected ? (
                         <div className="panel" style={{ textAlign: 'center', padding: 32 }}>
-                            <p style={{ marginBottom: 16 }}>Connect your wallet to play Taso</p>
+                            <p style={{ marginBottom: 16 }}>Connect your wallet to play Flip Flop</p>
                             <ConnectButton />
                         </div>
                     ) : (

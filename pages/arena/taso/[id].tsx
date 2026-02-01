@@ -1,5 +1,5 @@
 /**
- * Taso Game - Card Flip with REAL spinning animation
+ * Flip Flop Game - Card Flip with REAL spinning animation
  * Cards spin on Y-axis showing front and back alternating
  */
 
@@ -473,7 +473,7 @@ export default function TasoGamePage() {
     return (
         <>
             <Head>
-                <title>Taso Game | FLIP ROYALE</title>
+                <title>Flip Flop Game | FLIP ROYALE</title>
             </Head>
 
             <div className="app" data-theme={theme}>
@@ -483,7 +483,7 @@ export default function TasoGamePage() {
                     {/* Header */}
                     <div style={{ textAlign: 'center', marginBottom: 24 }}>
                         <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 8, color: '#ec4899' }}>
-                            🃏 Taso Game
+                            🃏 Flip Flop Game
                         </h1>
                         <p style={{ opacity: 0.7 }}>
                             {game.status === 'open' && '⏳ Waiting for opponent...'}
