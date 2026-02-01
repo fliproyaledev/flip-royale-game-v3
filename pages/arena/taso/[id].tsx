@@ -718,6 +718,25 @@ export default function TasoGamePage() {
                         </div>
                     )}
 
+                    {/* Draw Result */}
+                    {game.status === 'draw' && showFinal && (
+                        <div className="panel" style={{
+                            textAlign: 'center',
+                            padding: 32,
+                            background: 'linear-gradient(180deg, rgba(234, 179, 8, 0.2), transparent)',
+                            border: '3px solid rgba(234, 179, 8, 0.5)',
+                            animation: 'fadeInUp 0.5s ease-out'
+                        }}>
+                            <p style={{ fontSize: 36, marginBottom: 8 }}>🤝 Draw!</p>
+                            <p style={{ fontSize: 18, color: '#eab308' }}>
+                                Both players chose the same. No winner, no cards wrecked.
+                            </p>
+                            <p style={{ fontSize: 14, opacity: 0.7, marginTop: 12 }}>
+                                Your card is safe. Try again!
+                            </p>
+                        </div>
+                    )}
+
                     {/* Result */}
                     {game.status === 'resolved' && showFinal && game.winner && (
                         <div className="panel" style={{

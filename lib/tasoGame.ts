@@ -43,7 +43,7 @@ export interface TasoPlayer {
     choice?: TasoChoice;   // Kullanıcının seçimi
 }
 
-export type TasoStatus = 'open' | 'waiting_choices' | 'resolved' | 'cancelled';
+export type TasoStatus = 'open' | 'waiting_choices' | 'resolved' | 'draw' | 'cancelled';
 
 export interface TasoGame {
     id: string;
@@ -205,11 +205,11 @@ export async function joinTasoGame(
             game.loserCardWrecked = game.player1.card.cardId;
             game.status = 'resolved';
         } else {
-            // Draw - random winner
-            game.winner = Math.random() > 0.5 ? game.player1.wallet : game.player2.wallet;
-            const loser = game.winner === game.player1.wallet ? game.player2 : game.player1;
-            game.loserCardWrecked = loser.card.cardId;
-            game.status = 'resolved';
+            // Draw - no winner, no wrecked card
+            // Both players keep their cards
+            game.winner = undefined;
+            game.loserCardWrecked = undefined;
+            game.status = 'draw';
         }
     } else {
         // Shouldn't happen with new flow, but fallback
