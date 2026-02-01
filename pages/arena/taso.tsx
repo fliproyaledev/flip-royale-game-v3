@@ -1,37 +1,33 @@
 /**
- * Flip Flop Lobby - Card Flip Game
+ * Flip Flop Arena - USDC Card Flip Game
  * Players pick front/back when creating or joining rooms
+ * Uses FlipRoyaleArena contract for USDC stakes
  */
 
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { useAccount } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Topbar from '../../components/Topbar'
 import { useTheme } from '../../lib/theme'
 import { useToast } from '../../lib/toast'
+import {
+    ARENA_CONTRACT_ADDRESS,
+    USDC_ADDRESS,
+    ARENA_ABI,
+    ERC20_ABI,
+    TIER_INFO,
+    GameMode,
+    RoomStatus,
+    ArenaTier,
+    ArenaRoom,
+    formatUSDC,
+    shortenAddress
+} from '../../lib/contracts/arenaContract'
 
-type TasoTier = 'low' | 'mid' | 'high'
 type TasoChoice = 'front' | 'back'
-
-const TIER_INFO: Record<TasoTier, { name: string; stake: string; color: string }> = {
-    low: { name: 'Low', stake: '25K', color: '#10b981' },
-    mid: { name: 'Medium', stake: '50K', color: '#f59e0b' },
-    high: { name: 'High', stake: '100K', color: '#ef4444' },
-}
-
-interface TasoGame {
-    id: string
-    tier: TasoTier
-    status: string
-    stake: number
-    player1: {
-        wallet: string
-        card: any
-    }
-}
 
 // Choice Selection Modal
 function ChoiceModal({
@@ -102,21 +98,15 @@ function ChoiceModal({
                             flex: 1,
                             padding: '24px 16px',
                             borderRadius: 16,
-                            border: '3px solid #10b981',
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            color: '#10b981',
-                            fontSize: 18,
-                            fontWeight: 800,
+                            border: '2px solid #10b981',
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            color: '#fff',
                             cursor: loading ? 'wait' : 'pointer',
-                            transition: 'all 0.2s',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 8
+                            transition: 'all 0.2s'
                         }}
                     >
-                        <span style={{ fontSize: 40 }}>🎴</span>
-                        FRONT
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>🎴</div>
+                        <div style={{ fontWeight: 700, fontSize: 16 }}>FRONT</div>
                     </button>
                     <button
                         onClick={() => onSelect('back')}
@@ -125,29 +115,17 @@ function ChoiceModal({
                             flex: 1,
                             padding: '24px 16px',
                             borderRadius: 16,
-                            border: '3px solid #8b5cf6',
-                            background: 'rgba(139, 92, 246, 0.15)',
-                            color: '#8b5cf6',
-                            fontSize: 18,
-                            fontWeight: 800,
+                            border: '2px solid #8b5cf6',
+                            background: 'rgba(139, 92, 246, 0.1)',
+                            color: '#fff',
                             cursor: loading ? 'wait' : 'pointer',
-                            transition: 'all 0.2s',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 8
+                            transition: 'all 0.2s'
                         }}
                     >
-                        <span style={{ fontSize: 40 }}>🔙</span>
-                        BACK
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>🔙</div>
+                        <div style={{ fontWeight: 700, fontSize: 16 }}>BACK</div>
                     </button>
                 </div>
-
-                {loading && (
-                    <p style={{ textAlign: 'center', color: '#ec4899', fontWeight: 600 }}>
-                        ⏳ Processing...
-                    </p>
-                )}
 
                 <button
                     onClick={onClose}
@@ -155,14 +133,12 @@ function ChoiceModal({
                     style={{
                         width: '100%',
                         padding: '12px',
-                        borderRadius: 10,
-                        border: 'none',
-                        background: 'rgba(255,255,255,0.1)',
+                        borderRadius: 8,
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'transparent',
                         color: '#fff',
-                        fontSize: 14,
-                        fontWeight: 600,
                         cursor: 'pointer',
-                        opacity: loading ? 0.5 : 1
+                        opacity: 0.7
                     }}
                 >
                     Cancel
@@ -173,52 +149,86 @@ function ChoiceModal({
 }
 
 export default function TasoLobby() {
+    const router = useRouter()
     const { theme } = useTheme()
     const { toast } = useToast()
-    const router = useRouter()
     const { address, isConnected } = useAccount()
 
-    const [user, setUser] = useState<any>(null)
-    const [openGames, setOpenGames] = useState<TasoGame[]>([])
+    // State
+    const [selectedTier, setSelectedTier] = useState<ArenaTier>(0)
+    const [openRooms, setOpenRooms] = useState<ArenaRoom[]>([])
     const [loading, setLoading] = useState(true)
-    const [selectedTier, setSelectedTier] = useState<TasoTier>('low')
-
-    // Modal states
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [showJoinModal, setShowJoinModal] = useState(false)
-    const [selectedGameId, setSelectedGameId] = useState<string | null>(null)
+    const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
     const [processing, setProcessing] = useState(false)
+    const [status, setStatus] = useState<'idle' | 'approving' | 'creating' | 'joining'>('idle')
+    const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
+    const [user, setUser] = useState<any>(null)
 
+    // Contract hooks
+    const { writeContractAsync } = useWriteContract()
+
+    // Check USDC allowance
+    const { data: allowance, refetch: refetchAllowance } = useReadContract({
+        address: USDC_ADDRESS as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [address!, ARENA_CONTRACT_ADDRESS as `0x${string}`],
+        query: { enabled: Boolean(address) },
+    })
+
+    // Check USDC balance
+    const { data: usdcBalance } = useReadContract({
+        address: USDC_ADDRESS as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [address!],
+        query: { enabled: Boolean(address) },
+    })
+
+    // Wait for transaction
+    const { isSuccess: txSuccess } = useWaitForTransactionReceipt({
+        hash: txHash,
+    })
+
+    // Load user data
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            try {
-                const saved = localStorage.getItem('flipflop-user')
-                if (saved) setUser(JSON.parse(saved))
-            } catch { }
+            const saved = localStorage.getItem('flipflop-user')
+            if (saved) {
+                try { setUser(JSON.parse(saved)) } catch { }
+            }
         }
     }, [])
 
+    // Load open rooms from contract
     useEffect(() => {
-        loadGames()
-        const interval = setInterval(loadGames, 10000)
+        loadRooms()
+        const interval = setInterval(loadRooms, 15000)
         return () => clearInterval(interval)
     }, [])
 
-    const loadGames = async () => {
+    const loadRooms = async () => {
         try {
-            const res = await fetch('/api/arena/taso/list')
+            const res = await fetch('/api/arena/rooms?gameMode=1&status=0')
             const data = await res.json()
             if (data.ok) {
-                setOpenGames(data.games || [])
+                setOpenRooms(data.rooms || [])
             }
         } catch (err) {
-            console.error('Load games error:', err)
+            console.error('Load rooms error:', err)
         } finally {
             setLoading(false)
         }
     }
 
+    // Create room flow
     const handleCreateClick = () => {
+        if (!isConnected) {
+            toast('Please connect your wallet', 'error')
+            return
+        }
         setShowCreateModal(true)
     }
 
@@ -227,95 +237,190 @@ export default function TasoLobby() {
         setProcessing(true)
 
         try {
-            const res = await fetch('/api/arena/taso/create', {
+            const stake = BigInt(TIER_INFO[selectedTier].stake)
+
+            // Check allowance
+            if (!allowance || allowance < stake) {
+                setStatus('approving')
+                toast('Approving USDC...', 'info')
+
+                const approveHash = await writeContractAsync({
+                    address: USDC_ADDRESS as `0x${string}`,
+                    abi: ERC20_ABI,
+                    functionName: 'approve',
+                    args: [ARENA_CONTRACT_ADDRESS as `0x${string}`, stake * BigInt(10)]
+                })
+
+                setTxHash(approveHash)
+                toast('USDC approved! Creating room...', 'success')
+                await refetchAllowance()
+            }
+
+            // Create room on contract
+            setStatus('creating')
+            toast('Creating room...', 'info')
+
+            const createHash = await writeContractAsync({
+                address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+                abi: ARENA_ABI,
+                functionName: 'createRoom',
+                args: [selectedTier, GameMode.Taso]
+            })
+
+            setTxHash(createHash)
+
+            // Save choice to backend for Oracle
+            await fetch('/api/arena/taso/choice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet: address, tier: selectedTier, choice })
+                body: JSON.stringify({
+                    wallet: address,
+                    txHash: createHash,
+                    choice,
+                    tier: selectedTier
+                })
             })
-            const data = await res.json()
 
-            if (data.ok) {
-                toast(`🃏 Room created! Your choice: ${choice === 'front' ? 'FRONT' : 'BACK'}`, 'success')
-                setShowCreateModal(false)
-                loadGames()
-            } else {
-                toast(data.error || 'Failed to create room', 'error')
-            }
+            toast(`🃏 Room created! Your choice: ${choice.toUpperCase()}`, 'success')
+            setShowCreateModal(false)
+            loadRooms()
+
         } catch (err: any) {
-            toast(err.message || 'Error', 'error')
+            console.error(err)
+            toast(err.shortMessage || err.message || 'Failed to create room', 'error')
         } finally {
             setProcessing(false)
+            setStatus('idle')
         }
     }
 
-    const handleJoinClick = (gameId: string) => {
-        setSelectedGameId(gameId)
+    // Join room flow
+    const handleJoinClick = (roomId: string) => {
+        if (!isConnected) {
+            toast('Please connect your wallet', 'error')
+            return
+        }
+        setSelectedRoomId(roomId)
         setShowJoinModal(true)
     }
 
     const handleJoinConfirm = async (choice: TasoChoice) => {
-        if (!address || !selectedGameId) return
+        if (!address || !selectedRoomId) return
         setProcessing(true)
 
         try {
-            const res = await fetch('/api/arena/taso/join', {
+            const room = openRooms.find(r => r.id === selectedRoomId)
+            if (!room) throw new Error('Room not found')
+
+            const stake = room.stake
+
+            // Check allowance
+            if (!allowance || allowance < stake) {
+                setStatus('approving')
+                toast('Approving USDC...', 'info')
+
+                const approveHash = await writeContractAsync({
+                    address: USDC_ADDRESS as `0x${string}`,
+                    abi: ERC20_ABI,
+                    functionName: 'approve',
+                    args: [ARENA_CONTRACT_ADDRESS as `0x${string}`, stake * BigInt(10)]
+                })
+
+                setTxHash(approveHash)
+                toast('USDC approved! Joining room...', 'success')
+                await refetchAllowance()
+            }
+
+            // Join room on contract
+            setStatus('joining')
+            toast('Joining room...', 'info')
+
+            const joinHash = await writeContractAsync({
+                address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+                abi: ARENA_ABI,
+                functionName: 'joinRoom',
+                args: [selectedRoomId as `0x${string}`]
+            })
+
+            setTxHash(joinHash)
+
+            // Save choice to backend for Oracle resolution
+            await fetch('/api/arena/taso/choice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet: address, gameId: selectedGameId, choice })
+                body: JSON.stringify({
+                    wallet: address,
+                    roomId: selectedRoomId,
+                    txHash: joinHash,
+                    choice
+                })
             })
-            const data = await res.json()
 
-            if (data.ok) {
-                toast('🎯 Joined game! Revealing result...', 'success')
-                router.push(`/arena/taso/${selectedGameId}`)
-            } else {
-                toast(data.error || 'Failed to join', 'error')
-            }
+            toast('🎯 Joined! Resolving game...', 'success')
+
+            // Trigger Oracle resolution
+            await fetch('/api/arena/taso/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roomId: selectedRoomId })
+            })
+
+            // Navigate to game page
+            router.push(`/arena/taso/${selectedRoomId}`)
+
         } catch (err: any) {
-            toast(err.message || 'Error', 'error')
+            console.error(err)
+            toast(err.shortMessage || err.message || 'Failed to join', 'error')
         } finally {
             setProcessing(false)
+            setStatus('idle')
             setShowJoinModal(false)
-            setSelectedGameId(null)
+            setSelectedRoomId(null)
         }
     }
 
-    const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`
+    const balance = usdcBalance ? Number(usdcBalance) / 1_000_000 : 0
 
     return (
         <>
             <Head>
                 <title>Flip Flop | FLIP ROYALE</title>
-                <meta name="description" content="Card flip game - Front or Back, test your luck!" />
+                <meta name="description" content="USDC card flip arena - Pick FRONT or BACK!" />
             </Head>
 
             <div className="app" data-theme={theme}>
                 <Topbar activeTab="arena" user={user} />
 
-                <main style={{ maxWidth: 1000, margin: '0 auto', padding: '20px 16px' }}>
+                <main style={{ maxWidth: 800, margin: '0 auto', padding: '20px 16px' }}>
                     {/* Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-                        <Link href="/arena" style={{ color: 'inherit', opacity: 0.7 }}>← Arena</Link>
-                        <h1 style={{
-                            fontSize: 28,
-                            fontWeight: 900,
-                            margin: 0,
-                            color: '#ec4899'
+                    <Link href="/arena" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 16, opacity: 0.7 }}>
+                        ← Arena
+                    </Link>
+
+                    <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 8, color: '#ec4899' }}>
+                        🃏 Flip Flop
+                    </h1>
+
+                    {/* USDC Balance */}
+                    {isConnected && (
+                        <div style={{
+                            display: 'inline-block',
+                            background: 'rgba(16, 185, 129, 0.2)',
+                            padding: '8px 16px',
+                            borderRadius: 8,
+                            marginBottom: 24,
+                            fontSize: 14
                         }}>
-                            🃏 Flip Flop
-                        </h1>
-                    </div>
+                            💵 USDC Balance: <strong>${balance.toFixed(2)}</strong>
+                        </div>
+                    )}
 
                     {/* How to Play */}
-                    <div style={{
-                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1))',
-                        border: '1px solid rgba(139, 92, 246, 0.3)',
-                        borderRadius: 12,
-                        padding: 16,
-                        marginBottom: 16
-                    }}>
-                        <h3 style={{ margin: '0 0 8px 0', fontSize: 14, color: '#8b5cf6' }}>🎮 How to Play</h3>
-                        <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, opacity: 0.85, lineHeight: 1.6 }}>
+                    <div className="panel" style={{ padding: 20, marginBottom: 24 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: '#ec4899' }}>
+                            📖 How to Play
+                        </h3>
+                        <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, opacity: 0.85 }}>
                             <li>Create a room or join an existing one</li>
                             <li><strong>Make your choice:</strong> FRONT or BACK</li>
                             <li>Cards flip and the result is determined</li>
@@ -359,10 +464,10 @@ export default function TasoLobby() {
                                 {/* Tier Selection */}
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: 'block', marginBottom: 8, opacity: 0.7 }}>
-                                        Select Stake Tier
+                                        Select Stake Tier (USDC)
                                     </label>
                                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                                        {(Object.keys(TIER_INFO) as TasoTier[]).map(tier => (
+                                        {([0, 1, 2, 3] as ArenaTier[]).map(tier => (
                                             <button
                                                 key={tier}
                                                 onClick={() => setSelectedTier(tier)}
@@ -377,7 +482,7 @@ export default function TasoLobby() {
                                                     transition: 'all 0.2s'
                                                 }}
                                             >
-                                                {TIER_INFO[tier].name} ({TIER_INFO[tier].stake} $FLIP)
+                                                {TIER_INFO[tier].name} ({TIER_INFO[tier].stakeFormatted})
                                             </button>
                                         ))}
                                     </div>
@@ -385,6 +490,7 @@ export default function TasoLobby() {
 
                                 <button
                                     onClick={handleCreateClick}
+                                    disabled={processing}
                                     style={{
                                         padding: '12px 32px',
                                         borderRadius: 10,
@@ -393,77 +499,82 @@ export default function TasoLobby() {
                                         color: '#fff',
                                         fontSize: 14,
                                         fontWeight: 800,
-                                        cursor: 'pointer'
+                                        cursor: processing ? 'wait' : 'pointer',
+                                        opacity: processing ? 0.7 : 1
                                     }}
                                 >
-                                    🃏 Create Room & Choose
+                                    {processing ? (
+                                        status === 'approving' ? '⏳ Approving USDC...' :
+                                            status === 'creating' ? '⏳ Creating Room...' :
+                                                '⏳ Processing...'
+                                    ) : '🃏 Create Room & Choose'}
                                 </button>
                             </div>
 
                             {/* Open Games */}
                             <div className="panel" style={{ padding: 24 }}>
                                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    🔥 Open Rooms ({openGames.length})
+                                    🔥 Open Rooms ({openRooms.length})
                                 </h2>
 
                                 {loading ? (
                                     <p style={{ opacity: 0.6 }}>Loading...</p>
-                                ) : openGames.length === 0 ? (
+                                ) : openRooms.length === 0 ? (
                                     <p style={{ opacity: 0.6 }}>No open rooms. Be the first to create one!</p>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        {openGames.map(game => (
+                                        {openRooms.map(room => (
                                             <div
-                                                key={game.id}
+                                                key={room.id}
                                                 style={{
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'space-between',
                                                     padding: 16,
                                                     borderRadius: 12,
-                                                    background: `${TIER_INFO[game.tier]?.color || '#ec4899'}10`,
-                                                    border: `1px solid ${TIER_INFO[game.tier]?.color || '#ec4899'}30`
+                                                    background: `${TIER_INFO[room.tier]?.color || '#ec4899'}10`,
+                                                    border: `1px solid ${TIER_INFO[room.tier]?.color || '#ec4899'}30`
                                                 }}
                                             >
                                                 <div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                                                         <span style={{
-                                                            background: TIER_INFO[game.tier]?.color || '#ec4899',
+                                                            background: TIER_INFO[room.tier]?.color || '#ec4899',
                                                             color: '#000',
                                                             padding: '2px 8px',
                                                             borderRadius: 4,
                                                             fontSize: 11,
                                                             fontWeight: 700
                                                         }}>
-                                                            {TIER_INFO[game.tier]?.name || game.tier}
+                                                            {TIER_INFO[room.tier]?.name || 'Unknown'}
                                                         </span>
                                                         <span style={{ opacity: 0.7, fontSize: 13 }}>
-                                                            {shortenAddress(game.player1.wallet)}
+                                                            {shortenAddress(room.player1)}
                                                         </span>
                                                     </div>
                                                     <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
-                                                        🏆 Stake: {(game.stake / 1000).toFixed(0)}K $FLIP
+                                                        🏆 Stake: {formatUSDC(Number(room.stake))} USDC
                                                     </p>
                                                 </div>
 
                                                 <button
-                                                    onClick={() => handleJoinClick(game.id)}
-                                                    disabled={game.player1.wallet.toLowerCase() === address?.toLowerCase()}
+                                                    onClick={() => handleJoinClick(room.id)}
+                                                    disabled={room.player1.toLowerCase() === address?.toLowerCase() || processing}
                                                     style={{
                                                         padding: '10px 20px',
                                                         borderRadius: 8,
                                                         border: 'none',
-                                                        background: game.player1.wallet.toLowerCase() === address?.toLowerCase()
+                                                        background: room.player1.toLowerCase() === address?.toLowerCase()
                                                             ? 'rgba(255,255,255,0.1)'
                                                             : 'linear-gradient(135deg, #10b981, #059669)',
                                                         color: '#fff',
                                                         fontSize: 13,
                                                         fontWeight: 700,
                                                         cursor: 'pointer',
-                                                        opacity: game.player1.wallet.toLowerCase() === address?.toLowerCase() ? 0.5 : 1
+                                                        opacity: room.player1.toLowerCase() === address?.toLowerCase() ? 0.5 : 1
                                                     }}
                                                 >
-                                                    {game.player1.wallet.toLowerCase() === address?.toLowerCase()
+                                                    {room.player1.toLowerCase() === address?.toLowerCase()
                                                         ? 'Your Room'
                                                         : '🎯 Join & Choose'}
                                                 </button>
@@ -488,10 +599,10 @@ export default function TasoLobby() {
                 {/* Join Modal */}
                 <ChoiceModal
                     isOpen={showJoinModal}
-                    title="Odaya Katıl"
+                    title="Join Room"
                     onClose={() => {
                         setShowJoinModal(false)
-                        setSelectedGameId(null)
+                        setSelectedRoomId(null)
                     }}
                     onSelect={handleJoinConfirm}
                     loading={processing}

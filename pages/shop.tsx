@@ -227,7 +227,7 @@ export default function ShopPage() {
         <>
             <Head>
                 <title>Pack Shop | FLIP ROYALE</title>
-                <meta name="description" content="Buy card packs with $FLIP tokens" />
+                <meta name="description" content="Buy card packs with VIRTUAL tokens" />
             </Head>
 
             <div className="app" data-theme={theme}>
@@ -252,7 +252,7 @@ export default function ShopPage() {
                         marginBottom: 32,
                         fontSize: 16
                     }}>
-                        Buy card packs with $FLIP tokens. Each pack contains 5 cards!
+                        Buy card packs with VIRTUAL tokens. Each pack contains 5 cards!
                     </p>
 
                     {/* Pack Grid - Responsive: Desktop grid / Mobile horizontal scroll */}
@@ -379,7 +379,7 @@ export default function ShopPage() {
                                                 fontSize: 14,
                                                 fontWeight: 900
                                             }}>
-                                                {formatFlipAmount(price)} FLIP
+                                                {formatFlipAmount(price)} VIRTUAL
                                             </span>
                                         </div>
 
@@ -446,7 +446,7 @@ export default function ShopPage() {
                                         }}>
                                             <span className="pack-card-text" style={{ fontSize: 10 }}>Total: </span>
                                             <span className="pack-card-text" style={{ fontSize: 13, fontWeight: 800 }}>
-                                                {formatFlipAmount(totalPrice)} FLIP
+                                                {formatFlipAmount(totalPrice)} VIRTUAL
                                             </span>
                                         </div>
 
@@ -492,7 +492,7 @@ export default function ShopPage() {
                         <p style={{ opacity: 0.7, fontSize: 14, lineHeight: 1.6 }}>
                             1. Connect your wallet and X account<br />
                             2. Choose a pack type and quantity<br />
-                            3. Approve FLIP tokens (first time only)<br />
+                            3. Approve VIRTUAL tokens (first time only)<br />
                             4. Confirm the purchase transaction<br />
                             5. New cards are added to your inventory!
                         </p>
