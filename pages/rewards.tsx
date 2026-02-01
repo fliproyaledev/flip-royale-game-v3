@@ -1,19 +1,26 @@
 /**
- * Rewards / Withdraw Page - Claim your Arena winnings
+ * Rewards / Withdraw Page - Claim USDC Arena winnings via contract
  */
 
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
-import { useAccount } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Topbar from '../components/Topbar'
 import { useTheme } from '../lib/theme'
 import { useToast } from '../lib/toast'
+import {
+    REWARDS_CLAIM_ADDRESS,
+    REWARDS_CLAIM_ABI,
+    USDC_ADDRESS,
+    formatUSDC
+} from '../lib/contracts/rewardsClaim'
 
 interface ClaimRecord {
     id: string
     amount: number
+    txHash?: string
     status: 'pending' | 'processing' | 'completed' | 'failed'
     createdAt: number
 }
@@ -24,11 +31,41 @@ export default function RewardsPage() {
     const { address, isConnected } = useAccount()
 
     const [user, setUser] = useState<any>(null)
-    const [balance, setBalance] = useState(0)
+    const [pendingBalance, setPendingBalance] = useState(0) // Off-chain pending rewards
     const [history, setHistory] = useState<ClaimRecord[]>([])
     const [loading, setLoading] = useState(true)
     const [claiming, setClaiming] = useState(false)
     const [claimAmount, setClaimAmount] = useState('')
+    const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
+
+    // Contract hooks
+    const { writeContractAsync } = useWriteContract()
+
+    // Check if contract is configured
+    const isContractConfigured = REWARDS_CLAIM_ADDRESS && REWARDS_CLAIM_ADDRESS.length > 10
+
+    // Get user's claim nonce from contract
+    const { data: claimNonce } = useReadContract({
+        address: REWARDS_CLAIM_ADDRESS as `0x${string}`,
+        abi: REWARDS_CLAIM_ABI,
+        functionName: 'getNonce',
+        args: [address!],
+        query: { enabled: Boolean(address) && Boolean(isContractConfigured) },
+    })
+
+    // Get user's total claimed from contract
+    const { data: totalClaimed } = useReadContract({
+        address: REWARDS_CLAIM_ADDRESS as `0x${string}`,
+        abi: REWARDS_CLAIM_ABI,
+        functionName: 'totalClaimed',
+        args: [address!],
+        query: { enabled: Boolean(address) && Boolean(isContractConfigured) },
+    })
+
+    // Wait for transaction
+    const { isSuccess: txSuccess } = useWaitForTransactionReceipt({
+        hash: txHash,
+    })
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -43,6 +80,13 @@ export default function RewardsPage() {
         if (address) loadRewards()
     }, [address])
 
+    useEffect(() => {
+        if (txSuccess) {
+            toast('🎉 Claim successful! USDC sent to your wallet', 'success')
+            loadRewards()
+        }
+    }, [txSuccess])
+
     const loadRewards = async () => {
         if (!address) return
         setLoading(true)
@@ -52,7 +96,7 @@ export default function RewardsPage() {
             const data = await res.json()
 
             if (data.ok) {
-                setBalance(data.balance || 0)
+                setPendingBalance(data.balance || 0) // In USDC (6 decimals)
                 setHistory(data.history || [])
             }
         } catch (err) {
@@ -63,35 +107,65 @@ export default function RewardsPage() {
     }
 
     const handleClaim = async () => {
+        if (!isContractConfigured) {
+            toast('Claim contract not configured yet', 'error')
+            return
+        }
+
         const amount = parseInt(claimAmount)
         if (!amount || amount <= 0) {
             toast('Enter a valid amount', 'error')
             return
         }
-        if (amount > balance) {
+        if (amount > pendingBalance) {
             toast('Insufficient balance', 'error')
             return
         }
 
         setClaiming(true)
         try {
-            const res = await fetch('/api/arena/rewards', {
+            // 1. Get signature from Oracle API
+            const signRes = await fetch('/api/arena/rewards/sign', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet: address, amount })
+                body: JSON.stringify({
+                    wallet: address,
+                    amount,
+                    nonce: claimNonce ? Number(claimNonce) : 0
+                })
             })
-            const data = await res.json()
+            const signData = await signRes.json()
 
-            if (data.ok) {
-                toast(`🎉 Claim submitted! ${(amount / 1000).toFixed(0)}K $FLIP`, 'success')
-                setBalance(data.newBalance)
-                setClaimAmount('')
-                loadRewards()
-            } else {
-                toast(data.error || 'Claim failed', 'error')
+            if (!signData.ok) {
+                throw new Error(signData.error || 'Failed to get signature')
             }
+
+            // 2. Call contract claim function
+            toast('Claiming USDC...', 'info')
+            const hash = await writeContractAsync({
+                address: REWARDS_CLAIM_ADDRESS as `0x${string}`,
+                abi: REWARDS_CLAIM_ABI,
+                functionName: 'claim',
+                args: [BigInt(amount), BigInt(signData.nonce), signData.signature as `0x${string}`]
+            })
+
+            setTxHash(hash)
+            setClaimAmount('')
+
+            // 3. Update backend to deduct balance
+            await fetch('/api/arena/rewards/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    wallet: address,
+                    amount,
+                    txHash: hash
+                })
+            })
+
         } catch (err: any) {
-            toast(err.message || 'Error', 'error')
+            console.error(err)
+            toast(err.shortMessage || err.message || 'Claim failed', 'error')
         } finally {
             setClaiming(false)
         }
@@ -116,11 +190,15 @@ export default function RewardsPage() {
         }
     }
 
+    // Format balance for display (USDC has 6 decimals)
+    const displayBalance = pendingBalance / 1_000_000
+    const displayTotalClaimed = totalClaimed ? Number(totalClaimed) / 1_000_000 : 0
+
     return (
         <>
             <Head>
                 <title>Rewards | FLIP ROYALE</title>
-                <meta name="description" content="Claim your Arena winnings" />
+                <meta name="description" content="Claim your USDC Arena winnings" />
             </Head>
 
             <div className="app" data-theme={theme}>
@@ -169,25 +247,40 @@ export default function RewardsPage() {
                                     margin: 0,
                                     color: '#10b981'
                                 }}>
-                                    {(balance / 1000).toFixed(0)}K $FLIP
+                                    ${displayBalance.toFixed(2)} USDC
                                 </p>
-                                <p style={{ fontSize: 13, opacity: 0.6, marginTop: 4 }}>
-                                    ≈ {balance.toLocaleString()} $FLIP
-                                </p>
+                                {displayTotalClaimed > 0 && (
+                                    <p style={{ fontSize: 13, opacity: 0.6, marginTop: 8 }}>
+                                        Total claimed: ${displayTotalClaimed.toFixed(2)} USDC
+                                    </p>
+                                )}
                             </div>
 
                             {/* Claim Section */}
                             <div className="panel" style={{ padding: 24, marginBottom: 24 }}>
                                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    🏧 Withdraw
+                                    🏧 Withdraw USDC
                                 </h2>
+
+                                {!isContractConfigured && (
+                                    <div style={{
+                                        background: 'rgba(245, 158, 11, 0.1)',
+                                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                                        borderRadius: 8,
+                                        padding: 12,
+                                        marginBottom: 16,
+                                        fontSize: 13
+                                    }}>
+                                        ⚠️ Claim contract not deployed yet. Coming soon!
+                                    </div>
+                                )}
 
                                 <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
                                     <input
                                         type="number"
                                         value={claimAmount}
                                         onChange={e => setClaimAmount(e.target.value)}
-                                        placeholder="Amount ($FLIP)"
+                                        placeholder="Amount (USDC)"
                                         style={{
                                             flex: 1,
                                             padding: '12px 16px',
@@ -199,7 +292,7 @@ export default function RewardsPage() {
                                         }}
                                     />
                                     <button
-                                        onClick={() => setClaimAmount(balance.toString())}
+                                        onClick={() => setClaimAmount(pendingBalance.toString())}
                                         style={{
                                             padding: '12px 20px',
                                             borderRadius: 10,
@@ -217,48 +310,53 @@ export default function RewardsPage() {
 
                                 {/* Quick amounts */}
                                 <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                                    {[10000, 50000, 100000].filter(v => v <= balance).map(amount => (
-                                        <button
-                                            key={amount}
-                                            onClick={() => setClaimAmount(amount.toString())}
-                                            style={{
-                                                padding: '8px 16px',
-                                                borderRadius: 8,
-                                                border: '1px solid rgba(255,255,255,0.2)',
-                                                background: 'rgba(255,255,255,0.05)',
-                                                color: 'inherit',
-                                                fontSize: 13,
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            {(amount / 1000).toFixed(0)}K
-                                        </button>
-                                    ))}
+                                    {[10_000_000, 25_000_000, 50_000_000, 100_000_000]
+                                        .filter(v => v <= pendingBalance)
+                                        .map(amount => (
+                                            <button
+                                                key={amount}
+                                                onClick={() => setClaimAmount(amount.toString())}
+                                                style={{
+                                                    padding: '8px 16px',
+                                                    borderRadius: 8,
+                                                    border: '1px solid rgba(255,255,255,0.2)',
+                                                    background: 'rgba(255,255,255,0.05)',
+                                                    color: 'inherit',
+                                                    fontSize: 13,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                ${(amount / 1_000_000).toFixed(0)}
+                                            </button>
+                                        ))}
                                 </div>
 
                                 <button
                                     onClick={handleClaim}
-                                    disabled={claiming || balance === 0}
+                                    disabled={claiming || pendingBalance === 0 || !isContractConfigured}
                                     style={{
                                         width: '100%',
                                         padding: '14px 24px',
                                         borderRadius: 12,
                                         border: 'none',
-                                        background: balance > 0
+                                        background: pendingBalance > 0 && isContractConfigured
                                             ? 'linear-gradient(135deg, #10b981, #059669)'
                                             : 'rgba(255,255,255,0.1)',
-                                        color: balance > 0 ? '#fff' : '#666',
+                                        color: pendingBalance > 0 ? '#fff' : '#666',
                                         fontSize: 16,
                                         fontWeight: 800,
-                                        cursor: claiming || balance === 0 ? 'not-allowed' : 'pointer',
+                                        cursor: claiming || pendingBalance === 0 ? 'not-allowed' : 'pointer',
                                         opacity: claiming ? 0.6 : 1
                                     }}
                                 >
-                                    {claiming ? '⏳ Processing...' : balance === 0 ? 'No Balance to Withdraw' : '💸 Withdraw $FLIP'}
+                                    {claiming ? '⏳ Processing...' :
+                                        pendingBalance === 0 ? 'No Balance to Withdraw' :
+                                            !isContractConfigured ? '🔒 Coming Soon' :
+                                                '💸 Withdraw USDC'}
                                 </button>
 
                                 <p style={{ fontSize: 12, opacity: 0.5, marginTop: 12, textAlign: 'center' }}>
-                                    Withdrawals are processed within 24 hours
+                                    USDC is sent directly to your wallet via smart contract
                                 </p>
                             </div>
 
@@ -287,7 +385,7 @@ export default function RewardsPage() {
                                             >
                                                 <div>
                                                     <p style={{ margin: 0, fontWeight: 700 }}>
-                                                        {(claim.amount / 1000).toFixed(0)}K $FLIP
+                                                        ${(claim.amount / 1_000_000).toFixed(2)} USDC
                                                     </p>
                                                     <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>
                                                         {formatDate(claim.createdAt)}
