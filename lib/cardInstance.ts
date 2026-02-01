@@ -8,7 +8,7 @@
 // TYPES
 // ─────────────────────────────────────────────────────────────
 
-export type CardType = 'common' | 'rare' | 'sentient' | 'genesis' | 'unicorn' | 'pegasus';
+export type CardType = 'sentient' | 'genesis' | 'unicorn' | 'pegasus' | 'firstborn';
 
 export type CardStatus = 'active' | 'expired' | 'wrecked';
 
@@ -31,21 +31,19 @@ export interface CardInstance {
 // ─────────────────────────────────────────────────────────────
 
 export const DURABILITY_DAYS: Record<CardType, number> = {
-    common: 5,
-    rare: 5,
     sentient: 5,
     genesis: 7,
     unicorn: 10,
     pegasus: 14,
+    firstborn: 14,
 };
 
 export const RENEWAL_PRICES: Record<CardType, number> = {
-    common: 4000,      // $FLIP
-    rare: 8000,
-    sentient: 12000,
-    genesis: 40000,
-    unicorn: 80000,
+    sentient: 15000,   // $FLIP
+    genesis: 30000,
+    unicorn: 50000,
     pegasus: 100000,
+    firstborn: 100000,
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -68,10 +66,10 @@ export function parseCardType(about: string): CardType {
     const lower = (about || '').toLowerCase().trim();
     if (lower.includes('unicorn')) return 'unicorn';
     if (lower.includes('genesis')) return 'genesis';
-    if (lower.includes('sentient')) return 'sentient';
     if (lower.includes('pegasus')) return 'pegasus';
-    if (lower.includes('rare')) return 'rare';
-    return 'common';
+    if (lower.includes('firstborn')) return 'firstborn';
+    // Default to sentient for any unrecognized type
+    return 'sentient';
 }
 
 /**
@@ -212,12 +210,11 @@ export function getDailyDuelLimit(activeCardCount: number): number {
 // ─────────────────────────────────────────────────────────────
 
 const BASE_SET_BONUS: Record<CardType, number> = {
-    common: 0,
-    rare: 0.05,      // 5%
-    sentient: 0.15,  // 15%
-    genesis: 0.25,   // 25%
-    unicorn: 0.50,   // 50%
-    pegasus: 0.75,   // 75%
+    sentient: 0.15,   // 15%
+    genesis: 0.25,    // 25%
+    unicorn: 0.50,    // 50%
+    pegasus: 0.75,    // 75%
+    firstborn: 0.75,  // 75% (same as pegasus)
 };
 
 /**

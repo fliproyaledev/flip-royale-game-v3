@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getUser, updateUser } from '../../../lib/users'
 import { generatePackCards } from '../../../lib/game-utils'
 import { TOKENS } from '../../../lib/tokens'
+import { createCardsForUser } from '../cards/create'
 
 // 1. Ortam Değişkenlerini Al
 // Force Rebuild: 7652
@@ -72,15 +73,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // generate cards based on pack type
         const newCards: string[] = generatePackCards(packType, TOKENS)
+
+        // Update legacy inventory (for backward compatibility)
         for (const tokenId of newCards) {
             user.inventory[tokenId] = (user.inventory[tokenId] || 0) + 1
         }
 
         await updateUser(cleanId, user)
 
-        return res.status(200).json({ ok: true, user, newCards })
+        // Create CardInstance for each new card (new durability system)
+        let cardInstances: any[] = [];
+        try {
+            cardInstances = await createCardsForUser(cleanId, newCards);
+        } catch (err) {
+            console.warn('Failed to create card instances:', err);
+            // Continue even if card instance creation fails
+        }
+
+        return res.status(200).json({
+            ok: true,
+            user,
+            newCards,
+            cardInstances // Include the new card instances with durability info
+        })
     } catch (err: any) {
         console.error('[API] Open Pack Local Error:', err)
         return res.status(500).json({ ok: false, error: err.message || 'Internal Server Error' })
     }
 }
+

@@ -49,6 +49,7 @@ export type UserRecord = {
   totalPoints: number
   bankPoints: number
   giftPoints: number
+  flip?: number                       // $FLIP token balance for card renewals
   logs: LogEntry[]
   createdAt?: string
   updatedAt: string
