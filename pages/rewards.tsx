@@ -1,71 +1,61 @@
 /**
- * Rewards / Withdraw Page - Claim USDC Arena winnings via contract
+ * Arena History - View your PvP game results and winnings
+ * Shows stats from FlipRoyaleArena contract
  */
 
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useReadContract } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Topbar from '../components/Topbar'
 import { useTheme } from '../lib/theme'
-import { useToast } from '../lib/toast'
 import {
-    REWARDS_CLAIM_ADDRESS,
-    REWARDS_CLAIM_ABI,
-    USDC_ADDRESS,
-    formatUSDC
-} from '../lib/contracts/rewardsClaim'
+    ARENA_CONTRACT_ADDRESS,
+    ARENA_ABI,
+    TIER_INFO,
+    RoomStatus,
+    GameMode,
+    formatUSDC,
+    shortenAddress
+} from '../lib/contracts/arenaContract'
 
-interface ClaimRecord {
-    id: string
-    amount: number
-    txHash?: string
-    status: 'pending' | 'processing' | 'completed' | 'failed'
-    createdAt: number
+interface GameRecord {
+    roomId: string
+    tier: number
+    gameMode: number
+    opponent: string
+    stake: bigint
+    result: 'win' | 'loss' | 'draw' | 'pending'
+    payout: bigint
+    timestamp: number
 }
 
-export default function RewardsPage() {
+export default function ArenaHistoryPage() {
     const { theme } = useTheme()
-    const { toast } = useToast()
     const { address, isConnected } = useAccount()
 
     const [user, setUser] = useState<any>(null)
-    const [pendingBalance, setPendingBalance] = useState(0) // Off-chain pending rewards
-    const [history, setHistory] = useState<ClaimRecord[]>([])
+    const [games, setGames] = useState<GameRecord[]>([])
     const [loading, setLoading] = useState(true)
-    const [claiming, setClaiming] = useState(false)
-    const [claimAmount, setClaimAmount] = useState('')
-    const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
 
-    // Contract hooks
-    const { writeContractAsync } = useWriteContract()
+    // Get user stats from contract
+    const { data: userStats } = useReadContract({
+        address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+        abi: ARENA_ABI,
+        functionName: 'getUserStats',
+        args: address ? [address] : undefined,
+        query: { enabled: !!address }
+    }) as { data: [bigint, bigint, bigint, bigint] | undefined }
 
-    // Check if contract is configured
-    const isContractConfigured = REWARDS_CLAIM_ADDRESS && REWARDS_CLAIM_ADDRESS.length > 10
-
-    // Get user's claim nonce from contract
-    const { data: claimNonce } = useReadContract({
-        address: REWARDS_CLAIM_ADDRESS as `0x${string}`,
-        abi: REWARDS_CLAIM_ABI,
-        functionName: 'getNonce',
-        args: [address!],
-        query: { enabled: Boolean(address) && Boolean(isContractConfigured) },
-    })
-
-    // Get user's total claimed from contract
-    const { data: totalClaimed } = useReadContract({
-        address: REWARDS_CLAIM_ADDRESS as `0x${string}`,
-        abi: REWARDS_CLAIM_ABI,
-        functionName: 'totalClaimed',
-        args: [address!],
-        query: { enabled: Boolean(address) && Boolean(isContractConfigured) },
-    })
-
-    // Wait for transaction
-    const { isSuccess: txSuccess } = useWaitForTransactionReceipt({
-        hash: txHash,
-    })
+    // Get user room IDs from contract
+    const { data: userRoomIds } = useReadContract({
+        address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+        abi: ARENA_ABI,
+        functionName: 'getUserRooms',
+        args: address ? [address] : undefined,
+        query: { enabled: !!address }
+    }) as { data: `0x${string}`[] | undefined }
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -77,340 +67,255 @@ export default function RewardsPage() {
     }, [])
 
     useEffect(() => {
-        if (address) loadRewards()
-    }, [address])
-
-    useEffect(() => {
-        if (txSuccess) {
-            toast('🎉 Claim successful! USDC sent to your wallet', 'success')
-            loadRewards()
-        }
-    }, [txSuccess])
-
-    const loadRewards = async () => {
-        if (!address) return
-        setLoading(true)
-
-        try {
-            const res = await fetch(`/api/arena/rewards?wallet=${address}`)
-            const data = await res.json()
-
-            if (data.ok) {
-                setPendingBalance(data.balance || 0) // In USDC (6 decimals)
-                setHistory(data.history || [])
-            }
-        } catch (err) {
-            console.error('Load rewards error:', err)
-        } finally {
+        if (userRoomIds) {
             setLoading(false)
         }
-    }
+    }, [userRoomIds])
 
-    const handleClaim = async () => {
-        if (!isContractConfigured) {
-            toast('Claim contract not configured yet', 'error')
-            return
-        }
-
-        const amount = parseInt(claimAmount)
-        if (!amount || amount <= 0) {
-            toast('Enter a valid amount', 'error')
-            return
-        }
-        if (amount > pendingBalance) {
-            toast('Insufficient balance', 'error')
-            return
-        }
-
-        setClaiming(true)
-        try {
-            // 1. Get signature from Oracle API
-            const signRes = await fetch('/api/arena/rewards/sign', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    wallet: address,
-                    amount,
-                    nonce: claimNonce ? Number(claimNonce) : 0
-                })
-            })
-            const signData = await signRes.json()
-
-            if (!signData.ok) {
-                throw new Error(signData.error || 'Failed to get signature')
-            }
-
-            // 2. Call contract claim function
-            toast('Claiming USDC...', 'info')
-            const hash = await writeContractAsync({
-                address: REWARDS_CLAIM_ADDRESS as `0x${string}`,
-                abi: REWARDS_CLAIM_ABI,
-                functionName: 'claim',
-                args: [BigInt(amount), BigInt(signData.nonce), signData.signature as `0x${string}`]
-            })
-
-            setTxHash(hash)
-            setClaimAmount('')
-
-            // 3. Update backend to deduct balance
-            await fetch('/api/arena/rewards/confirm', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    wallet: address,
-                    amount,
-                    txHash: hash
-                })
-            })
-
-        } catch (err: any) {
-            console.error(err)
-            toast(err.shortMessage || err.message || 'Claim failed', 'error')
-        } finally {
-            setClaiming(false)
-        }
-    }
-
-    const formatDate = (ts: number) => {
-        return new Date(ts).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })
-    }
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'completed': return '#10b981'
-            case 'pending': return '#f59e0b'
-            case 'processing': return '#3b82f6'
-            case 'failed': return '#ef4444'
-            default: return '#888'
-        }
-    }
-
-    // Format balance for display (USDC has 6 decimals)
-    const displayBalance = pendingBalance / 1_000_000
-    const displayTotalClaimed = totalClaimed ? Number(totalClaimed) / 1_000_000 : 0
+    // Calculate stats
+    const wins = userStats ? Number(userStats[0]) : 0
+    const losses = userStats ? Number(userStats[1]) : 0
+    const totalWinnings = userStats ? Number(userStats[2]) / 1_000_000 : 0
+    const totalGames = wins + losses
+    const winRate = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(1) : '0'
 
     return (
         <>
             <Head>
-                <title>Rewards | FLIP ROYALE</title>
-                <meta name="description" content="Claim your USDC Arena winnings" />
+                <title>Arena History | Flip Royale</title>
             </Head>
+            <div className="app">
+                <Topbar activeTab="arena" user={user} />
 
-            <div className="app" data-theme={theme}>
-                <Topbar activeTab="rewards" user={user} />
-
-                <main style={{ maxWidth: 800, margin: '0 auto', padding: '20px 16px' }}>
-                    {/* Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
-                        <Link href="/arena" style={{ color: 'inherit', opacity: 0.7 }}>← Arena</Link>
-                        <h1 style={{
-                            fontSize: 28,
-                            fontWeight: 900,
-                            margin: 0,
-                            background: 'linear-gradient(135deg, #10b981, #059669)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent'
+                <div className="panel">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                        <h2>⚔️ Arena History</h2>
+                        <Link href="/arena" style={{
+                            padding: '8px 16px',
+                            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                            borderRadius: 8,
+                            color: '#000',
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                            fontSize: 14
                         }}>
-                            💰 Rewards
-                        </h1>
+                            Play Now →
+                        </Link>
                     </div>
+                    <div className="sep"></div>
 
                     {!isConnected ? (
-                        <div className="panel" style={{ textAlign: 'center', padding: 32 }}>
-                            <p style={{ marginBottom: 16 }}>Connect your wallet to view rewards</p>
+                        <div style={{ textAlign: 'center', padding: 60 }}>
+                            <div style={{ fontSize: 48, marginBottom: 20 }}>🎮</div>
+                            <h3 style={{ marginBottom: 16, color: '#fff' }}>Connect to View History</h3>
+                            <p style={{ color: '#9ca3af', marginBottom: 24 }}>
+                                Connect your wallet to see your Arena game history and stats
+                            </p>
                             <ConnectButton />
-                        </div>
-                    ) : loading ? (
-                        <div className="panel" style={{ textAlign: 'center', padding: 32 }}>
-                            <p>⏳ Loading...</p>
                         </div>
                     ) : (
                         <>
-                            {/* Balance Card */}
-                            <div className="panel" style={{
-                                padding: 32,
-                                marginBottom: 24,
-                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05))',
-                                border: '2px solid rgba(16, 185, 129, 0.3)'
+                            {/* Stats Cards */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                                gap: 16,
+                                marginTop: 20
                             }}>
-                                <p style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>
-                                    Available Balance
-                                </p>
-                                <p style={{
-                                    fontSize: 42,
-                                    fontWeight: 900,
-                                    margin: 0,
-                                    color: '#10b981'
-                                }}>
-                                    ${displayBalance.toFixed(2)} USDC
-                                </p>
-                                {displayTotalClaimed > 0 && (
-                                    <p style={{ fontSize: 13, opacity: 0.6, marginTop: 8 }}>
-                                        Total claimed: ${displayTotalClaimed.toFixed(2)} USDC
-                                    </p>
-                                )}
+                                <StatCard
+                                    label="Total Games"
+                                    value={totalGames.toString()}
+                                    icon="🎮"
+                                    color="#60a5fa"
+                                />
+                                <StatCard
+                                    label="Wins"
+                                    value={wins.toString()}
+                                    icon="🏆"
+                                    color="#22c55e"
+                                />
+                                <StatCard
+                                    label="Losses"
+                                    value={losses.toString()}
+                                    icon="💔"
+                                    color="#ef4444"
+                                />
+                                <StatCard
+                                    label="Win Rate"
+                                    value={`${winRate}%`}
+                                    icon="📊"
+                                    color="#f59e0b"
+                                />
+                                <StatCard
+                                    label="Total Winnings"
+                                    value={`$${totalWinnings.toFixed(2)}`}
+                                    icon="💰"
+                                    color="#10b981"
+                                />
                             </div>
 
-                            {/* Claim Section */}
-                            <div className="panel" style={{ padding: 24, marginBottom: 24 }}>
-                                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    🏧 Withdraw USDC
-                                </h2>
+                            {/* Recent Games */}
+                            <div style={{ marginTop: 32 }}>
+                                <h3 style={{ marginBottom: 16, fontSize: 18 }}>Recent Games</h3>
 
-                                {!isContractConfigured && (
+                                {loading ? (
+                                    <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                                        Loading games...
+                                    </div>
+                                ) : userRoomIds && userRoomIds.length > 0 ? (
                                     <div style={{
-                                        background: 'rgba(245, 158, 11, 0.1)',
-                                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                                        borderRadius: 8,
-                                        padding: 12,
-                                        marginBottom: 16,
-                                        fontSize: 13
+                                        background: 'rgba(0,0,0,0.3)',
+                                        borderRadius: 12,
+                                        overflow: 'hidden'
                                     }}>
-                                        ⚠️ Claim contract not deployed yet. Coming soon!
+                                        <div style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '1fr 100px 100px',
+                                            padding: '12px 16px',
+                                            background: 'rgba(255,255,255,0.05)',
+                                            fontWeight: 700,
+                                            fontSize: 12,
+                                            color: '#9ca3af'
+                                        }}>
+                                            <div>Room ID</div>
+                                            <div style={{ textAlign: 'center' }}>Type</div>
+                                            <div style={{ textAlign: 'right' }}>Status</div>
+                                        </div>
+                                        {userRoomIds.slice(-10).reverse().map((roomId, i) => (
+                                            <RoomRow key={i} roomId={roomId} userAddress={address!} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        padding: 40,
+                                        background: 'rgba(0,0,0,0.2)',
+                                        borderRadius: 12
+                                    }}>
+                                        <div style={{ fontSize: 32, marginBottom: 12 }}>🎯</div>
+                                        <p style={{ color: '#9ca3af' }}>No games yet. Start playing in the Arena!</p>
+                                        <Link href="/arena" style={{
+                                            display: 'inline-block',
+                                            marginTop: 16,
+                                            padding: '10px 24px',
+                                            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                            borderRadius: 8,
+                                            color: '#000',
+                                            fontWeight: 700,
+                                            textDecoration: 'none'
+                                        }}>
+                                            Enter Arena
+                                        </Link>
                                     </div>
                                 )}
-
-                                <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                                    <input
-                                        type="number"
-                                        value={claimAmount}
-                                        onChange={e => setClaimAmount(e.target.value)}
-                                        placeholder="Amount (USDC)"
-                                        style={{
-                                            flex: 1,
-                                            padding: '12px 16px',
-                                            borderRadius: 10,
-                                            border: '1px solid rgba(255,255,255,0.2)',
-                                            background: 'rgba(255,255,255,0.05)',
-                                            color: 'inherit',
-                                            fontSize: 16
-                                        }}
-                                    />
-                                    <button
-                                        onClick={() => setClaimAmount(pendingBalance.toString())}
-                                        style={{
-                                            padding: '12px 20px',
-                                            borderRadius: 10,
-                                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                                            background: 'rgba(16, 185, 129, 0.1)',
-                                            color: '#10b981',
-                                            fontSize: 14,
-                                            fontWeight: 700,
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        MAX
-                                    </button>
-                                </div>
-
-                                {/* Quick amounts */}
-                                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                                    {[10_000_000, 25_000_000, 50_000_000, 100_000_000]
-                                        .filter(v => v <= pendingBalance)
-                                        .map(amount => (
-                                            <button
-                                                key={amount}
-                                                onClick={() => setClaimAmount(amount.toString())}
-                                                style={{
-                                                    padding: '8px 16px',
-                                                    borderRadius: 8,
-                                                    border: '1px solid rgba(255,255,255,0.2)',
-                                                    background: 'rgba(255,255,255,0.05)',
-                                                    color: 'inherit',
-                                                    fontSize: 13,
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                ${(amount / 1_000_000).toFixed(0)}
-                                            </button>
-                                        ))}
-                                </div>
-
-                                <button
-                                    onClick={handleClaim}
-                                    disabled={claiming || pendingBalance === 0 || !isContractConfigured}
-                                    style={{
-                                        width: '100%',
-                                        padding: '14px 24px',
-                                        borderRadius: 12,
-                                        border: 'none',
-                                        background: pendingBalance > 0 && isContractConfigured
-                                            ? 'linear-gradient(135deg, #10b981, #059669)'
-                                            : 'rgba(255,255,255,0.1)',
-                                        color: pendingBalance > 0 ? '#fff' : '#666',
-                                        fontSize: 16,
-                                        fontWeight: 800,
-                                        cursor: claiming || pendingBalance === 0 ? 'not-allowed' : 'pointer',
-                                        opacity: claiming ? 0.6 : 1
-                                    }}
-                                >
-                                    {claiming ? '⏳ Processing...' :
-                                        pendingBalance === 0 ? 'No Balance to Withdraw' :
-                                            !isContractConfigured ? '🔒 Coming Soon' :
-                                                '💸 Withdraw USDC'}
-                                </button>
-
-                                <p style={{ fontSize: 12, opacity: 0.5, marginTop: 12, textAlign: 'center' }}>
-                                    USDC is sent directly to your wallet via smart contract
-                                </p>
                             </div>
 
-                            {/* History */}
-                            <div className="panel" style={{ padding: 24 }}>
-                                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-                                    📜 Claim History
-                                </h2>
-
-                                {history.length === 0 ? (
-                                    <p style={{ opacity: 0.6 }}>No claims yet</p>
-                                ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        {history.map((claim: any, i: number) => (
-                                            <div
-                                                key={claim.id || i}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    padding: 16,
-                                                    borderRadius: 12,
-                                                    background: 'rgba(255,255,255,0.03)',
-                                                    border: '1px solid rgba(255,255,255,0.1)'
-                                                }}
-                                            >
-                                                <div>
-                                                    <p style={{ margin: 0, fontWeight: 700 }}>
-                                                        ${(claim.amount / 1_000_000).toFixed(2)} USDC
-                                                    </p>
-                                                    <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>
-                                                        {formatDate(claim.createdAt)}
-                                                    </p>
-                                                </div>
-                                                <span style={{
-                                                    padding: '4px 10px',
-                                                    borderRadius: 6,
-                                                    background: `${getStatusColor(claim.status)}20`,
-                                                    color: getStatusColor(claim.status),
-                                                    fontSize: 12,
-                                                    fontWeight: 700,
-                                                    textTransform: 'uppercase'
-                                                }}>
-                                                    {claim.status}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                            {/* Info Box */}
+                            <div style={{
+                                marginTop: 24,
+                                padding: 16,
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                borderRadius: 12,
+                                border: '1px solid rgba(59, 130, 246, 0.3)'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                    <span style={{ fontSize: 18 }}>ℹ️</span>
+                                    <span style={{ fontWeight: 700, color: '#60a5fa' }}>How Payouts Work</span>
+                                </div>
+                                <p style={{ color: '#9ca3af', fontSize: 14, lineHeight: 1.6 }}>
+                                    When you win a game, USDC is <strong style={{ color: '#10b981' }}>automatically sent</strong> to your wallet!
+                                    Winners receive 90% of the pot. No manual claiming required.
+                                </p>
                             </div>
                         </>
                     )}
-                </main>
+                </div>
             </div>
         </>
+    )
+}
+
+// Stat Card Component
+function StatCard({ label, value, icon, color }: { label: string; value: string; icon: string; color: string }) {
+    return (
+        <div style={{
+            padding: 16,
+            background: 'rgba(0,0,0,0.3)',
+            borderRadius: 12,
+            border: `1px solid ${color}30`,
+            textAlign: 'center'
+        }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color }}>{value}</div>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>{label}</div>
+        </div>
+    )
+}
+
+// Room Row Component
+function RoomRow({ roomId, userAddress }: { roomId: `0x${string}`; userAddress: string }) {
+    const { data: room } = useReadContract({
+        address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+        abi: ARENA_ABI,
+        functionName: 'rooms',
+        args: [roomId],
+    }) as { data: any }
+
+    if (!room) return null
+
+    const isWinner = room.winner?.toLowerCase() === userAddress.toLowerCase()
+    const isDraw = room.status === 3 // Draw status
+    const isResolved = room.status === 2 || room.status === 3
+    const tier = TIER_INFO[room.tier as 0 | 1 | 2 | 3]
+    const gameType = room.gameMode === 0 ? 'Duel' : 'Taso'
+
+    let statusColor = '#9ca3af'
+    let statusText = 'Pending'
+
+    if (isResolved) {
+        if (isDraw) {
+            statusColor = '#f59e0b'
+            statusText = 'Draw'
+        } else if (isWinner) {
+            statusColor = '#22c55e'
+            statusText = 'Won'
+        } else {
+            statusColor = '#ef4444'
+            statusText = 'Lost'
+        }
+    }
+
+    return (
+        <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 100px 100px',
+            padding: '12px 16px',
+            borderTop: '1px solid rgba(255,255,255,0.05)',
+            alignItems: 'center'
+        }}>
+            <div style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'monospace' }}>
+                {roomId.slice(0, 10)}...
+            </div>
+            <div style={{ textAlign: 'center' }}>
+                <span style={{
+                    padding: '4px 8px',
+                    background: `${tier?.color || '#888'}20`,
+                    color: tier?.color || '#888',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600
+                }}>
+                    {tier?.name} {gameType}
+                </span>
+            </div>
+            <div style={{
+                textAlign: 'right',
+                fontWeight: 700,
+                color: statusColor,
+                fontSize: 13
+            }}>
+                {statusText}
+            </div>
+        </div>
     )
 }

@@ -48,15 +48,15 @@ export default function ArenaPage() {
       features: ['1v1 card flip', 'Loser card wrecked', 'High risk, high reward']
     },
     {
-      id: 'rewards',
-      name: 'Rewards',
-      emoji: '💰',
-      description: 'Claim your winnings',
-      subtitle: 'Withdraw USDC to your wallet',
+      id: 'history',
+      name: 'History',
+      emoji: '📊',
+      description: 'Your game results',
+      subtitle: 'View stats & past games',
       color: '#10b981',
       gradient: 'linear-gradient(135deg, #10b981, #059669)',
       href: '/rewards',
-      features: ['View balance', 'Withdraw USDC', 'Claim history']
+      features: ['Win/Loss stats', 'Total winnings', 'Game history']
     },
   ]
 

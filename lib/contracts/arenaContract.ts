@@ -86,6 +86,25 @@ export const ARENA_ABI = [
         "stateMutability": "view",
         "type": "function"
     },
+    {
+        "inputs": [{ "type": "address", "name": "user" }],
+        "name": "getUserStats",
+        "outputs": [
+            { "type": "uint256", "name": "wins" },
+            { "type": "uint256", "name": "losses" },
+            { "type": "uint256", "name": "totalWinnings" },
+            { "type": "uint256", "name": "roomCount" }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [{ "type": "address", "name": "user" }],
+        "name": "getUserRooms",
+        "outputs": [{ "type": "bytes32[]", "name": "" }],
+        "stateMutability": "view",
+        "type": "function"
+    },
     // Write functions
     {
         "inputs": [
