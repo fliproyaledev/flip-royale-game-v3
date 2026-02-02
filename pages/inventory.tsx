@@ -197,19 +197,39 @@ export default function Inventory() {
     setRenewingCardId(null)
   }
 
-  const filterButtons = [
+  // Status filters
+  const statusFilters = [
     { key: 'all', label: 'All', color: '#ffffff' },
     { key: 'active', label: '✅ Active', color: '#22c55e' },
     { key: 'expired', label: '⏰ Expired', color: '#f97316' },
     { key: 'wrecked', label: '💀 Wrecked', color: '#dc2626' },
   ]
 
+  // CardType filters
+  const typeFilters = [
+    { key: 'all-type', label: 'All Types', color: '#ffffff' },
+    { key: 'pegasus', label: '🦄 Pegasus', color: '#4ade80' },
+    { key: 'genesis', label: '💜 Genesis', color: '#c084fc' },
+    { key: 'unicorn', label: '🌟 Unicorn', color: '#ffd700' },
+    { key: 'sentient', label: '🧠 Sentient', color: '#60a5fa' },
+  ]
+
+  const [typeFilter, setTypeFilter] = useState<string>('all-type')
+
   const filteredCards = cards.filter(card => {
-    if (filter === 'all') return true
-    if (filter === 'active') return card.status === 'active' && card.durability > 0
-    if (filter === 'expired') return card.status === 'expired' || card.durability === 0
-    if (filter === 'wrecked') return card.status === 'wrecked'
-    return true
+    // Status filter
+    let passesStatus = true
+    if (filter === 'active') passesStatus = card.status === 'active' && card.durability > 0
+    else if (filter === 'expired') passesStatus = card.status === 'expired' || card.durability === 0
+    else if (filter === 'wrecked') passesStatus = card.status === 'wrecked'
+
+    // CardType filter
+    let passesType = true
+    if (typeFilter !== 'all-type') {
+      passesType = card.cardType?.toLowerCase() === typeFilter.toLowerCase()
+    }
+
+    return passesStatus && passesType
   })
 
   // Group cards by tokenId for display
@@ -236,9 +256,9 @@ export default function Inventory() {
           </div>
           <div className="sep"></div>
 
-          {/* Filter Buttons */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 16, marginBottom: 20, flexWrap: 'wrap' }}>
-            {filterButtons.map(btn => (
+          {/* Status Filter Buttons */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 16, marginBottom: 10, flexWrap: 'wrap' }}>
+            {statusFilters.map(btn => (
               <button
                 key={btn.key}
                 onClick={() => setFilter(btn.key)}
@@ -250,6 +270,29 @@ export default function Inventory() {
                   color: btn.color,
                   fontSize: 13,
                   fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+
+          {/* CardType Filter Buttons */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+            {typeFilters.map(btn => (
+              <button
+                key={btn.key}
+                onClick={() => setTypeFilter(btn.key)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  border: typeFilter === btn.key ? `2px solid ${btn.color}` : '2px solid rgba(255,255,255,0.1)',
+                  background: typeFilter === btn.key ? `${btn.color}20` : 'rgba(0,0,0,0.2)',
+                  color: btn.color,
+                  fontSize: 12,
+                  fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}

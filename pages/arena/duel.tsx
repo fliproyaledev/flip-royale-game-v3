@@ -1,18 +1,27 @@
 /**
  * Flip Duel Lobby - FDV Battle Matchmaking
+ * Uses FlipRoyaleArena contract for USDC stakes
  */
 
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { useAccount } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Topbar from '../../components/Topbar'
 import { useTheme } from '../../lib/theme'
 import { useToast } from '../../lib/toast'
+import {
+    ARENA_CONTRACT_ADDRESS,
+    USDC_ADDRESS,
+    ARENA_ABI,
+    ERC20_ABI,
+    TIER_INFO as CONTRACT_TIERS,
+    GameMode
+} from '../../lib/contracts/arenaContract'
 
-type DuelTier = 'bronze' | 'silver' | 'gold' | 'diamond'
+type DuelTier = 0 | 1 | 2 | 3
 
 interface Duel {
     id: string
@@ -30,10 +39,10 @@ interface Duel {
 }
 
 const TIER_INFO: Record<DuelTier, { name: string; color: string; stake: string; amount: number }> = {
-    bronze: { name: 'Bronze', color: '#cd7f32', stake: '$10', amount: 10_000_000 },
-    silver: { name: 'Silver', color: '#c0c0c0', stake: '$25', amount: 25_000_000 },
-    gold: { name: 'Gold', color: '#ffd700', stake: '$50', amount: 50_000_000 },
-    diamond: { name: 'Diamond', color: '#b9f2ff', stake: '$100', amount: 100_000_000 },
+    0: { name: 'Bronze', color: '#cd7f32', stake: '$10', amount: 10_000_000 },
+    1: { name: 'Silver', color: '#c0c0c0', stake: '$25', amount: 25_000_000 },
+    2: { name: 'Gold', color: '#ffd700', stake: '$50', amount: 50_000_000 },
+    3: { name: 'Diamond', color: '#b9f2ff', stake: '$100', amount: 100_000_000 },
 }
 
 export default function FlipDuelLobby() {
@@ -47,7 +56,27 @@ export default function FlipDuelLobby() {
     const [loading, setLoading] = useState(true)
     const [creating, setCreating] = useState(false)
     const [joining, setJoining] = useState<string | null>(null)
-    const [selectedTier, setSelectedTier] = useState<DuelTier>('bronze')
+    const [selectedTier, setSelectedTier] = useState<DuelTier>(0)
+    const [approving, setApproving] = useState(false)
+
+    // Contract hooks
+    const { writeContract: approveUSDC, data: approveHash, isPending: approvePending } = useWriteContract()
+    const { writeContract: createRoomContract, data: createHash, isPending: createPending } = useWriteContract()
+    const { writeContract: joinRoomContract, data: joinHash, isPending: joinPending } = useWriteContract()
+
+    // Wait for transactions
+    const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
+    const { isSuccess: createSuccess } = useWaitForTransactionReceipt({ hash: createHash })
+    const { isSuccess: joinSuccess } = useWaitForTransactionReceipt({ hash: joinHash })
+
+    // Check USDC allowance
+    const { data: allowance } = useReadContract({
+        address: USDC_ADDRESS as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: address ? [address, ARENA_CONTRACT_ADDRESS as `0x${string}`] : undefined,
+        query: { enabled: !!address }
+    })
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -169,7 +198,7 @@ export default function FlipDuelLobby() {
 
                                 {/* Tier Selection */}
                                 <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-                                    {(Object.keys(TIER_INFO) as DuelTier[]).map(tier => (
+                                    {([0, 1, 2, 3] as DuelTier[]).map(tier => (
                                         <button
                                             key={tier}
                                             onClick={() => setSelectedTier(tier)}
