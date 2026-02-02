@@ -38,11 +38,17 @@ interface Duel {
     winnerPayout: number
 }
 
-const TIER_INFO: Record<DuelTier, { name: string; color: string; stake: string; amount: number }> = {
+const TIER_INFO: Record<string | number, { name: string; color: string; stake: string; amount: number }> = {
+    // Numeric keys for contract
     0: { name: 'Bronze', color: '#cd7f32', stake: '$10', amount: 10_000_000 },
     1: { name: 'Silver', color: '#c0c0c0', stake: '$25', amount: 25_000_000 },
     2: { name: 'Gold', color: '#ffd700', stake: '$50', amount: 50_000_000 },
     3: { name: 'Diamond', color: '#b9f2ff', stake: '$100', amount: 100_000_000 },
+    // String keys for API compatibility
+    bronze: { name: 'Bronze', color: '#cd7f32', stake: '$10', amount: 10_000_000 },
+    silver: { name: 'Silver', color: '#c0c0c0', stake: '$25', amount: 25_000_000 },
+    gold: { name: 'Gold', color: '#ffd700', stake: '$50', amount: 50_000_000 },
+    diamond: { name: 'Diamond', color: '#b9f2ff', stake: '$100', amount: 100_000_000 },
 }
 
 export default function FlipDuelLobby() {
