@@ -1,9 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { kv } from '@vercel/kv';
 
 const ORACLE_URL = process.env.ORACLE_URL;
 const ORACLE_SECRET = process.env.ORACLE_SECRET;
 
 import { getUser, updateUser } from '../../../lib/users'
+import { createCardInstance, parseCardType, CardInstance, CardType } from '../../../lib/cardInstance'
 
 // Paket fiyatları (FLIP cinsinden)
 const PACK_PRICES_FLIP: Record<string, number> = {
@@ -81,6 +83,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (!oracleRes.ok) {
         return res.status(oracleRes.status).json({ ok: false, error: data.error });
+      }
+
+      // CRITICAL: Save Oracle-returned cards to local KV for inventory page
+      if (data.newCards && data.newCards.length > 0) {
+        await saveCardsToKV(cleanUserId, data.newCards, validatedPackType);
       }
 
       // Oracle modunda da komisyon hesapla (local user data'dan)
@@ -297,5 +304,54 @@ async function sendToReplyCorp(
   } catch (e) {
     console.error('[ReplyCorp] Send error:', e);
     // ReplyCorp hatası satın almayı engellemez
+  }
+}
+
+// Save Oracle-returned cards to local KV for inventory page
+// This is CRITICAL - without this, inventory page shows empty!
+async function saveCardsToKV(
+  walletAddress: string,
+  oracleCards: any[],
+  packType: string
+) {
+  try {
+    const cleanWallet = walletAddress.toLowerCase();
+    const cardsKey = `cards:${cleanWallet}`;
+
+    // Get existing cards
+    const existingCards = await kv.get<CardInstance[]>(cardsKey) || [];
+
+    // Map pack type to card type
+    const cardTypeMap: Record<string, CardType> = {
+      'common': 'pegasus',
+      'rare': 'pegasus',
+      'unicorn': 'unicorn',
+      'genesis': 'genesis',
+      'sentient': 'sentient'
+    };
+    const cardType = cardTypeMap[packType] || 'pegasus';
+
+    // Convert Oracle cards to CardInstance format
+    const newCardInstances: CardInstance[] = oracleCards.map((card: any) => {
+      // Oracle returns cards with tokenId or symbol
+      const tokenId = card.tokenId || card.symbol || card.id || 'unknown';
+      // Try to parse card type from Oracle data or use pack type
+      const type = card.cardType
+        ? parseCardType(card.cardType)
+        : (card.about ? parseCardType(card.about) : cardType);
+
+      return createCardInstance(tokenId, type, cleanWallet);
+    });
+
+    // Combine existing + new cards
+    const allCards = [...existingCards, ...newCardInstances];
+
+    // Save to KV
+    await kv.set(cardsKey, allCards);
+
+    console.log(`[Inventory] ✅ Saved ${newCardInstances.length} cards to KV for ${cleanWallet.slice(0, 10)}...`);
+  } catch (e) {
+    console.error('[Inventory] Save cards error:', e);
+    // Don't block purchase on save error
   }
 }

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { SyntheticEvent } from 'react'
 import Head from 'next/head'
 import Topbar from '../components/Topbar'
-import { useAccount } from 'wagmi'
 import { TOKENS } from '../lib/tokens'
 import { RENEWAL_PRICES, CardType } from '../lib/cardInstance'
 
@@ -106,7 +105,6 @@ function getDaysRemaining(expiresAt: number): number {
 }
 
 export default function Inventory() {
-  const { address } = useAccount()
   const [cards, setCards] = useState<CardInstanceData[]>([])
   const [user, setUser] = useState<any>(null)
   const [filter, setFilter] = useState<string>('all')
@@ -114,28 +112,41 @@ export default function Inventory() {
   const [renewingCardId, setRenewingCardId] = useState<string | null>(null)
   const [showRenewModal, setShowRenewModal] = useState<CardInstanceData | null>(null)
 
-  // Fetch inventory when address is available
   useEffect(() => {
     async function load() {
-      if (!address) {
-        setLoading(false)
-        return
+      const savedUser = localStorage.getItem('flipflop-user')
+      let userId = ''
+      if (savedUser) {
+        try {
+          const u = JSON.parse(savedUser)
+          setUser(u)
+          userId = u.id
+        } catch { }
       }
 
-      try {
-        // Get card instances with durability
-        const cardsRes = await fetch(`/api/cards/inventory?wallet=${address}`)
-        const cardsData = await cardsRes.json()
-        if (cardsData.ok) {
-          setCards(cardsData.cards || [])
+      if (userId) {
+        try {
+          // Get user data
+          const userRes = await fetch(`/api/users/me?userId=${encodeURIComponent(userId)}`)
+          const userData = await userRes.json()
+          if (userData.ok && userData.user) {
+            setUser(userData.user)
+          }
+
+          // Get card instances with durability
+          const cardsRes = await fetch(`/api/cards/inventory?wallet=${encodeURIComponent(userId)}`)
+          const cardsData = await cardsRes.json()
+          if (cardsData.ok) {
+            setCards(cardsData.cards || [])
+          }
+        } catch (e) {
+          console.error(e)
         }
-      } catch (e) {
-        console.error(e)
       }
       setLoading(false)
     }
     load()
-  }, [address])
+  }, [])
 
   const handleRenew = async (card: CardInstanceData) => {
     if (!user?.id) return
@@ -169,10 +180,6 @@ export default function Inventory() {
 
   const filterButtons = [
     { key: 'all', label: 'All', color: '#ffffff' },
-    { key: 'pegasus', label: 'Pegasus', color: '#4ade80' },
-    { key: 'unicorn', label: 'Unicorn', color: '#facc15' },
-    { key: 'genesis', label: 'Genesis', color: '#c084fc' },
-    { key: 'sentient', label: 'Sentient', color: '#60a5fa' },
     { key: 'active', label: '✅ Active', color: '#22c55e' },
     { key: 'expired', label: '⏰ Expired', color: '#f97316' },
     { key: 'wrecked', label: '💀 Wrecked', color: '#dc2626' },
@@ -180,18 +187,9 @@ export default function Inventory() {
 
   const filteredCards = cards.filter(card => {
     if (filter === 'all') return true
-
-    // Status filters
     if (filter === 'active') return card.status === 'active' && card.durability > 0
     if (filter === 'expired') return card.status === 'expired' || card.durability === 0
     if (filter === 'wrecked') return card.status === 'wrecked'
-
-    // Type filters
-    if (filter === 'pegasus') return card.cardType === 'pegasus'
-    if (filter === 'unicorn') return card.cardType === 'unicorn'
-    if (filter === 'genesis') return card.cardType === 'genesis'
-    if (filter === 'sentient') return card.cardType === 'sentient'
-
     return true
   })
 
