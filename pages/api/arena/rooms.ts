@@ -1,5 +1,6 @@
 // pages/api/arena/rooms.ts
 // Fetch open rooms from Arena contract
+// Note: Contract getOpenRooms is tier-based, so we use allRoomIds and filter by gameMode
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createPublicClient, http } from 'viem'
@@ -9,8 +10,8 @@ const ARENA_CONTRACT = process.env.NEXT_PUBLIC_ARENA_CONTRACT || "0x83E316B9aa8F
 
 const ARENA_ABI = [
     {
-        "inputs": [{ "type": "uint8", "name": "gameMode" }],
-        "name": "getOpenRooms",
+        "inputs": [],
+        "name": "allRoomIds",
         "outputs": [{ "type": "bytes32[]" }],
         "stateMutability": "view",
         "type": "function"
@@ -43,23 +44,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
         const { gameMode = '1', status = '0' } = req.query
         const gameModeNum = parseInt(gameMode as string)
+        const statusNum = parseInt(status as string)
 
         const client = createPublicClient({
             chain: base,
             transport: http(process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org')
         })
 
-        // Get open room IDs from contract
-        const roomIds = await client.readContract({
+        // Get ALL room IDs from contract
+        const allRoomIds = await client.readContract({
             address: ARENA_CONTRACT as `0x${string}`,
             abi: ARENA_ABI,
-            functionName: 'getOpenRooms',
-            args: [gameModeNum]
+            functionName: 'allRoomIds',
         }) as `0x${string}`[]
 
-        // Fetch room details
+        console.log(`[Rooms API] Found ${allRoomIds.length} total rooms, filtering for gameMode=${gameModeNum}, status=${statusNum}`)
+
+        // Fetch room details and filter
         const rooms = await Promise.all(
-            roomIds.map(async (roomId) => {
+            allRoomIds.map(async (roomId) => {
                 try {
                     const room = await client.readContract({
                         address: ARENA_CONTRACT as `0x${string}`,
@@ -68,14 +71,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                         args: [roomId]
                     }) as any
 
+                    const roomGameMode = Number(room[5])
+                    const roomStatus = Number(room[6])
+
+                    // Filter by gameMode and status
+                    if (roomGameMode !== gameModeNum || roomStatus !== statusNum) {
+                        return null
+                    }
+
                     return {
                         id: roomId,
                         player1: room[1],
                         player2: room[2],
                         stake: room[3].toString(),
                         tier: room[4],
-                        gameMode: room[5],
-                        status: room[6],
+                        gameMode: roomGameMode,
+                        status: roomStatus,
                         winner: room[7],
                         createdAt: room[8].toString(),
                         resolvedAt: room[9].toString()
@@ -87,7 +98,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             })
         )
 
-        const validRooms = rooms.filter(r => r !== null && r.status === parseInt(status as string))
+        const validRooms = rooms.filter(r => r !== null)
+        console.log(`[Rooms API] Returning ${validRooms.length} rooms matching filters`)
 
         return res.status(200).json({ ok: true, rooms: validRooms })
 
@@ -96,3 +108,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ ok: false, error: error.message })
     }
 }
+
