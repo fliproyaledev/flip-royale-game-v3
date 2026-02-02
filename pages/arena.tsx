@@ -52,11 +52,11 @@ export default function ArenaPage() {
       name: 'Rewards',
       emoji: '💰',
       description: 'Claim your winnings',
-      subtitle: 'Withdraw $FLIP to your wallet',
+      subtitle: 'Withdraw USDC to your wallet',
       color: '#10b981',
       gradient: 'linear-gradient(135deg, #10b981, #059669)',
       href: '/rewards',
-      features: ['View balance', 'Withdraw $FLIP', 'Claim history']
+      features: ['View balance', 'Withdraw USDC', 'Claim history']
     },
   ]
 
@@ -84,7 +84,7 @@ export default function ArenaPage() {
               🏟️ ARENA
             </h1>
             <p style={{ opacity: 0.7, fontSize: 16 }}>
-              PvP game modes - Stake $FLIP and win!
+              PvP game modes - Stake USDC and win!
             </p>
           </div>
 

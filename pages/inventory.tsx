@@ -136,7 +136,26 @@ export default function Inventory() {
           // Get card instances with durability
           const cardsRes = await fetch(`/api/cards/inventory?wallet=${encodeURIComponent(userId)}`)
           const cardsData = await cardsRes.json()
-          if (cardsData.ok) {
+
+          // If no cards locally, try to sync from Oracle (for old purchases)
+          if (cardsData.ok && (!cardsData.cards || cardsData.cards.length === 0)) {
+            console.log('[Inventory] No local cards, attempting Oracle sync...')
+            const syncRes = await fetch('/api/cards/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ wallet: userId })
+            })
+            const syncData = await syncRes.json()
+            if (syncData.ok && syncData.synced > 0) {
+              console.log(`[Inventory] Synced ${syncData.synced} cards from Oracle`)
+              // Re-fetch cards after sync
+              const retryRes = await fetch(`/api/cards/inventory?wallet=${encodeURIComponent(userId)}`)
+              const retryData = await retryRes.json()
+              if (retryData.ok) {
+                setCards(retryData.cards || [])
+              }
+            }
+          } else if (cardsData.ok) {
             setCards(cardsData.cards || [])
           }
         } catch (e) {

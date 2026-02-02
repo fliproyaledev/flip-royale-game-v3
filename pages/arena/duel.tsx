@@ -29,11 +29,11 @@ interface Duel {
     winnerPayout: number
 }
 
-const TIER_INFO: Record<DuelTier, { name: string; color: string; stake: string }> = {
-    bronze: { name: 'Bronze', color: '#cd7f32', stake: '10K' },
-    silver: { name: 'Silver', color: '#c0c0c0', stake: '50K' },
-    gold: { name: 'Gold', color: '#ffd700', stake: '100K' },
-    diamond: { name: 'Diamond', color: '#b9f2ff', stake: '500K' },
+const TIER_INFO: Record<DuelTier, { name: string; color: string; stake: string; amount: number }> = {
+    bronze: { name: 'Bronze', color: '#cd7f32', stake: '$10', amount: 10_000_000 },
+    silver: { name: 'Silver', color: '#c0c0c0', stake: '$25', amount: 25_000_000 },
+    gold: { name: 'Gold', color: '#ffd700', stake: '$50', amount: 50_000_000 },
+    diamond: { name: 'Diamond', color: '#b9f2ff', stake: '$100', amount: 100_000_000 },
 }
 
 export default function FlipDuelLobby() {
@@ -184,7 +184,7 @@ export default function FlipDuelLobby() {
                                                 transition: 'all 0.2s'
                                             }}
                                         >
-                                            {TIER_INFO[tier].name} ({TIER_INFO[tier].stake} $FLIP)
+                                            {TIER_INFO[tier].name} ({TIER_INFO[tier].stake} USDC)
                                         </button>
                                     ))}
                                 </div>
@@ -250,7 +250,7 @@ export default function FlipDuelLobby() {
                                                         </span>
                                                     </div>
                                                     <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
-                                                        🏆 Pot: {(duel.pot / 1000).toFixed(0)}K $FLIP
+                                                        🏆 Pot: ${(duel.pot / 1_000_000).toFixed(0)} USDC
                                                     </p>
                                                 </div>
 
