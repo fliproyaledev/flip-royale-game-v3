@@ -1,6 +1,6 @@
 // pages/api/arena/rooms.ts
 // Fetch open rooms from Arena contract
-// Note: Contract getOpenRooms is tier-based, so we use allRoomIds and filter by gameMode
+// Uses index-based iteration since allRoomIds is a public array
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createPublicClient, http } from 'viem'
@@ -8,11 +8,12 @@ import { base } from 'viem/chains'
 
 const ARENA_CONTRACT = process.env.NEXT_PUBLIC_ARENA_CONTRACT || "0x83E316B9aa8F675b028279f089179bA26792242B"
 
+// Correct ABI - allRoomIds takes an index parameter (public array auto-getter)
 const ARENA_ABI = [
     {
-        "inputs": [],
+        "inputs": [{ "type": "uint256", "name": "index" }],
         "name": "allRoomIds",
-        "outputs": [{ "type": "bytes32[]" }],
+        "outputs": [{ "type": "bytes32" }],
         "stateMutability": "view",
         "type": "function"
     },
@@ -51,12 +52,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             transport: http(process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org')
         })
 
-        // Get ALL room IDs from contract
-        const allRoomIds = await client.readContract({
-            address: ARENA_CONTRACT as `0x${string}`,
-            abi: ARENA_ABI,
-            functionName: 'allRoomIds',
-        }) as `0x${string}`[]
+        // Iterate through room IDs (public array requires index-based access)
+        const allRoomIds: `0x${string}`[] = []
+        const MAX_ROOMS = 100 // Safety limit
+
+        for (let i = 0; i < MAX_ROOMS; i++) {
+            try {
+                const roomId = await client.readContract({
+                    address: ARENA_CONTRACT as `0x${string}`,
+                    abi: ARENA_ABI,
+                    functionName: 'allRoomIds',
+                    args: [BigInt(i)]
+                }) as `0x${string}`
+
+                allRoomIds.push(roomId)
+            } catch (e) {
+                // Array index out of bounds - we've fetched all rooms
+                break
+            }
+        }
 
         console.log(`[Rooms API] Found ${allRoomIds.length} total rooms, filtering for gameMode=${gameModeNum}, status=${statusNum}`)
 
@@ -108,4 +122,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ ok: false, error: error.message })
     }
 }
-

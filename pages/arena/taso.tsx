@@ -165,6 +165,7 @@ export default function TasoLobby() {
     const [status, setStatus] = useState<'idle' | 'approving' | 'creating' | 'joining'>('idle')
     const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
     const [user, setUser] = useState<any>(null)
+    const [cancellingRoom, setCancellingRoom] = useState<string | null>(null)
 
     // Contract hooks
     const { writeContractAsync } = useWriteContract()
@@ -379,6 +380,35 @@ export default function TasoLobby() {
         }
     }
 
+    // Cancel room function
+    const handleCancelRoom = async (roomId: string) => {
+        if (!address) return
+
+        setCancellingRoom(roomId)
+        try {
+            toast('Cancelling room...', 'info')
+
+            const cancelHash = await writeContractAsync({
+                address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+                abi: ARENA_ABI,
+                functionName: 'cancelRoom',
+                args: [roomId as `0x${string}`]
+            })
+
+            setTxHash(cancelHash)
+            toast('Room cancelled! USDC refunded 💰', 'success')
+
+            // Reload rooms
+            setTimeout(loadRooms, 2000)
+
+        } catch (err: any) {
+            console.error(err)
+            toast(err.shortMessage || err.message || 'Failed to cancel', 'error')
+        } finally {
+            setCancellingRoom(null)
+        }
+    }
+
     const balance = usdcBalance ? Number(usdcBalance) / 1_000_000 : 0
 
     return (
@@ -557,27 +587,42 @@ export default function TasoLobby() {
                                                     </p>
                                                 </div>
 
-                                                <button
-                                                    onClick={() => handleJoinClick(room.id)}
-                                                    disabled={room.player1.toLowerCase() === address?.toLowerCase() || processing}
-                                                    style={{
-                                                        padding: '10px 20px',
-                                                        borderRadius: 8,
-                                                        border: 'none',
-                                                        background: room.player1.toLowerCase() === address?.toLowerCase()
-                                                            ? 'rgba(255,255,255,0.1)'
-                                                            : 'linear-gradient(135deg, #10b981, #059669)',
-                                                        color: '#fff',
-                                                        fontSize: 13,
-                                                        fontWeight: 700,
-                                                        cursor: 'pointer',
-                                                        opacity: room.player1.toLowerCase() === address?.toLowerCase() ? 0.5 : 1
-                                                    }}
-                                                >
-                                                    {room.player1.toLowerCase() === address?.toLowerCase()
-                                                        ? 'Your Room'
-                                                        : '🎯 Join & Choose'}
-                                                </button>
+                                                {room.player1.toLowerCase() === address?.toLowerCase() ? (
+                                                    <button
+                                                        onClick={() => handleCancelRoom(room.id)}
+                                                        disabled={cancellingRoom === room.id}
+                                                        style={{
+                                                            padding: '10px 20px',
+                                                            borderRadius: 8,
+                                                            border: 'none',
+                                                            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                                            color: '#fff',
+                                                            fontSize: 13,
+                                                            fontWeight: 700,
+                                                            cursor: cancellingRoom === room.id ? 'wait' : 'pointer',
+                                                            opacity: cancellingRoom === room.id ? 0.7 : 1
+                                                        }}
+                                                    >
+                                                        {cancellingRoom === room.id ? '⏳ Cancelling...' : '❌ Cancel & Refund'}
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleJoinClick(room.id)}
+                                                        disabled={processing}
+                                                        style={{
+                                                            padding: '10px 20px',
+                                                            borderRadius: 8,
+                                                            border: 'none',
+                                                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                                                            color: '#fff',
+                                                            fontSize: 13,
+                                                            fontWeight: 700,
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        🎯 Join & Choose
+                                                    </button>
+                                                )}
                                             </div>
                                         ))}
                                     </div>

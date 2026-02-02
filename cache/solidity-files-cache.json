@@ -800,6 +800,205 @@
       "artifacts": [
         "FlipRoyalePackShopV3"
       ]
+    },
+    "D:\\flip-royale-game-v3-main\\contracts\\FlipRoyaleRewardsClaim.sol": {
+      "lastModificationDate": 1769987902213,
+      "contentHash": "2ec0004ed21f3c3514fd0aa9f13cb548",
+      "sourceName": "contracts/FlipRoyaleRewardsClaim.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "FlipRoyaleRewardsClaim"
+      ]
+    },
+    "D:\\flip-royale-game-v3-main\\contracts\\FlipRoyaleArenaV2.sol": {
+      "lastModificationDate": 1770071209364,
+      "contentHash": "6a096415694fafe6cda9d162401a7e2b",
+      "sourceName": "contracts/FlipRoyaleArenaV2.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/utils/Pausable.sol",
+        "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "FlipRoyaleArenaV2"
+      ]
+    },
+    "D:\\flip-royale-game-v3-main\\contracts\\FlipRoyaleArenaV1_1.sol": {
+      "lastModificationDate": 1770071808777,
+      "contentHash": "8acdb4ad57076459677136d43304e2c7",
+      "sourceName": "contracts/FlipRoyaleArenaV1_1.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/utils/Pausable.sol",
+        "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "FlipRoyaleArenaV1_1"
+      ]
+    },
+    "D:\\flip-royale-game-v3-main\\contracts\\FlipRoyaleArenaV1_1_Flat.sol": {
+      "lastModificationDate": 1770072353611,
+      "contentHash": "d909b426b3253594d557db58b70062ab",
+      "sourceName": "contracts/FlipRoyaleArenaV1_1_Flat.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20",
+        "^0.8.20",
+        ">=0.4.16",
+        ">=0.4.16",
+        ">=0.4.16",
+        ">=0.4.16",
+        ">=0.6.2",
+        "^0.8.20",
+        "^0.8.20",
+        "^0.8.20",
+        "^0.8.20",
+        "^0.8.20",
+        "^0.8.20",
+        "^0.8.20",
+        "^0.8.20",
+        "^0.8.20",
+        "^0.8.20",
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Context",
+        "ECDSA",
+        "FlipRoyaleArenaV1_1",
+        "IERC1363",
+        "IERC165",
+        "IERC20",
+        "Math",
+        "MessageHashUtils",
+        "Ownable",
+        "Panic",
+        "Pausable",
+        "ReentrancyGuard",
+        "SafeCast",
+        "SafeERC20",
+        "SignedMath",
+        "Strings"
+      ]
     }
   }
 }

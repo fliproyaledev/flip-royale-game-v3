@@ -64,11 +64,13 @@ export default function FlipDuelLobby() {
     const [joining, setJoining] = useState<string | null>(null)
     const [selectedTier, setSelectedTier] = useState<DuelTier>(0)
     const [approving, setApproving] = useState(false)
+    const [cancellingRoom, setCancellingRoom] = useState<string | null>(null)
 
     // Contract hooks
     const { writeContract: approveUSDC, data: approveHash, isPending: approvePending } = useWriteContract()
     const { writeContract: createRoomContract, data: createHash, isPending: createPending } = useWriteContract()
     const { writeContract: joinRoomContract, data: joinHash, isPending: joinPending } = useWriteContract()
+    const { writeContractAsync } = useWriteContract()
 
     // Wait for transactions
     const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
@@ -160,6 +162,34 @@ export default function FlipDuelLobby() {
             toast(err.message || 'Error', 'error')
         } finally {
             setJoining(null)
+        }
+    }
+
+    // Cancel room function
+    const handleCancelRoom = async (roomId: string) => {
+        if (!address) return
+
+        setCancellingRoom(roomId)
+        try {
+            toast('Cancelling room...', 'info')
+
+            await writeContractAsync({
+                address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+                abi: ARENA_ABI,
+                functionName: 'cancelRoom',
+                args: [roomId as `0x${string}`]
+            })
+
+            toast('Room cancelled! USDC refunded 💰', 'success')
+
+            // Reload rooms
+            setTimeout(loadDuels, 2000)
+
+        } catch (err: any) {
+            console.error(err)
+            toast(err.shortMessage || err.message || 'Failed to cancel', 'error')
+        } finally {
+            setCancellingRoom(null)
         }
     }
 
@@ -289,29 +319,42 @@ export default function FlipDuelLobby() {
                                                     </p>
                                                 </div>
 
-                                                <button
-                                                    onClick={() => joinDuel(duel.id)}
-                                                    disabled={joining === duel.id || duel.player1.wallet.toLowerCase() === address?.toLowerCase()}
-                                                    style={{
-                                                        padding: '10px 20px',
-                                                        borderRadius: 8,
-                                                        border: 'none',
-                                                        background: duel.player1.wallet.toLowerCase() === address?.toLowerCase()
-                                                            ? 'rgba(255,255,255,0.1)'
-                                                            : 'linear-gradient(135deg, #10b981, #059669)',
-                                                        color: '#fff',
-                                                        fontSize: 13,
-                                                        fontWeight: 700,
-                                                        cursor: joining === duel.id ? 'wait' : 'pointer',
-                                                        opacity: duel.player1.wallet.toLowerCase() === address?.toLowerCase() ? 0.5 : 1
-                                                    }}
-                                                >
-                                                    {duel.player1.wallet.toLowerCase() === address?.toLowerCase()
-                                                        ? 'Your Room'
-                                                        : joining === duel.id
-                                                            ? '⏳ Joining...'
-                                                            : '🎯 Join'}
-                                                </button>
+                                                {duel.player1.wallet.toLowerCase() === address?.toLowerCase() ? (
+                                                    <button
+                                                        onClick={() => handleCancelRoom(duel.id)}
+                                                        disabled={cancellingRoom === duel.id}
+                                                        style={{
+                                                            padding: '10px 20px',
+                                                            borderRadius: 8,
+                                                            border: 'none',
+                                                            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                                            color: '#fff',
+                                                            fontSize: 13,
+                                                            fontWeight: 700,
+                                                            cursor: cancellingRoom === duel.id ? 'wait' : 'pointer',
+                                                            opacity: cancellingRoom === duel.id ? 0.7 : 1
+                                                        }}
+                                                    >
+                                                        {cancellingRoom === duel.id ? '⏳ Cancelling...' : '❌ Cancel & Refund'}
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => joinDuel(duel.id)}
+                                                        disabled={joining === duel.id}
+                                                        style={{
+                                                            padding: '10px 20px',
+                                                            borderRadius: 8,
+                                                            border: 'none',
+                                                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                                                            color: '#fff',
+                                                            fontSize: 13,
+                                                            fontWeight: 700,
+                                                            cursor: joining === duel.id ? 'wait' : 'pointer'
+                                                        }}
+                                                    >
+                                                        {joining === duel.id ? '⏳ Joining...' : '🎯 Join'}
+                                                    </button>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
