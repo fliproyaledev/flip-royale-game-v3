@@ -98,9 +98,11 @@ function getDurabilityColor(visualState: string): string {
   }
 }
 
-function getDaysRemaining(expiresAt: number): number {
+function getRemainingUses(card: any): number {
+  if (card.remainingDays !== undefined) return card.remainingDays;
+  // Legacy fallback
   const now = Date.now();
-  const remaining = expiresAt - now;
+  const remaining = (card.expiresAt || 0) - now;
   return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
 }
 
@@ -316,7 +318,7 @@ export default function Inventory() {
 
                 const cardStyles = getCardCSSStyles(card.cardType)
                 const durabilityColor = getDurabilityColor(card.visualState)
-                const daysLeft = getDaysRemaining(card.expiresAt)
+                const usesLeft = getRemainingUses(card)
                 const isExpiredOrWrecked = card.status === 'expired' || card.status === 'wrecked' || card.durability === 0
 
                 return (
@@ -429,7 +431,7 @@ export default function Inventory() {
                         color: '#9ca3af'
                       }}>
                         <span>Durability</span>
-                        <span style={{ color: durabilityColor }}>{daysLeft}d left</span>
+                        <span style={{ color: durabilityColor }}>{usesLeft} uses left</span>
                       </div>
                       <div style={{
                         height: 6,

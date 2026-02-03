@@ -18,8 +18,8 @@ export interface CardInstance {
     cardType: CardType;            // Kart tipi
     ownerId: string;               // Wallet address (lowercase)
     acquiredAt: number;            // Unix timestamp (ms)
-    expiresAt: number;             // Based on card type
-    durability: number;            // 0-100
+    remainingDays: number;         // Usage-based: Decreases when used in Active Round
+    totalDays: number;             // Original duration for percentage calculation
     status: CardStatus;
     renewedCount: number;          // Times renewed with $FLIP
     wreckedAt?: number;            // Taso loss timestamp
@@ -68,7 +68,6 @@ export function parseCardType(about: string): CardType {
     if (lower.includes('genesis')) return 'genesis';
     if (lower.includes('pegasus')) return 'pegasus';
     if (lower.includes('firstborn')) return 'firstborn';
-    // Default to sentient for any unrecognized type
     return 'sentient';
 }
 
@@ -82,7 +81,6 @@ export function createCardInstance(
 ): CardInstance {
     const now = Date.now();
     const durationDays = DURABILITY_DAYS[cardType] || 5;
-    const expiresAt = now + durationDays * DAY_MS;
 
     return {
         id: generateCardId(),
@@ -90,8 +88,8 @@ export function createCardInstance(
         cardType,
         ownerId: ownerId.toLowerCase(),
         acquiredAt: now,
-        expiresAt,
-        durability: 100,
+        remainingDays: durationDays,
+        totalDays: durationDays,
         status: 'active',
         renewedCount: 0,
     };
@@ -104,13 +102,9 @@ export function calculateDurability(card: CardInstance): number {
     if (card.status === 'wrecked') return 0;
     if (card.status === 'expired') return 0;
 
-    const now = Date.now();
-    if (now >= card.expiresAt) return 0;
+    if (card.remainingDays <= 0) return 0;
 
-    const totalDuration = card.expiresAt - card.acquiredAt;
-    const elapsed = now - card.acquiredAt;
-    const remaining = Math.max(0, 100 - (elapsed / totalDuration) * 100);
-
+    const remaining = (card.remainingDays / card.totalDays) * 100;
     return Math.round(remaining);
 }
 
@@ -119,7 +113,7 @@ export function calculateDurability(card: CardInstance): number {
  */
 export function isCardActive(card: CardInstance): boolean {
     if (card.status !== 'active') return false;
-    return calculateDurability(card) > 0;
+    return card.remainingDays > 0;
 }
 
 /**
@@ -128,11 +122,10 @@ export function isCardActive(card: CardInstance): boolean {
 export function checkAndUpdateExpiry(card: CardInstance): CardInstance {
     if (card.status !== 'active') return card;
 
-    const durability = calculateDurability(card);
-    if (durability <= 0) {
-        return { ...card, status: 'expired', durability: 0 };
+    if (card.remainingDays <= 0) {
+        return { ...card, status: 'expired', remainingDays: 0 };
     }
-    return { ...card, durability };
+    return card;
 }
 
 /**
@@ -143,15 +136,12 @@ export function renewCard(card: CardInstance): CardInstance {
         throw new Error('Wrecked cards cannot be renewed');
     }
 
-    const now = Date.now();
     const durationDays = DURABILITY_DAYS[card.cardType] || 5;
-    const newExpiresAt = now + durationDays * DAY_MS;
 
     return {
         ...card,
-        acquiredAt: now,
-        expiresAt: newExpiresAt,
-        durability: 100,
+        remainingDays: durationDays,
+        totalDays: durationDays,
         status: 'active',
         renewedCount: card.renewedCount + 1,
     };
@@ -164,7 +154,7 @@ export function wreckCard(card: CardInstance, matchId: string): CardInstance {
     return {
         ...card,
         status: 'wrecked',
-        durability: 0,
+        remainingDays: 0,
         wreckedAt: Date.now(),
         wreckedInMatch: matchId,
     };

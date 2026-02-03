@@ -10,6 +10,8 @@ import {
 import { getPriceForToken } from "../../../lib/price";
 import { TOKEN_MAP } from "../../../lib/tokens";
 import { saveDailyRoundSummary, type DailyRoundSummary } from "../../../lib/history";
+import { CardInstance } from "../../../lib/cardInstance";
+
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const ORACLE_URL = process.env.ORACLE_URL;
@@ -230,6 +232,47 @@ export default async function handler(
             user.totalPoints = (user.totalPoints || 0) + totalPoints;
           }
           user.bankPoints = (user.bankPoints || 0) + totalPoints;
+        }
+
+        // --- 2.5 CARD DURABILITY DECREASE ---
+        if (hasActiveRound) {
+          const cardsKey = `cards:${uid.toLowerCase()}`;
+          try {
+            const userCards = await kv.get<CardInstance[]>(cardsKey) || [];
+
+            if (userCards.length > 0) {
+              const usedCardIds = new Set<string>();
+              let cardsUpdated = false;
+
+              for (const pick of user.activeRound) {
+                if (!pick || !pick.tokenId) continue;
+
+                // Find an active card instance for this token that hasn't been used yet in this round
+                const candidateCard = userCards.find(c =>
+                  c.tokenId === pick.tokenId &&
+                  c.status === 'active' &&
+                  c.remainingDays > 0 &&
+                  !usedCardIds.has(c.id)
+                );
+
+                if (candidateCard) {
+                  candidateCard.remainingDays = Math.max(0, candidateCard.remainingDays - 1);
+                  if (candidateCard.remainingDays === 0) {
+                    candidateCard.status = 'expired';
+                  }
+                  usedCardIds.add(candidateCard.id);
+                  cardsUpdated = true;
+                  console.log(`📉 [CRON] Decreased durability for card ${candidateCard.id} (${pick.tokenId}) for user ${uid}`);
+                }
+              }
+
+              if (cardsUpdated) {
+                await kv.set(cardsKey, userCards);
+              }
+            }
+          } catch (cardErr) {
+            console.error(`❌ [CRON] Error updating cards for user ${uid}:`, cardErr);
+          }
         }
 
         if (historyItems.length > 0) {

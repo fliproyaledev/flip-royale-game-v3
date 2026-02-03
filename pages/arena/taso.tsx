@@ -359,12 +359,12 @@ export default function TasoLobby() {
 
             toast('🎯 Joined! Resolving game...', 'success')
 
-            // Trigger Oracle resolution
-            await fetch('/api/arena/taso/resolve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ roomId: selectedRoomId })
-            })
+            // Trigger Oracle resolution handled by choice endpoint
+            // await fetch('/api/arena/taso/resolve', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ roomId: selectedRoomId })
+            // })
 
             // Navigate to game page
             router.push(`/arena/taso/${selectedRoomId}`)
