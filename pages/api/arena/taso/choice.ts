@@ -155,6 +155,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 }
 
                 console.log('[Taso Choice] Triggering blockchain resolution...')
+
+                // Wait 2s to ensure contract state (joinRoom) has propagated to Oracle's RPC
+                await new Promise(r => setTimeout(r, 2000))
+
                 const provider = new ethers.JsonRpcProvider(RPC_URL)
                 const oracleWallet = new ethers.Wallet(ORACLE_PRIVATE_KEY, provider)
                 const contract = new ethers.Contract(ARENA_CONTRACT, ARENA_ABI, oracleWallet)

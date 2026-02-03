@@ -7,7 +7,8 @@ import { kv } from '@vercel/kv'
 import { TOKEN_MAP } from '../../../../lib/tokens'
 
 const ARENA_CONTRACT = process.env.NEXT_PUBLIC_ARENA_CONTRACT || "0x83E316B9aa8F675b028279f089179bA26792242B"
-const RPC_URL = "https://mainnet.base.org"
+// Use High-Perf RPC from env, or fallback to reliable public nodes
+const RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://base.drpc.org'
 
 const ARENA_ABI = [
     "function rooms(bytes32 roomId) view returns (bytes32 id, address player1, address player2, uint256 stake, uint8 tier, uint8 gameMode, uint8 status, address winner, uint256 createdAt, uint256 resolvedAt)"
@@ -56,19 +57,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const p1Card = kvGame?.player1?.card || { symbol: 'ETH', cardType: 'genesis', logo: '/token-logos/eth.png' }
         const p2Card = kvGame?.player2?.card || { symbol: 'ETH', cardType: 'pegasus', logo: '/token-logos/btc.png' }
 
-        // 4. Determine result
+        // 4. Determine result & Winner
         let flipResult = kvGame?.flipResult || null
+
+        let winner = roomData.winner
+        // Fallback to KV winner if chain is pending/zero but we have a local winner
+        if ((winner === '0x0000000000000000000000000000000000000000' || !winner) && kvGame?.winner && status === 'resolved') {
+            winner = kvGame.winner
+        }
+
         if (status === 'resolved' && !flipResult) {
             // Fallback if KV missing but contract resolved (e.g. resolved via script/direct)
-            if (roomData.winner !== '0x0000000000000000000000000000000000000000') {
-                if (roomData.winner.toLowerCase() === roomData.player1.toLowerCase()) {
+            if (winner !== '0x0000000000000000000000000000000000000000') {
+                if (winner.toLowerCase() === roomData.player1.toLowerCase()) {
                     flipResult = p1Choice // Assume winner was correct
-                } else {
+                } else if (roomData.player2 && winner.toLowerCase() === roomData.player2.toLowerCase()) {
                     flipResult = p2Choice // Assume winner was correct
                 }
             }
-        } else if (status === 'draw') {
-            // Keep flipResult consistent if possible, or just don't show specific side if draw (logic handles it)
         }
 
         const game = {
@@ -86,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 choice: p2Choice
             } : null,
             flipResult,
-            winner: roomData.winner !== '0x0000000000000000000000000000000000000000' ? roomData.winner : null
+            winner: winner !== '0x0000000000000000000000000000000000000000' ? winner : null
         }
 
         return res.status(200).json({ ok: true, game })
@@ -96,3 +102,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ ok: false, error: 'Failed to fetch game details' })
     }
 }
+
