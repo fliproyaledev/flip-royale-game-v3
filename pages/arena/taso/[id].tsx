@@ -156,7 +156,9 @@ function SpinningCard({
     // Calculate final rotation
     const getFinalRotation = () => {
         if (showFinalSide) {
-            return finalSide === 'front' ? 180 : 0
+            // Must match the final rotation of the animation to prevent "rewind" spin
+            // Front: 5.5 rotations (1980deg), Back: 6 rotations (2160deg)
+            return finalSide === 'front' ? 1980 : 2160
         }
         return rotation
     }
@@ -188,6 +190,7 @@ function SpinningCard({
                     width: '100%',
                     height: '100%',
                     backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
                     borderRadius: 16,
                     overflow: 'hidden',
                     border: showFinalSide
@@ -248,6 +251,7 @@ function SpinningCard({
                     width: '100%',
                     height: '100%',
                     backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
                     transform: 'rotateY(180deg)',
                     background: styles.background,
                     border: showFinalSide
