@@ -29,7 +29,7 @@ export const TASO_TIERS = {
 export type TasoTier = keyof typeof TASO_TIERS;
 
 export interface TasoCard {
-    cardId: string;       // CardInstance ID
+    cardId?: string;
     tokenId: string;
     symbol: string;
     name: string;
