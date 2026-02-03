@@ -118,7 +118,7 @@ function CardSelector({
                             borderRadius: 4,
                             marginTop: 4
                         }}>
-                            {card.durability}% HP
+                            {String(card.cardType || 'Item').toUpperCase()}
                         </div>
 
                         {isSelected && (

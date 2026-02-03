@@ -27,7 +27,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const arena = new ethers.Contract(ARENA_CONTRACT, ARENA_ABI, provider)
 
         // 1. Fetch room from contract
-        const roomData = await arena.rooms(roomId)
+        let roomData;
+        try {
+            roomData = await arena.rooms(roomId)
+        } catch (e: any) {
+            console.error(`Contract call failed for ${roomId}:`, e.message)
+            // If contract fails (RPC error), try to rely on KV if available
+            const tasoKey = `taso:${roomId}`
+            const kvGame = await kv.get<any>(tasoKey)
+            if (kvGame) {
+                console.log(`Using KV fallback for ${roomId}`)
+                return res.status(200).json({ ok: true, game: kvGame, source: 'kv-fallback' })
+            }
+            throw new Error(`Failed to fetch room from Chain and KV: ${e.message}`)
+        }
 
         if (roomData.player1 === '0x0000000000000000000000000000000000000000') {
             return res.status(404).json({ ok: false, error: 'Room not found' })
