@@ -57,22 +57,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         console.log(`[Rooms API] Starting - gameMode=${gameModeNum}, status=${statusNum}`)
 
-        // Get a working provider
-        const provider = new ethers.JsonRpcProvider(RPC_URLS[0])
-        const contract = new ethers.Contract(ARENA_CONTRACT, ARENA_ABI, provider)
-
         // Fetch all room IDs first
         const allRoomIds: string[] = []
         const MAX_ROOMS = 100
 
         for (let i = 0; i < MAX_ROOMS; i++) {
             try {
-                const roomId = await contract.allRoomIds(i)
+                // Use retry logic to fetch ID. If index is out of bounds, ALL providers will fail, throw, and we break.
+                const roomId = await fetchWithRetry(async (prov) => {
+                    const c = new ethers.Contract(ARENA_CONTRACT, ARENA_ABI, prov)
+                    return await c.allRoomIds(i)
+                })
+
                 console.log(`[Rooms API] Room [${i}]: ${roomId}`)
                 allRoomIds.push(roomId)
                 await delay(100) // Small delay between calls
             } catch (e: any) {
-                console.log(`[Rooms API] Finished at index ${i}, total rooms: ${allRoomIds.length}`)
+                // If fetchWithRetry throws, it means ALL RPCs failed. 
+                // This likely means we hit the end of the array (revert).
+                console.log(`[Rooms API] Finished at index ${i} (or error), total rooms: ${allRoomIds.length}`)
                 break
             }
         }
@@ -86,17 +89,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const rooms = []
         for (const roomId of allRoomIds) {
             try {
-                // Try with current provider first
-                let room
-                try {
-                    room = await contract.rooms(roomId)
-                } catch (e) {
-                    // Retry with different RPC
-                    room = await fetchWithRetry(async (prov) => {
-                        const c = new ethers.Contract(ARENA_CONTRACT, ARENA_ABI, prov)
-                        return c.rooms(roomId)
-                    })
-                }
+                // Fetch details with retry
+                const room = await fetchWithRetry(async (prov) => {
+                    const c = new ethers.Contract(ARENA_CONTRACT, ARENA_ABI, prov)
+                    return c.rooms(roomId)
+                })
 
                 const roomGameMode = Number(room.gameMode)
                 const roomStatus = Number(room.status)

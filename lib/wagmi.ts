@@ -13,7 +13,7 @@ export const config = getDefaultConfig({
   projectId,
   chains: [base],
   transports: {
-    [base.id]: http('https://mainnet.base.org'),
+    [base.id]: http(process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org'),
   },
   // Coinbase Wallet prioritized for Base Mini App
   wallets: [
