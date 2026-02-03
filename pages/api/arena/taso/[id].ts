@@ -10,7 +10,7 @@ const ARENA_CONTRACT = process.env.NEXT_PUBLIC_ARENA_CONTRACT || "0x83E316B9aa8F
 const RPC_URL = "https://mainnet.base.org"
 
 const ARENA_ABI = [
-    "function rooms(bytes32 roomId) view returns (address player1, address player2, address player1Card, address player2Card, uint8 tier, uint8 status, uint256 stake, uint8 gameMode, address winner)"
+    "function rooms(bytes32 roomId) view returns (bytes32 id, address player1, address player2, uint256 stake, uint8 tier, uint8 gameMode, uint8 status, address winner, uint256 createdAt, uint256 resolvedAt)"
 ]
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -35,10 +35,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // 2. Map status (Contract: 0=Open, 1=Joined, 2=InGame, 3=Resolved, 4=Cancelled)
         // Frontend expects: 'open', 'waiting_choices', 'resolved', 'draw', 'cancelled'
         let status = 'open'
-        if (roomData.status === 0) status = 'open'
-        else if (roomData.status === 1 || roomData.status === 2) status = 'waiting_choices'
-        else if (roomData.status === 3) status = 'resolved'
-        else if (roomData.status === 4) status = 'cancelled'
+        const rawStatus = Number(roomData.status)
+        if (rawStatus === 0) status = 'open'
+        else if (rawStatus === 1 || rawStatus === 2) status = 'waiting_choices'
+        else if (rawStatus === 3) status = 'resolved'
+        else if (rawStatus === 4) status = 'cancelled'
 
         // 3. Get Game State from KV (Source of Truth for Choices & Visuals)
         const tasoKey = `taso:${roomId}`
@@ -52,6 +53,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const p1Choice = kvGame?.player1?.choice || null
         const p2Choice = kvGame?.player2?.choice || null
+        const p1Card = kvGame?.player1?.card || { symbol: 'ETH', cardType: 'genesis', logo: '/token-logos/eth.png' }
+        const p2Card = kvGame?.player2?.card || { symbol: 'ETH', cardType: 'pegasus', logo: '/token-logos/btc.png' }
 
         // 4. Determine result
         let flipResult = kvGame?.flipResult || null
@@ -68,30 +71,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             // Keep flipResult consistent if possible, or just don't show specific side if draw (logic handles it)
         }
 
-        // 5. Build Token Info
-        const getTokenInfo = (addr: string) => {
-            const token = TOKEN_MAP[addr.toLowerCase()] || { symbol: 'TOKEN', name: 'Unknown Token', logo: '/token-logos/placeholder.png', about: 'sentient' }
-            return {
-                tokenId: addr,
-                symbol: token.symbol,
-                name: token.name,
-                logo: token.logo,
-                cardType: token.about || 'sentient'
-            }
-        }
-
         const game = {
             id: roomId,
             status,
             stake: Number(ethers.formatUnits(roomData.stake, 6)), // USDC decimals = 6
             player1: {
                 wallet: roomData.player1,
-                card: getTokenInfo(roomData.player1Card),
+                card: p1Card,
                 choice: p1Choice
             },
             player2: roomData.player2 !== '0x0000000000000000000000000000000000000000' ? {
                 wallet: roomData.player2,
-                card: getTokenInfo(roomData.player2Card),
+                card: p2Card,
                 choice: p2Choice
             } : null,
             flipResult,

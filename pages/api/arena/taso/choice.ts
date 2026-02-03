@@ -33,10 +33,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ ok: false, error: 'Method not allowed' })
     }
 
-    const { gameId, wallet, choice, tier } = req.body
+    const { gameId: reqGameId, roomId, wallet, choice, tier } = req.body
+
+    // Normalize gameId (Frontend might send roomId)
+    const gameId = reqGameId || roomId
 
     if (!gameId || !wallet || !choice) {
-        return res.status(400).json({ ok: false, error: 'Missing required fields' })
+        return res.status(400).json({ ok: false, error: 'Missing required fields (gameId/roomId, wallet, choice)' })
     }
 
     try {

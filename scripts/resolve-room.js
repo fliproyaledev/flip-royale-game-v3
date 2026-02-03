@@ -12,7 +12,7 @@ if (fs.existsSync(envLocalPath)) require('dotenv').config({ path: envLocalPath, 
 // Config
 const ARENA_CONTRACT = process.env.NEXT_PUBLIC_ARENA_CONTRACT || "0x83E316B9aa8F675b028279f089179bA26792242B";
 const ORACLE_PRIVATE_KEY = process.env.ARENA_ORACLE_PRIVATE_KEY;
-const RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://base.drpc.org';
+const RPC_URL = 'https://base.drpc.org';
 const KV_URL = process.env.KV_REST_API_URL;
 const KV_TOKEN = process.env.KV_REST_API_TOKEN;
 

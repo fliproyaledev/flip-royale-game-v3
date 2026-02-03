@@ -8,7 +8,8 @@ import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
+import { parseEventLogs } from 'viem'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Topbar from '../../components/Topbar'
 import { useTheme } from '../../lib/theme'
@@ -153,6 +154,7 @@ export default function TasoLobby() {
     const { theme } = useTheme()
     const { toast } = useToast()
     const { address, isConnected } = useAccount()
+    const publicClient = usePublicClient()
 
     // State
     const [selectedTier, setSelectedTier] = useState<ArenaTier>(0)
@@ -234,7 +236,7 @@ export default function TasoLobby() {
     }
 
     const handleCreateConfirm = async (choice: TasoChoice) => {
-        if (!address) return
+        if (!address || !publicClient) return
         setProcessing(true)
 
         try {
@@ -254,6 +256,8 @@ export default function TasoLobby() {
 
                 setTxHash(approveHash)
                 toast('USDC approved! Creating room...', 'success')
+                // Wait for approval to be mined
+                await publicClient.waitForTransactionReceipt({ hash: approveHash })
                 await refetchAllowance()
             }
 
@@ -269,6 +273,25 @@ export default function TasoLobby() {
             })
 
             setTxHash(createHash)
+            toast('Waiting for confirmation...', 'info')
+
+            // Wait for receipt to get Room ID
+            const receipt = await publicClient.waitForTransactionReceipt({ hash: createHash })
+
+            // Parse Event to find Room Creation logs
+            const logs = parseEventLogs({
+                abi: ARENA_ABI,
+                eventName: 'RoomCreated',
+                logs: receipt.logs,
+            })
+
+            const createdRoomId = logs[0]?.args.roomId
+
+            if (!createdRoomId) {
+                throw new Error('Room created but ID not found in logs')
+            }
+
+            console.log('Room Created:', createdRoomId)
 
             // Save choice to backend for Oracle
             await fetch('/api/arena/taso/choice', {
@@ -276,6 +299,7 @@ export default function TasoLobby() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     wallet: address,
+                    gameId: createdRoomId, // Use the real ID
                     txHash: createHash,
                     choice,
                     tier: selectedTier
@@ -306,7 +330,7 @@ export default function TasoLobby() {
     }
 
     const handleJoinConfirm = async (choice: TasoChoice) => {
-        if (!address || !selectedRoomId) return
+        if (!address || !selectedRoomId || !publicClient) return
         setProcessing(true)
 
         try {
@@ -329,6 +353,7 @@ export default function TasoLobby() {
 
                 setTxHash(approveHash)
                 toast('USDC approved! Joining room...', 'success')
+                await publicClient.waitForTransactionReceipt({ hash: approveHash })
                 await refetchAllowance()
             }
 
@@ -344,6 +369,10 @@ export default function TasoLobby() {
             })
 
             setTxHash(joinHash)
+            toast('Waiting for confirmation...', 'info')
+
+            // Wait for receipt to ensure we are in contract
+            await publicClient.waitForTransactionReceipt({ hash: joinHash })
 
             // Save choice to backend for Oracle resolution
             await fetch('/api/arena/taso/choice', {
@@ -351,20 +380,14 @@ export default function TasoLobby() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     wallet: address,
-                    roomId: selectedRoomId,
+                    gameId: selectedRoomId, // Use gameId as expected by backend
+                    roomId: selectedRoomId, // Fallback alias
                     txHash: joinHash,
                     choice
                 })
             })
 
             toast('🎯 Joined! Resolving game...', 'success')
-
-            // Trigger Oracle resolution handled by choice endpoint
-            // await fetch('/api/arena/taso/resolve', {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify({ roomId: selectedRoomId })
-            // })
 
             // Navigate to game page
             router.push(`/arena/taso/${selectedRoomId}`)
