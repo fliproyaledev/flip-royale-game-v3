@@ -294,7 +294,10 @@ export default function TasoGamePage() {
     const { address } = useAccount()
 
     const [game, setGame] = useState<TasoGame | null>(null)
-    const [loading, setLoading] = useState(true)
+    const [initialLoading, setInitialLoading] = useState(true)
+    const [connectionError, setConnectionError] = useState(false)
+    const [notFound, setNotFound] = useState(false)
+
     const [submitting, setSubmitting] = useState(false)
     const [selectedChoice, setSelectedChoice] = useState<'front' | 'back' | null>(null)
     const [user, setUser] = useState<any>(null)
@@ -316,29 +319,45 @@ export default function TasoGamePage() {
 
     useEffect(() => {
         if (id) {
-            loadGame()
-            const interval = setInterval(loadGame, 5000)
+            loadGame(true)
+            // Poll every 4s to reduce RPC load
+            const interval = setInterval(() => loadGame(false), 4000)
             return () => clearInterval(interval)
         }
     }, [id])
 
-    const loadGame = async () => {
+    const loadGame = async (isFirstLoad = false) => {
         try {
+            if (isFirstLoad) setInitialLoading(true)
             const res = await fetch(`/api/arena/taso/${id}`)
+
+            if (res.status === 404) {
+                setNotFound(true)
+                setInitialLoading(false)
+                return
+            }
+
             const data = await res.json()
             if (data.ok) {
                 setGame(data.game)
+                setConnectionError(false)
+                setNotFound(false)
 
                 // Start animation ONCE when game is resolved
                 if (data.game.status === 'resolved' && !animationRan.current) {
                     animationRan.current = true
                     startFlipAnimation()
                 }
+            } else {
+                // API Error (500 etc)
+                console.warn('Sync error:', data.error)
+                setConnectionError(true)
             }
         } catch (err) {
             console.error('Load game error:', err)
+            setConnectionError(true)
         } finally {
-            setLoading(false)
+            if (isFirstLoad) setInitialLoading(false)
         }
     }
 
@@ -397,24 +416,47 @@ export default function TasoGamePage() {
             game.player2?.wallet.toLowerCase() === address.toLowerCase() ? game.player2 : null
     )
 
-    if (loading) {
+    // Initial Full Page Loading
+    if (initialLoading) {
         return (
             <div className="app" data-theme={theme}>
                 <Topbar activeTab="arena" user={user} />
                 <main style={{ padding: 40, textAlign: 'center' }}>
-                    <p>⏳ Loading...</p>
+                    <p>⏳ Loading Game...</p>
                 </main>
             </div>
         )
     }
 
+    // Explicit Not Found (404)
+    if (notFound) {
+        return (
+            <div className="app" data-theme={theme}>
+                <Topbar activeTab="arena" user={user} />
+                <main style={{ padding: 40, textAlign: 'center' }}>
+                    <h2 style={{ color: '#ef4444' }}>Game not found</h2>
+                    <p style={{ marginBottom: 20 }}>This room does not exist or has expired.</p>
+                    <Link href="/arena/taso">← Back to Lobby</Link>
+                </main>
+            </div>
+        )
+    }
+
+    // Connection Error / Syncing (but show UI if we have stale game data)
     if (!game) {
         return (
             <div className="app" data-theme={theme}>
                 <Topbar activeTab="arena" user={user} />
                 <main style={{ padding: 40, textAlign: 'center' }}>
-                    <p>Game not found</p>
-                    <Link href="/arena/taso">← Go Back</Link>
+                    {connectionError ? (
+                        <>
+                            <h3 style={{ color: '#f59e0b' }}>Syncing with Blockchain...</h3>
+                            <p>Waiting for transaction to confirm. Stick around!</p>
+                            <div style={{ marginTop: 20, fontSize: 30 }} className="animate-spin">⏳</div>
+                        </>
+                    ) : (
+                        <p>Initializing...</p>
+                    )}
                 </main>
             </div>
         )
