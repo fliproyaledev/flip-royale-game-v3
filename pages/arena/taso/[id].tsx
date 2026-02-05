@@ -514,11 +514,12 @@ export default function TasoGamePage() {
                                 marginBottom: 12,
                                 fontSize: 14,
                                 color: showFinal
-                                    ? (isP1Winner ? '#10b981' : '#ef4444')
+                                    ? (isP1Winner ? '#10b981' : (game.status === 'draw' ? '#eab308' : '#ef4444'))
                                     : '#ec4899'
                             }}>
                                 {showFinal && isP1Winner && '🏆 '}
-                                {showFinal && !isP1Winner && '💀 '}
+                                {showFinal && !isP1Winner && game.status !== 'draw' && '💀 '}
+                                {showFinal && game.status === 'draw' && '🤝 '}
                                 {shortenAddress(game.player1.wallet)}
                             </p>
 
@@ -528,7 +529,7 @@ export default function TasoGamePage() {
                                 showFinalSide={showFinal}
                                 finalSide={game.flipResult || 'front'}
                                 isWinner={showFinal && !!isP1Winner}
-                                isWrecked={showFinal && !isP1Winner}
+                                isWrecked={showFinal && !isP1Winner && game.status !== 'draw'}
                             />
 
                             {showFinal && game.player1.choice && (
@@ -540,7 +541,7 @@ export default function TasoGamePage() {
 
                         {/* Center - Result Display */}
                         <div style={{ textAlign: 'center', zIndex: 10, minWidth: 100 }}>
-                            {game.status === 'resolved' ? (
+                            {game.status === 'resolved' || game.status === 'draw' ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                     <div style={{
                                         fontSize: 70,
@@ -608,11 +609,12 @@ export default function TasoGamePage() {
                                         marginBottom: 12,
                                         fontSize: 14,
                                         color: showFinal
-                                            ? (isP2Winner ? '#10b981' : '#ef4444')
+                                            ? (isP2Winner ? '#10b981' : (game.status === 'draw' ? '#eab308' : '#ef4444'))
                                             : '#ec4899'
                                     }}>
                                         {showFinal && isP2Winner && '🏆 '}
-                                        {showFinal && !isP2Winner && '💀 '}
+                                        {showFinal && !isP2Winner && game.status !== 'draw' && '💀 '}
+                                        {showFinal && game.status === 'draw' && '🤝 '}
                                         {shortenAddress(game.player2.wallet)}
                                     </p>
 
@@ -622,7 +624,7 @@ export default function TasoGamePage() {
                                         showFinalSide={showFinal}
                                         finalSide={game.flipResult || 'front'}
                                         isWinner={showFinal && !!isP2Winner}
-                                        isWrecked={showFinal && !isP2Winner}
+                                        isWrecked={showFinal && !isP2Winner && game.status !== 'draw'}
                                     />
 
                                     {showFinal && game.player2.choice && (

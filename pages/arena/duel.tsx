@@ -21,7 +21,7 @@ import {
     GameMode
 } from '../../lib/contracts/arenaContract'
 
-type DuelTier = 0 | 1 | 2 | 3
+type DuelTier = 'bronze' | 'silver' | 'gold' | 'diamond'
 
 interface Duel {
     id: string
@@ -38,13 +38,9 @@ interface Duel {
     winnerPayout: number
 }
 
-const TIER_INFO: Record<string | number, { name: string; color: string; stake: string; amount: number }> = {
-    // Numeric keys for contract
-    0: { name: 'Bronze', color: '#cd7f32', stake: '$10', amount: 10_000_000 },
-    1: { name: 'Silver', color: '#c0c0c0', stake: '$25', amount: 25_000_000 },
-    2: { name: 'Gold', color: '#ffd700', stake: '$50', amount: 50_000_000 },
-    3: { name: 'Diamond', color: '#b9f2ff', stake: '$100', amount: 100_000_000 },
-    // String keys for API compatibility
+const TIER_ORDER: DuelTier[] = ['bronze', 'silver', 'gold', 'diamond']
+
+const TIER_INFO: Record<DuelTier, { name: string; color: string; stake: string; amount: number }> = {
     bronze: { name: 'Bronze', color: '#cd7f32', stake: '$10', amount: 10_000_000 },
     silver: { name: 'Silver', color: '#c0c0c0', stake: '$25', amount: 25_000_000 },
     gold: { name: 'Gold', color: '#ffd700', stake: '$50', amount: 50_000_000 },
@@ -62,7 +58,7 @@ export default function FlipDuelLobby() {
     const [loading, setLoading] = useState(true)
     const [creating, setCreating] = useState(false)
     const [joining, setJoining] = useState<string | null>(null)
-    const [selectedTier, setSelectedTier] = useState<DuelTier>(0)
+    const [selectedTier, setSelectedTier] = useState<DuelTier>('bronze')
     const [approving, setApproving] = useState(false)
     const [cancellingRoom, setCancellingRoom] = useState<string | null>(null)
 
@@ -234,7 +230,7 @@ export default function FlipDuelLobby() {
 
                                 {/* Tier Selection */}
                                 <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-                                    {([0, 1, 2, 3] as DuelTier[]).map(tier => (
+                                    {TIER_ORDER.map(tier => (
                                         <button
                                             key={tier}
                                             onClick={() => setSelectedTier(tier)}
