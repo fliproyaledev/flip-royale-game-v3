@@ -29,6 +29,7 @@ import {
 } from '../../lib/contracts/arenaContract'
 import { CardInstance, getDurabilityVisual } from '../../lib/cardInstance'
 import { getCardCSSStyles } from '../../lib/cardStyles'
+import { TOKEN_MAP } from '../../lib/tokens'
 
 type TasoChoice = 'front' | 'back'
 
@@ -394,11 +395,14 @@ export default function TasoLobby() {
                 // Only LOGO and NAME are missing.
                 // I'll blindly attempt to use `/token-logos/{tokenId}.png` as a heuristic.
 
-                const enriched = active.map((c: any) => ({
-                    ...c,
-                    symbol: c.tokenId.toUpperCase(), // Good enough guess
-                    logo: `/token-logos/${c.tokenId.toLowerCase()}.png`
-                }))
+                const enriched = active.map((c: any) => {
+                    const tokenData = TOKEN_MAP[c.tokenId.toLowerCase()]
+                    return {
+                        ...c,
+                        symbol: tokenData?.symbol || c.tokenId.toUpperCase(),
+                        logo: tokenData?.logo || `/token-logos/${c.tokenId.toLowerCase()}.png`
+                    }
+                })
 
                 setUserCards(enriched)
                 if (enriched.length > 0) setSelectedCardId(enriched[0].id)

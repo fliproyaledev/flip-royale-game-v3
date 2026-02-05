@@ -750,7 +750,7 @@ export default function TasoGamePage() {
                                 <>
                                     <p style={{ fontSize: 36, marginBottom: 8 }}>🎉 You Won!</p>
                                     <p style={{ fontSize: 32, fontWeight: 900, color: '#10b981' }}>
-                                        +{((game.stake * 2 * 0.9) / 1000).toFixed(0)}K $FLIP
+                                        +${(game.stake * 2 * 0.9).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
                                     </p>
                                 </>
                             ) : myPlayer ? (
