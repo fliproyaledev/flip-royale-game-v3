@@ -343,8 +343,9 @@ export default function TasoGamePage() {
                 setConnectionError(false)
                 setNotFound(false)
 
-                // Start animation ONCE when game is resolved
-                if (data.game.status === 'resolved' && !animationRan.current) {
+                // Start animation ONCE when game is resolved OR draw
+                const isFinished = data.game.status === 'resolved' || data.game.status === 'draw'
+                if (isFinished && !animationRan.current) {
                     animationRan.current = true
                     startFlipAnimation()
                 }
