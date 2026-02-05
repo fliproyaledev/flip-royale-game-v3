@@ -7,7 +7,8 @@ import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, usePublicClient } from 'wagmi'
+import { parseEventLogs } from 'viem'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Topbar from '../../components/Topbar'
 import { useTheme } from '../../lib/theme'
@@ -111,36 +112,114 @@ export default function FlipDuelLobby() {
         }
     }
 
+    const publicClient = usePublicClient()
+
     const createDuel = async () => {
-        if (!address) return
+        if (!address || !publicClient) return
         setCreating(true)
 
         try {
+            const tierIndex = TIER_ORDER.indexOf(selectedTier)
+            const stake = BigInt(TIER_INFO[selectedTier].amount) // Amount is in units (e.g. 10_000_000)
+
+            // 1. Check Allowance & Approve
+            if (!allowance || allowance < stake) {
+                toast('Approving USDC...', 'info')
+                const approveHash = await writeContractAsync({
+                    address: USDC_ADDRESS as `0x${string}`,
+                    abi: ERC20_ABI,
+                    functionName: 'approve',
+                    args: [ARENA_CONTRACT_ADDRESS as `0x${string}`, stake * BigInt(10)]
+                })
+                toast('USDC approved! Waiting for confirmation...', 'info')
+                await publicClient.waitForTransactionReceipt({ hash: approveHash })
+            }
+
+            // 2. Create Room on Contract
+            toast('Creating on-chain room...', 'info')
+            const hash = await writeContractAsync({
+                address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+                abi: ARENA_ABI,
+                functionName: 'createRoom',
+                args: [tierIndex, GameMode.Duel]
+            })
+
+            toast('Waiting for network...', 'info')
+            const receipt = await publicClient.waitForTransactionReceipt({ hash })
+
+            // 3. Get Room ID from logs
+            const logs = parseEventLogs({
+                abi: ARENA_ABI,
+                eventName: 'RoomCreated',
+                logs: receipt.logs,
+            })
+            const createdRoomId = logs[0]?.args.roomId
+            if (!createdRoomId) throw new Error('Room ID not found in logs')
+
+            // 4. Persist to Backend
+            toast('Finalizing room...', 'info')
             const res = await fetch('/api/arena/duel/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet: address, tier: selectedTier })
+                body: JSON.stringify({
+                    wallet: address,
+                    tier: selectedTier,
+                    roomId: createdRoomId // Pass the contract ID
+                })
             })
             const data = await res.json()
 
             if (data.ok) {
-                toast(`⚔️ Duel room created! ID: ${data.duel.id.slice(-6)}`, 'success')
+                toast(`⚔️ Duel room created!`, 'success')
                 loadDuels()
             } else {
-                toast(data.error || 'Failed to create room', 'error')
+                toast(data.error || 'Room created but save failed. Contact support.', 'error')
             }
         } catch (err: any) {
-            toast(err.message || 'Error', 'error')
+            console.error(err)
+            toast(err.shortMessage || err.message || 'Error creating room', 'error')
         } finally {
             setCreating(false)
         }
     }
 
     const joinDuel = async (duelId: string) => {
-        if (!address) return
+        if (!address || !publicClient) return
         setJoining(duelId)
 
         try {
+            const duel = openDuels.find(d => d.id === duelId)
+            if (!duel) throw new Error('Duel not found')
+
+            const stake = BigInt(TIER_INFO[duel.tier].amount)
+
+            // 1. Check Allowance & Approve
+            if (!allowance || allowance < stake) {
+                toast('Approving USDC...', 'info')
+                const approveHash = await writeContractAsync({
+                    address: USDC_ADDRESS as `0x${string}`,
+                    abi: ERC20_ABI,
+                    functionName: 'approve',
+                    args: [ARENA_CONTRACT_ADDRESS as `0x${string}`, stake * BigInt(10)]
+                })
+                toast('USDC approved! Waiting for confirmation...', 'info')
+                await publicClient.waitForTransactionReceipt({ hash: approveHash })
+            }
+
+            // 2. Join Room on Contract
+            toast('Joining on-chain room...', 'info')
+            const hash = await writeContractAsync({
+                address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+                abi: ARENA_ABI,
+                functionName: 'joinRoom',
+                args: [duelId as `0x${string}`]
+            })
+
+            toast('Waiting for network...', 'info')
+            await publicClient.waitForTransactionReceipt({ hash })
+
+            // 3. Persist to Backend (Save P2 logic)
+            toast('Finalizing join...', 'info')
             const res = await fetch('/api/arena/duel/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -149,13 +228,14 @@ export default function FlipDuelLobby() {
             const data = await res.json()
 
             if (data.ok) {
-                toast('🎯 Duel resolved!', 'success')
+                toast('🎯 Duel joined!', 'success')
                 router.push(`/arena/duel/${duelId}`)
             } else {
-                toast(data.error || 'Failed to join', 'error')
+                toast(data.error || 'Joined on chain but save failed.', 'error')
             }
         } catch (err: any) {
-            toast(err.message || 'Error', 'error')
+            console.error(err)
+            toast(err.shortMessage || err.message || 'Error joining room', 'error')
         } finally {
             setJoining(null)
         }

@@ -124,7 +124,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Create duel
-        const duel = await createFlipDuel(cleanWallet, tier as DuelTier, duelCards);
+        const duel = await createFlipDuel(cleanWallet, tier as DuelTier, duelCards, req.body.roomId);
 
         return res.status(200).json({
             ok: true,

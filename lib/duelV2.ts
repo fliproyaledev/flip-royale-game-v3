@@ -170,10 +170,11 @@ export async function incrementDailyUsage(wallet: string): Promise<void> {
 export async function createFlipDuel(
     wallet: string,
     tier: DuelTier,
-    selectedCards: DuelCard[]
+    selectedCards: DuelCard[],
+    idOverride?: string
 ): Promise<FlipDuel> {
     const tierConfig = DUEL_TIERS[tier];
-    const id = generateDuelId();
+    const id = idOverride || generateDuelId();
 
     const totalFdv = selectedCards.reduce((sum, c) => sum + c.fdv, 0);
 
