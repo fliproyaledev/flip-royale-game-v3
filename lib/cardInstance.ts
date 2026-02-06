@@ -39,11 +39,11 @@ export const DURABILITY_DAYS: Record<CardType, number> = {
 };
 
 export const RENEWAL_PRICES: Record<CardType, number> = {
-    sentient: 15000,   // $FLIP
-    genesis: 30000,
+    sentient: 50000,
+    genesis: 50000,
     unicorn: 50000,
-    pegasus: 100000,
-    firstborn: 100000,
+    pegasus: 50000,
+    firstborn: 50000,
 };
 
 // ─────────────────────────────────────────────────────────────

@@ -289,6 +289,28 @@ export async function resolveTasoGame(gameId: string): Promise<TasoGame | null> 
 
     await kv.set(`${TASO_PREFIX}${gameId}`, game);
 
+    // ─────────────────────────────────────────────────────────────
+    // CRITICAL: Update User Inventory to Wreck the Card Permanently
+    // ─────────────────────────────────────────────────────────────
+    if (game.loserCardWrecked && loser.wallet) {
+        try {
+            const userCardsKey = `cards:${loser.wallet.toLowerCase()}`;
+            const userCards = await kv.get<CardInstance[]>(userCardsKey) || [];
+
+            const cardIndex = userCards.findIndex(c => c.id === game.loserCardWrecked);
+            if (cardIndex !== -1) {
+                // Apply wreck status using helper
+                userCards[cardIndex] = wreckCard(userCards[cardIndex], game.id);
+
+                // Save updated inventory
+                await kv.set(userCardsKey, userCards);
+                console.log(`💀 Card ${game.loserCardWrecked} wrecked for user ${loser.wallet}`);
+            }
+        } catch (err) {
+            console.error('Failed to persist wrecked status:', err);
+        }
+    }
+
     return game;
 }
 
