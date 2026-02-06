@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
-import { useAccount, useReadContract } from 'wagmi'
+import { useAccount, useReadContract, useReadContracts } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Topbar from '../components/Topbar'
 import { useTheme } from '../lib/theme'
@@ -36,8 +36,6 @@ export default function ArenaHistoryPage() {
     const { address, isConnected } = useAccount()
 
     const [user, setUser] = useState<any>(null)
-    const [games, setGames] = useState<GameRecord[]>([])
-    const [loading, setLoading] = useState(true)
 
     // Get user stats from contract
     const { data: userStats } = useReadContract({
@@ -57,6 +55,20 @@ export default function ArenaHistoryPage() {
         query: { enabled: !!address }
     }) as { data: `0x${string}`[] | undefined }
 
+    // Prepare batch call for recent games (last 10)
+    // Slice first to avoid massive call
+    const recentRoomIds = userRoomIds ? [...userRoomIds].slice(-10).reverse() : []
+
+    const { data: roomsData, isLoading: roomsLoading } = useReadContracts({
+        contracts: recentRoomIds.map(id => ({
+            address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+            abi: ARENA_ABI,
+            functionName: 'rooms',
+            args: [id]
+        })),
+        query: { enabled: recentRoomIds.length > 0 }
+    })
+
     useEffect(() => {
         if (typeof window !== 'undefined') {
             try {
@@ -65,12 +77,6 @@ export default function ArenaHistoryPage() {
             } catch { }
         }
     }, [])
-
-    useEffect(() => {
-        if (userRoomIds) {
-            setLoading(false)
-        }
-    }, [userRoomIds])
 
     // Calculate stats
     const wins = userStats ? Number(userStats[0]) : 0
@@ -158,11 +164,11 @@ export default function ArenaHistoryPage() {
                             <div style={{ marginTop: 32 }}>
                                 <h3 style={{ marginBottom: 16, fontSize: 18 }}>Recent Games</h3>
 
-                                {loading ? (
+                                {(!userRoomIds && !roomsData) ? (
                                     <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
                                         Loading games...
                                     </div>
-                                ) : userRoomIds && userRoomIds.length > 0 ? (
+                                ) : recentRoomIds.length > 0 ? (
                                     <div style={{
                                         background: 'rgba(0,0,0,0.3)',
                                         borderRadius: 12,
@@ -181,8 +187,15 @@ export default function ArenaHistoryPage() {
                                             <div style={{ textAlign: 'center' }}>Type</div>
                                             <div style={{ textAlign: 'right' }}>Status</div>
                                         </div>
-                                        {userRoomIds.slice(-10).reverse().map((roomId, i) => (
-                                            <RoomRow key={i} roomId={roomId} userAddress={address!} />
+                                        {recentRoomIds.map((roomId, i) => (
+                                            <RoomRow
+                                                key={roomId}
+                                                roomId={roomId}
+                                                userAddress={address!}
+                                                // roomsData is array of { result, status } objects
+                                                roomData={roomsData?.[i]?.result}
+                                                isLoading={roomsLoading}
+                                            />
                                         ))}
                                     </div>
                                 ) : (
@@ -253,16 +266,16 @@ function StatCard({ label, value, icon, color }: { label: string; value: string;
 }
 
 // Room Row Component
-function RoomRow({ roomId, userAddress }: { roomId: `0x${string}`; userAddress: string }) {
-    const { data: room } = useReadContract({
-        address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
-        abi: ARENA_ABI,
-        functionName: 'rooms',
-        args: [roomId],
-    }) as { data: any }
+function RoomRow({ roomId, userAddress, roomData, isLoading }: { roomId: `0x${string}`; userAddress: string; roomData?: any; isLoading: boolean }) {
+    if (isLoading) return (
+        <div style={{ padding: '16px', color: '#666', fontSize: 12, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            Loading...
+        </div>
+    )
 
-    if (!room) return null
+    if (!roomData) return null // Or show error state
 
+    const room = roomData
     const isWinner = room.winner?.toLowerCase() === userAddress.toLowerCase()
     const isDraw = room.status === 3 // Draw status
     const isCancelled = room.status === 4
@@ -294,7 +307,7 @@ function RoomRow({ roomId, userAddress }: { roomId: `0x${string}`; userAddress: 
         statusText = 'In Progress'
     } else if (room.status === 0) {
         statusColor = '#10b981'
-        statusText = 'Open'
+        statusText = 'Open/Waiting'
     }
 
     const targetLink = `/arena/${room.gameMode === 0 ? 'duel' : 'taso'}/${roomId}`
