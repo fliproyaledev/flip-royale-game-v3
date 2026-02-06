@@ -569,7 +569,7 @@ export default function DuelReplayPage() {
                                 {shortenAddress(duel.winner)}
                             </p>
                             <p style={{ fontSize: 32, fontWeight: 900, color: '#10b981', margin: 0 }}>
-                                +{(duel.winnerPayout / 1000).toFixed(0)}K $FLIP
+                                +${(duel.winnerPayout / 1_000_000).toFixed(2)} USDC
                             </p>
                         </div>
                     )}

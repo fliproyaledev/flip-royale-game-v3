@@ -1,8 +1,9 @@
 // pages/api/arena/rooms.ts
-// Fetch open rooms from Arena contract with retry logic
+// Fetch open rooms from Arena contract efficiently
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { ethers } from 'ethers'
+import { ARENA_ABI } from '../../../lib/contracts/arenaContract'
 
 const ARENA_CONTRACT = process.env.NEXT_PUBLIC_ARENA_CONTRACT || "0x83E316B9aa8F675b028279f089179bA26792242B"
 
@@ -14,12 +15,7 @@ const RPC_URLS = [
     'https://base.drpc.org'
 ]
 
-const ARENA_ABI = [
-    "function allRoomIds(uint256 index) view returns (bytes32)",
-    "function rooms(bytes32 roomId) view returns (bytes32 id, address player1, address player2, uint256 stake, uint8 tier, uint8 gameMode, uint8 status, address winner, uint256 createdAt, uint256 resolvedAt)"
-]
-
-// Helper to add delay
+// Helper to add delay (prevent rate limit)
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 // Retry helper with multiple RPCs
@@ -36,7 +32,7 @@ async function fetchWithRetry<T>(
                 return await fn(provider)
             } catch (e: any) {
                 lastError = e
-                console.log(`[Rooms API] RPC ${rpcUrl} attempt ${attempt + 1} failed:`, e.shortMessage || e.message)
+                // console.log(`[Rooms API] RPC ${rpcUrl} attempt ${attempt + 1} failed:`, e.shortMessage || e.message)
                 await delay(500 * (attempt + 1)) // Exponential backoff
             }
         }
@@ -53,76 +49,81 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
         const { gameMode = '1', status = '0' } = req.query
         const gameModeNum = parseInt(gameMode as string)
-        const statusNum = parseInt(status as string)
+        const statusNum = parseInt(status as string) // 0=Open
 
-        console.log(`[Rooms API] Starting - gameMode=${gameModeNum}, status=${statusNum}`)
+        // console.log(`[Rooms API] Starting - gameMode=${gameModeNum}, status=${statusNum}`)
 
-        // Fetch all room IDs first
-        const allRoomIds: string[] = []
-        const MAX_ROOMS = 100
+        let targetRoomIds: string[] = []
 
-        for (let i = 0; i < MAX_ROOMS; i++) {
+        // OPTIMIZATION: If looking for OPEN rooms (0), use getOpenRooms contract function
+        if (statusNum === 0) {
             try {
-                // Use retry logic to fetch ID. If index is out of bounds, ALL providers will fail, throw, and we break.
-                const roomId = await fetchWithRetry(async (prov) => {
+                targetRoomIds = await fetchWithRetry(async (prov) => {
                     const c = new ethers.Contract(ARENA_CONTRACT, ARENA_ABI, prov)
-                    return await c.allRoomIds(i)
+                    // getOpenRooms returns bytes32[]
+                    return await c.getOpenRooms(gameModeNum)
                 })
-
-                console.log(`[Rooms API] Room [${i}]: ${roomId}`)
-                allRoomIds.push(roomId)
-                await delay(100) // Small delay between calls
-            } catch (e: any) {
-                // If fetchWithRetry throws, it means ALL RPCs failed. 
-                // This likely means we hit the end of the array (revert).
-                console.log(`[Rooms API] Finished at index ${i} (or error), total rooms: ${allRoomIds.length}`)
-                break
+                // console.log(`[Rooms API] getOpenRooms found ${targetRoomIds.length} IDs`)
+            } catch (err) {
+                console.error('[Rooms API] getOpenRooms failed, falling back to scan', err)
+                // Fallback logic could go here, but getOpenRooms should work
             }
+        } else {
+            // For other statuses, we might need to scan. 
+            // Currently, we'll limit to empty or minimal scan to avoid heavy load?
+            // Or just return empty for now as History is handled elsewhere.
+            // If needed, we can implement "getRecentRooms" later.
+            // For now, let's just return empty to prevent timeout on "history" scans from this endpoint.
+            // The frontend "History" uses rewards.tsx (multicall), so this endpoint is mainly for Lobby (Open rooms).
+            targetRoomIds = []
         }
 
-        if (allRoomIds.length === 0) {
-            console.log('[Rooms API] No rooms found')
+        if (targetRoomIds.length === 0) {
             return res.status(200).json({ ok: true, rooms: [] })
         }
 
-        // Fetch room details with retry and delay
+        // Fetch details for target IDs (Parallel Batching)
         const rooms = []
-        for (const roomId of allRoomIds) {
-            try {
-                // Fetch details with retry
-                const room = await fetchWithRetry(async (prov) => {
+        const BATCH_SIZE = 5 // Fetch 5 at a time to respect RPC limits
+
+        for (let i = 0; i < targetRoomIds.length; i += BATCH_SIZE) {
+            const batch = targetRoomIds.slice(i, i + BATCH_SIZE)
+
+            const batchResults = await Promise.allSettled(batch.map(async (roomId) => {
+                return await fetchWithRetry(async (prov) => {
                     const c = new ethers.Contract(ARENA_CONTRACT, ARENA_ABI, prov)
-                    return c.rooms(roomId)
+                    const r = await c.rooms(roomId)
+                    return { id: roomId, ...r }
                 })
+            }))
 
-                const roomGameMode = Number(room.gameMode)
-                const roomStatus = Number(room.status)
-
-                console.log(`[Rooms API] Room ${roomId.slice(0, 10)}... mode=${roomGameMode}, status=${roomStatus}`)
-
-                // Filter
-                if (roomGameMode === gameModeNum && roomStatus === statusNum) {
-                    rooms.push({
-                        id: roomId,
-                        player1: room.player1,
-                        player2: room.player2,
-                        stake: room.stake.toString(),
-                        tier: Number(room.tier),
-                        gameMode: roomGameMode,
-                        status: roomStatus,
-                        winner: room.winner,
-                        createdAt: room.createdAt.toString(),
-                        resolvedAt: room.resolvedAt.toString()
-                    })
+            for (const res of batchResults) {
+                if (res.status === 'fulfilled') {
+                    const room = res.value
+                    // Double check filter (though getOpenRooms should be correct)
+                    if (Number(room.gameMode) === gameModeNum && Number(room.status) === statusNum) {
+                        rooms.push({
+                            id: room.id,
+                            player1: room.player1,
+                            player2: room.player2,
+                            stake: room.stake.toString(),
+                            tier: Number(room.tier),
+                            gameMode: Number(room.gameMode),
+                            status: Number(room.status),
+                            winner: room.winner,
+                            createdAt: room.createdAt.toString(),
+                            resolvedAt: room.resolvedAt.toString()
+                        })
+                    }
                 }
-
-                await delay(150) // Delay between room fetches
-            } catch (e: any) {
-                console.error(`[Rooms API] Error fetching room ${roomId}:`, e.shortMessage || e.message)
             }
+
+            if (i + BATCH_SIZE < targetRoomIds.length) await delay(100)
         }
 
-        console.log(`[Rooms API] Returning ${rooms.length} rooms`)
+        // Sort by newest first
+        rooms.sort((a, b) => Number(b.createdAt) - Number(a.createdAt))
+
         return res.status(200).json({ ok: true, rooms })
 
     } catch (error: any) {

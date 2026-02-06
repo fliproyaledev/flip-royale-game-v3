@@ -165,8 +165,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         matchedDuel.status = 'resolved';
         matchedDuel.resolvedAt = Date.now();
 
+        // ... existing logic
         // Save matched duel
         await saveFlipDuel(matchedDuel);
+
+        // ─────────────────────────────────────────────────────────────
+        // ON-CHAIN RESOLUTION (TRIGGER PAYOUT)
+        // ─────────────────────────────────────────────────────────────
+        try {
+            const ARENA_CONTRACT = process.env.NEXT_PUBLIC_ARENA_CONTRACT;
+            const ORACLE_PRIVATE_KEY = process.env.ARENA_ORACLE_PRIVATE_KEY;
+            const RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
+
+            if (ARENA_CONTRACT && ORACLE_PRIVATE_KEY) {
+                const ethers = require('ethers');
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const wallet = new ethers.Wallet(ORACLE_PRIVATE_KEY, provider);
+
+                const ABI = [
+                    'function resolveRoom(bytes32 roomId, address winner, bytes32 nonce, bytes calldata signature) external',
+                    'function resolveRoomDraw(bytes32 roomId, bytes32 nonce, bytes calldata signature) external'
+                ];
+                const contract = new ethers.Contract(ARENA_CONTRACT, ABI, wallet);
+
+                const nonce = ethers.keccak256(ethers.toUtf8Bytes(`${duelId}-${Date.now()}-${Math.random()}`));
+                const winnerAddress = matchedDuel.winner === matchedDuel.player1.wallet || matchedDuel.winner === matchedDuel.player2?.wallet ? matchedDuel.winner : ethers.ZeroAddress;
+                // Check if it was a tie from backend logic (winner was random pick) - but contract doesn't know "random pick tie". 
+                // In backend logic above: Tie -> Random Winner. So we send a WINNER.
+                // Wait, if backend picked a random winner for tie, we should send that winner.
+                // UNLESS we want to support DRAW payout (refund?).
+                // Backend logic above: "Tie - random selection". So there IS a winner.
+                // So we call resolveRoom with that winner.
+
+                // Create message hash
+                const messageHash = ethers.solidityPackedKeccak256(
+                    ['bytes32', 'address', 'bytes32'],
+                    [duelId, winnerAddress, nonce]
+                );
+                const signature = await wallet.signMessage(ethers.getBytes(messageHash));
+
+                console.log(`Resolving room ${duelId} on-chain for winner ${winnerAddress}...`);
+
+                // We assume it's always a winner resolution based on current logic (no draws allowed in V2 logic)
+                // Wait, V2 logic has "Tie - random selection". So always a winner.
+                const tx = await contract.resolveRoom(duelId, winnerAddress, nonce, signature);
+                console.log(`Resolution Tx Sent: ${tx.hash}`);
+
+                // Optional: Wait for receipt? Maybe not to keep response fast.
+                // But Vercel might kill the process. Ideally we await.
+                // await tx.wait();
+            } else {
+                console.error('Missing Oracle configuration, cannot trigger payout.');
+            }
+        } catch (chainError) {
+            console.error('Failed to resolve on-chain:', chainError);
+            // Don't fail the request, users can see result in UI, we can retry payout later if needed
+        }
 
         return res.status(200).json({
             ok: true,

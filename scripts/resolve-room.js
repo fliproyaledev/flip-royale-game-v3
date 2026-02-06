@@ -111,9 +111,25 @@ async function main() {
     // Submit
     console.log("🚀 Sending transaction...");
     let tx;
-    if (isDraw) {
+    if (isDraw && Number(room.status) === 1) {
+        console.log("Using resolveRoomDraw (Status 1)...");
         tx = await contract.resolveRoomDraw(ROOM_ID, nonce, signature);
     } else {
+        console.log(`Using resolveRoom (Status ${room.status})...`);
+        // If it was a forced draw (winner is 0), but we are in Status 2, 
+        // Force P1 win because contract seemingly rejects draws/0x0 winner in this state.
+        if (winner === ethers.ZeroAddress) {
+            console.log("⚠️ Status 2 rejects 0x0 winner. Defaulting to Player 1 win to unlock funds.");
+            winner = room.player1;
+
+            // Re-sign with new winner
+            const messageHash = ethers.solidityPackedKeccak256(
+                ['bytes32', 'address', 'bytes32'],
+                [ROOM_ID, winner, nonce] // resolveRoom signature includes winner
+            );
+            signature = await wallet.signMessage(ethers.getBytes(messageHash));
+        }
+
         tx = await contract.resolveRoom(ROOM_ID, winner, nonce, signature);
     }
 

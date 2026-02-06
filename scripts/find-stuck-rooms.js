@@ -19,7 +19,7 @@ if (fs.existsSync(envLocalPath)) {
 
 // Config
 const ARENA_CONTRACT = process.env.NEXT_PUBLIC_ARENA_CONTRACT || "0x83E316B9aa8F675b028279f089179bA26792242B";
-const RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
+const RPC_URL = 'https://base.drpc.org';
 const KV_URL = process.env.KV_REST_API_URL;
 const KV_TOKEN = process.env.KV_REST_API_TOKEN;
 
@@ -66,11 +66,12 @@ async function main() {
             console.log(`Checking Room [${index}]: ${roomId}`);
 
             const room = await contract.rooms(roomId);
-            const status = Number(room.status); // 0=Open, 1=Joined, 2=InGame, 3=Resolved, 4=Cancelled
+            // 0=Open, 1=Filled, 2=Resolved, 3=Draw, 4=Cancelled
+            const status = Number(room.status);
             console.log(`   Status: ${status}`);
 
-            // User said they joined, so status likely 1 or 2
-            if (status === 1 || status === 2) {
+            // Only report Status 1 (Filled) as stuck if it's been there a long time
+            if (status === 1) {
                 console.log(`\n⚠️  FOUND ACTIVE ROOM: ${roomId}`);
                 console.log(`   Players: ${room.player1} vs ${room.player2}`);
                 console.log(`   Status: ${status} (1=Joined, 2=InGame)`);

@@ -20,10 +20,10 @@ export interface DuelEntry {
 }
 
 export const DUEL_TIERS: Record<DuelTier, DuelEntry> = {
-    bronze: { stake: 10000, pot: 20000, winnerPayout: 18000, houseFee: 2000 },
-    silver: { stake: 50000, pot: 100000, winnerPayout: 90000, houseFee: 10000 },
-    gold: { stake: 100000, pot: 200000, winnerPayout: 180000, houseFee: 20000 },
-    diamond: { stake: 500000, pot: 1000000, winnerPayout: 900000, houseFee: 100000 },
+    bronze: { stake: 10_000_000, pot: 20_000_000, winnerPayout: 18_000_000, houseFee: 2_000_000 },
+    silver: { stake: 25_000_000, pot: 50_000_000, winnerPayout: 45_000_000, houseFee: 5_000_000 },
+    gold: { stake: 50_000_000, pot: 100_000_000, winnerPayout: 90_000_000, houseFee: 10_000_000 },
+    diamond: { stake: 100_000_000, pot: 200_000_000, winnerPayout: 180_000_000, houseFee: 20_000_000 },
 };
 
 export interface DuelCard {
