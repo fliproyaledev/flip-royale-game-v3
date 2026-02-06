@@ -891,34 +891,36 @@ export default function TasoLobby() {
                                     </div>
                                 )}
                             </div>
-                        </main>
+                        </>
+                    )}
+                </main>
 
-                    {/* Create Modal */}
-                    <ChoiceModal
-                        isOpen={showCreateModal}
-                        title="Create Room"
-                        onClose={() => setShowCreateModal(false)}
-                        onSelect={handleCreateConfirm}
-                        loading={processing}
-                        cards={userCards}
-                        selectedCardId={selectedCardId}
-                        setSelectedCardId={setSelectedCardId}
-                    />
+                {/* Create Modal */}
+                <ChoiceModal
+                    isOpen={showCreateModal}
+                    title="Create Room"
+                    onClose={() => setShowCreateModal(false)}
+                    onSelect={handleCreateConfirm}
+                    loading={processing}
+                    cards={userCards}
+                    selectedCardId={selectedCardId}
+                    setSelectedCardId={setSelectedCardId}
+                />
 
-                    {/* Join Modal */}
-                    <ChoiceModal
-                        isOpen={showJoinModal}
-                        title="Join Room"
-                        onClose={() => {
-                            setShowJoinModal(false)
-                            setSelectedRoomId(null)
-                        }}
-                        onSelect={handleJoinConfirm}
-                        loading={processing}
-                        cards={userCards}
-                        selectedCardId={selectedCardId}
-                        setSelectedCardId={setSelectedCardId}
-                    />
+                {/* Join Modal */}
+                <ChoiceModal
+                    isOpen={showJoinModal}
+                    title="Join Room"
+                    onClose={() => {
+                        setShowJoinModal(false)
+                        setSelectedRoomId(null)
+                    }}
+                    onSelect={handleJoinConfirm}
+                    loading={processing}
+                    cards={userCards}
+                    selectedCardId={selectedCardId}
+                    setSelectedCardId={setSelectedCardId}
+                />
             </div >
         </>
     )
