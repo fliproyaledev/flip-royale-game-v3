@@ -4,7 +4,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { listOpenTasoGames, TasoGame } from '../../../../lib/tasoGame';
-import { TIER_INFO } from '../../../../lib/contracts/arenaContract';
+import { TIER_INFO, ArenaTier } from '../../../../lib/contracts/arenaContract';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'GET') {
@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 id: g.id,
                 player1: g.player1.wallet,
                 player2: g.player2?.wallet || '0x0000000000000000000000000000000000000000',
-                stake: BigInt(g.stake || TIER_INFO[(g.tier as unknown as any)]?.stake || 0).toString(), // g.stake might be 0 if new, use default
+                stake: BigInt(g.stake || TIER_INFO[(g.tier as unknown as ArenaTier)]?.stake || 0).toString(), // g.stake might be 0 if new, use default
                 tier: (g.tier as unknown as number),
                 gameMode: 1, // Taso
                 status: statusNum,
