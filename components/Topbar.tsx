@@ -79,7 +79,7 @@ export default function Topbar({ activeTab, user }: TopbarProps) {
                 <a className={`tab ${activeTab === 'my-packs' ? 'active' : ''}`} href="/my-packs">MY PACKS</a>
                 <a className={`tab ${activeTab === 'shop' ? 'active' : ''}`} href="/shop">SHOP</a>
                 <a className={`tab ${activeTab === 'arena' ? 'active' : ''}`} href="/arena" style={{ color: '#f59e0b' }}>⚔️ ARENA</a>
-                <a className={`tab ${activeTab === 'rewards' ? 'active' : ''}`} href="/rewards" style={{ color: '#10b981' }}>💰 REWARDS</a>
+                <a className={`tab ${activeTab === 'rewards' ? 'active' : ''}`} href="/rewards" style={{ color: '#10b981' }}>💰 ARENA HISTORY</a>
                 <a className={`tab ${activeTab === 'leaderboard' ? 'active' : ''}`} href="/leaderboard">LEADERBOARD</a>
                 <a className={`tab ${activeTab === 'referrals' ? 'active' : ''}`} href="/referrals">REFERRALS</a>
                 <a className={`tab ${activeTab === 'history' ? 'active' : ''}`} href="/history">HISTORY</a>
