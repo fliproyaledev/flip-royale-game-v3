@@ -417,13 +417,14 @@ export default function TasoLobby() {
     // Load open rooms from contract
     useEffect(() => {
         loadRooms()
-        const interval = setInterval(loadRooms, 15000)
+        const interval = setInterval(loadRooms, 5000)
         return () => clearInterval(interval)
     }, [])
 
     const loadRooms = async () => {
         try {
-            const res = await fetch('/api/arena/rooms?gameMode=1&status=0')
+            // Use KV-based instant list instead of RPC scan
+            const res = await fetch('/api/arena/taso/list')
             const data = await res.json()
             if (data.ok) {
                 setOpenRooms(data.rooms || [])
@@ -632,6 +633,7 @@ export default function TasoLobby() {
         try {
             toast('Cancelling room...', 'info')
 
+            // 1. Cancel on Chain (Refund USDC)
             const cancelHash = await writeContractAsync({
                 address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
                 abi: ARENA_ABI,
@@ -640,10 +642,17 @@ export default function TasoLobby() {
             })
 
             setTxHash(cancelHash)
-            toast('Room cancelled! USDC refunded 💰', 'success')
+            toast('Refund TX Sent! Updating list...', 'success')
 
-            // Reload rooms
-            setTimeout(loadRooms, 2000)
+            // 2. Remove from KV (Instant UI update)
+            await fetch('/api/arena/taso/cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet: address, gameId: roomId })
+            })
+
+            // Reload rooms immediately
+            loadRooms()
 
         } catch (err: any) {
             console.error(err)

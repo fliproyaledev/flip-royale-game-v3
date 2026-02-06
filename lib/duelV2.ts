@@ -279,6 +279,9 @@ export async function listOpenDuels(tier?: DuelTier): Promise<FlipDuel[]> {
     const duels: FlipDuel[] = [];
 
     for (const id of duelIds) {
+        // Filter out legacy "duel_" IDs to fix ghost rooms causing contract errors
+        if (!id.startsWith('0x')) continue;
+
         const duel = await kv.get<FlipDuel>(`${DUEL_PREFIX}${id}`);
         if (duel && duel.status === 'open') {
             if (!tier || duel.tier === tier) {

@@ -142,6 +142,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (updated) {
             await kv.set(TASO_KEY, game)
+
+            // Update Open Rooms Set for fast listing
+            const OPEN_KEY = 'taso:open'
+            if (game.status === 'open') {
+                await kv.sadd(OPEN_KEY, game.id)
+            } else {
+                await kv.srem(OPEN_KEY, game.id)
+            }
         }
 
         const updatedGame = game;

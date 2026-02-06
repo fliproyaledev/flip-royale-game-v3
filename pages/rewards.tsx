@@ -276,94 +276,118 @@ function RoomRow({ roomId, userAddress, roomData, isLoading }: { roomId: `0x${st
     if (!roomData) return null // Or show error state
 
     const room = roomData
+    // Ensure status is a number (Wagmi returns BigInt)
+    const status = Number(room.status)
+    const gameMode = Number(room.gameMode)
+    const tier = TIER_INFO[Number(room.tier) as 0 | 1 | 2 | 3]
+
     const isWinner = room.winner?.toLowerCase() === userAddress.toLowerCase()
-    const isDraw = room.status === 3 // Draw status
-    const isCancelled = room.status === 4
-    const isResolved = room.status === 2 || room.status === 3
-    const tier = TIER_INFO[room.tier as 0 | 1 | 2 | 3]
+
+    // Status Logic
+    const isResolved = status === 2 // Resolved
+    const isDraw = status === 3     // Draw
+    const isCancelled = status === 4 // Cancelled
+    const isOpen = status === 0      // Open
+    const isFilled = status === 1    // Filled / In Progress
 
     // Updated Type Labels
-    const gameType = room.gameMode === 0 ? 'Flip Duel' : 'Flip Flop'
+    const gameType = gameMode === 0 ? 'Flip Duel' : 'Flip Flop'
 
     let statusColor = '#9ca3af'
-    let statusText = 'Pending'
+    let statusText = 'Pending' // Default fallback
 
     if (isCancelled) {
         statusColor = '#ef4444'
         statusText = 'Cancelled'
     } else if (isResolved) {
-        if (isDraw) {
-            statusColor = '#f59e0b'
-            statusText = 'Draw'
-        } else if (isWinner) {
+        if (isWinner) {
             statusColor = '#22c55e'
             statusText = 'Won'
         } else {
             statusColor = '#ef4444'
             statusText = 'Lost'
         }
-    } else if (room.status === 1) {
+    } else if (isDraw) {
+        statusColor = '#f59e0b'
+        statusText = 'Draw'
+    } else if (isFilled) {
         statusColor = '#3b82f6'
         statusText = 'In Progress'
-    } else if (room.status === 0) {
+    } else if (isOpen) {
         statusColor = '#10b981'
         statusText = 'Open/Waiting'
     }
 
-    const targetLink = `/arena/${room.gameMode === 0 ? 'duel' : 'taso'}/${roomId}`
+    const targetLink = `/arena/${gameMode === 0 ? 'duel' : 'taso'}/${roomId}`
 
     return (
-        <Link href={targetLink} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 100px 100px',
-                padding: '16px 16px',
-                borderTop: '1px solid rgba(255,255,255,0.05)',
-                alignItems: 'center',
-                transition: 'background 0.2s',
-                cursor: 'pointer'
-            }}
-                className="room-row"
-            >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'monospace' }}>
-                        {/* Improved ID display: Start...End */}
-                        {roomId.slice(0, 8)}...{roomId.slice(-6)}
-                    </div>
-                    {isResolved && (
-                        <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4 }}>
-                            📺 Replay
-                        </span>
-                    )}
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                    <span style={{
-                        padding: '4px 8px',
-                        background: `${tier?.color || '#888'}20`,
-                        color: tier?.color || '#888',
-                        borderRadius: 6,
-                        fontSize: 11,
-                        fontWeight: 600
-                    }}>
-                        {gameType}
-                    </span>
-                </div>
-                <div style={{
-                    textAlign: 'right',
-                    fontWeight: 700,
-                    color: statusColor,
-                    fontSize: 13
-                }}>
-                    {statusText}
+        <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 100px 100px',
+            padding: '16px 16px',
+            borderTop: '1px solid rgba(255,255,255,0.05)',
+            alignItems: 'center',
+            transition: 'background 0.2s',
+        }}
+            className="room-row"
+        >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {/* ID and Link */}
+                <div style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'monospace' }}>
+                    {roomId.slice(0, 6)}...{roomId.slice(-4)}
                 </div>
 
-                {/* CSS for hover effect */}
-                <style jsx>{`
-                    .room-row:hover {
-                        background: rgba(255,255,255,0.05);
-                    }
-                `}</style>
+                {/* Replay / View Button */}
+                <Link href={targetLink} style={{ textDecoration: 'none' }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: 'rgba(255,255,255,0.1)',
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        color: '#fff',
+                        opacity: 0.8
+                    }} className="hover-btn">
+                        <span>{isResolved || isDraw ? '📺 Replay' : '👀 View'}</span>
+                    </div>
+                </Link>
             </div>
-        </Link>
+
+            <div style={{ textAlign: 'center' }}>
+                <span style={{
+                    padding: '4px 8px',
+                    background: `${tier?.color || '#888'}20`,
+                    color: tier?.color || '#888',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600
+                }}>
+                    {gameType}
+                </span>
+            </div>
+
+            <div style={{
+                textAlign: 'right',
+                fontWeight: 700,
+                color: statusColor,
+                fontSize: 13
+            }}>
+                {statusText}
+            </div>
+
+            {/* CSS for hover effect */}
+            <style jsx>{`
+                .room-row:hover {
+                    background: rgba(255,255,255,0.05);
+                }
+                .hover-btn:hover {
+                    opacity: 1 !important;
+                    background: rgba(255,255,255,0.2) !important;
+                }
+            `}</style>
+        </div>
     )
 }

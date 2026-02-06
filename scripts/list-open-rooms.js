@@ -1,7 +1,6 @@
 const ethers = require('ethers');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
 
-const PRIVATE_KEY = process.env.ARENA_ORACLE_PRIVATE_KEY;
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_ARENA_CONTRACT || "0x83E316B9aa8F675b028279f089179bA26792242B";
 const RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
 
@@ -15,7 +14,7 @@ const STATUS_MAP = ['Open', 'Filled', 'Resolved', 'Draw', 'Cancelled'];
 const MODE_MAP = ['Duel', 'Taso'];
 
 async function main() {
-    console.log("Searching for stuck rooms...");
+    console.log("Listing ALL Open/Filled rooms...");
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
 
@@ -23,35 +22,25 @@ async function main() {
         const count = await contract.getTotalRoomsCount();
         console.log(`Total rooms: ${count}`);
 
-        // Scan last 50 rooms
-        const start = Math.max(0, Number(count) - 50);
-
-        for (let i = Number(count) - 1; i >= start; i--) {
+        // Scan ALL rooms just in case status decoding is weird
+        for (let i = 0; i < count; i++) {
             try {
                 const roomId = await contract.allRoomIds(i);
                 const room = await contract.rooms(roomId);
 
-                const status = Number(room.status);
-                // Open (0) or Filled (1) are "Active/Stuck" candidates
-                if (status === 0 || status === 1) {
-                    console.log(`\n--- Found Active Room ---`);
+                if (Number(room.status) <= 1) { // Open or Filled
+                    console.log(`\n--- Active Room ---`);
                     console.log(`ID: ${roomId}`);
-                    console.log(`Type: ${MODE_MAP[room.gameMode]} (${room.gameMode})`);
-                    console.log(`Status: ${STATUS_MAP[status]} (${status})`);
-                    console.log(`Player1: ${room.player1}`);
-                    console.log(`Player2: ${room.player2}`);
+                    console.log(`Type: ${MODE_MAP[room.gameMode]}`);
+                    console.log(`Status: ${STATUS_MAP[Number(room.status)]}`);
                     console.log(`Stake: ${ethers.formatUnits(room.stake, 6)} USDC`);
-
-                    // Show refund command suggestion
-                    console.log(`To Refund, run script with: ${roomId}`);
+                    console.log(`Created: ${new Date(Number(room.createdAt) * 1000).toLocaleString()}`);
+                    console.log(`Creator: ${room.player1}`);
                 }
-            } catch (err) {
-                console.log(`Error reading room at index ${i}`);
-            }
+            } catch (err) { }
         }
-
     } catch (err) {
-        console.error("Script error:", err);
+        console.error(err);
     }
 }
 
