@@ -853,78 +853,73 @@ export default function TasoLobby() {
                                                     </p>
                                                 </div>
 
-                                                {room.player1.toLowerCase() === address?.toLowerCase() ? (
-                                                    <button
-                                                        onClick={() => handleCancelRoom(room.id)}
-                                                        disabled={cancellingRoom === room.id}
-                                                        style={{
-                                                            padding: '10px 20px',
-                                                            borderRadius: 8,
-                                                            border: 'none',
-                                                            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                                                            color: '#fff',
-                                                            fontSize: 13,
-                                                            fontWeight: 700,
-                                                            cursor: cancellingRoom === room.id ? 'wait' : 'pointer',
-                                                            opacity: cancellingRoom === room.id ? 0.7 : 1
-                                                        }}
-                                                    >
-                                                        {cancellingRoom === room.id ? '⏳ Cancelling...' : '❌ Cancel & Refund'}
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => handleJoinClick(room.id)}
-                                                        disabled={processing}
-                                                        style={{
-                                                            padding: '10px 20px',
-                                                            borderRadius: 8,
-                                                            border: 'none',
-                                                            background: 'linear-gradient(135deg, #10b981, #059669)',
-                                                            color: '#fff',
-                                                            fontSize: 13,
-                                                            fontWeight: 700,
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        🎯 Join & Choose
-                                                    </button>
-                                                )}
+                                                {/* Action Button */}
+                                                <div style={{ marginLeft: 'auto' }}>
+                                                    {room.player1.toLowerCase() === address?.toLowerCase() ? (
+                                                        <button
+                                                            onClick={() => handleCancelRoom(room.id)}
+                                                            disabled={processing}
+                                                            style={{
+                                                                padding: '8px 16px',
+                                                                borderRadius: 8,
+                                                                border: '1px solid #ef4444',
+                                                                background: 'rgba(239, 68, 68, 0.1)',
+                                                                color: '#ef4444',
+                                                                fontWeight: 700,
+                                                                cursor: processing ? 'not-allowed' : 'pointer'
+                                                            }}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleJoinClick(room.id)}
+                                                            disabled={processing}
+                                                            className="btn primary"
+                                                            style={{
+                                                                padding: '8px 24px',
+                                                                fontSize: 14,
+                                                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                                                            }}
+                                                        >
+                                                            JOIN
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
                             </div>
-                        </>
-                    )}
-                </main>
+                        </main>
 
-                {/* Create Modal */}
-                <ChoiceModal
-                    isOpen={showCreateModal}
-                    title="Create Room"
-                    onClose={() => setShowCreateModal(false)}
-                    onSelect={handleCreateConfirm}
-                    loading={processing}
-                    cards={userCards}
-                    selectedCardId={selectedCardId}
-                    setSelectedCardId={setSelectedCardId}
-                />
+                    {/* Create Modal */}
+                    <ChoiceModal
+                        isOpen={showCreateModal}
+                        title="Create Room"
+                        onClose={() => setShowCreateModal(false)}
+                        onSelect={handleCreateConfirm}
+                        loading={processing}
+                        cards={userCards}
+                        selectedCardId={selectedCardId}
+                        setSelectedCardId={setSelectedCardId}
+                    />
 
-                {/* Join Modal */}
-                <ChoiceModal
-                    isOpen={showJoinModal}
-                    title="Join Room"
-                    onClose={() => {
-                        setShowJoinModal(false)
-                        setSelectedRoomId(null)
-                    }}
-                    onSelect={handleJoinConfirm}
-                    loading={processing}
-                    cards={userCards}
-                    selectedCardId={selectedCardId}
-                    setSelectedCardId={setSelectedCardId}
-                />
-            </div>
+                    {/* Join Modal */}
+                    <ChoiceModal
+                        isOpen={showJoinModal}
+                        title="Join Room"
+                        onClose={() => {
+                            setShowJoinModal(false)
+                            setSelectedRoomId(null)
+                        }}
+                        onSelect={handleJoinConfirm}
+                        loading={processing}
+                        cards={userCards}
+                        selectedCardId={selectedCardId}
+                        setSelectedCardId={setSelectedCardId}
+                    />
+            </div >
         </>
     )
 }

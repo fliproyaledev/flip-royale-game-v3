@@ -1,7 +1,7 @@
 // lib/contracts/packShopV2.ts
 // FlipRoyalePackShopV3 contract integration - Virtual token with 5 pack types
 
-export const PACK_SHOP_V2_ADDRESS = process.env.NEXT_PUBLIC_PACK_SHOP_CONTRACT || "0xe2DB819F068d8e3040C66154dC10A057206f5120";
+export const PACK_SHOP_V2_ADDRESS = process.env.NEXT_PUBLIC_PACK_SHOP_V2_CONTRACT || process.env.NEXT_PUBLIC_PACK_SHOP_CONTRACT || "0xe2DB819F068d8e3040C66154dC10A057206f5120";
 export const VIRTUAL_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_VIRTUAL_TOKEN || "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b";
 
 // Pack Types
