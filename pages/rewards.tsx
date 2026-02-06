@@ -265,14 +265,20 @@ function RoomRow({ roomId, userAddress }: { roomId: `0x${string}`; userAddress: 
 
     const isWinner = room.winner?.toLowerCase() === userAddress.toLowerCase()
     const isDraw = room.status === 3 // Draw status
+    const isCancelled = room.status === 4
     const isResolved = room.status === 2 || room.status === 3
     const tier = TIER_INFO[room.tier as 0 | 1 | 2 | 3]
-    const gameType = room.gameMode === 0 ? 'Duel' : 'Taso'
+
+    // Updated Type Labels
+    const gameType = room.gameMode === 0 ? 'Flip Duel' : 'Flip Flop'
 
     let statusColor = '#9ca3af'
     let statusText = 'Pending'
 
-    if (isResolved) {
+    if (isCancelled) {
+        statusColor = '#ef4444'
+        statusText = 'Cancelled'
+    } else if (isResolved) {
         if (isDraw) {
             statusColor = '#f59e0b'
             statusText = 'Draw'
@@ -283,39 +289,68 @@ function RoomRow({ roomId, userAddress }: { roomId: `0x${string}`; userAddress: 
             statusColor = '#ef4444'
             statusText = 'Lost'
         }
+    } else if (room.status === 1) {
+        statusColor = '#3b82f6'
+        statusText = 'In Progress'
+    } else if (room.status === 0) {
+        statusColor = '#10b981'
+        statusText = 'Open'
     }
 
+    const targetLink = `/arena/${room.gameMode === 0 ? 'duel' : 'taso'}/${roomId}`
+
     return (
-        <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 100px 100px',
-            padding: '12px 16px',
-            borderTop: '1px solid rgba(255,255,255,0.05)',
-            alignItems: 'center'
-        }}>
-            <div style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'monospace' }}>
-                {roomId.slice(0, 10)}...
-            </div>
-            <div style={{ textAlign: 'center' }}>
-                <span style={{
-                    padding: '4px 8px',
-                    background: `${tier?.color || '#888'}20`,
-                    color: tier?.color || '#888',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 600
-                }}>
-                    {tier?.name} {gameType}
-                </span>
-            </div>
+        <Link href={targetLink} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
             <div style={{
-                textAlign: 'right',
-                fontWeight: 700,
-                color: statusColor,
-                fontSize: 13
-            }}>
-                {statusText}
+                display: 'grid',
+                gridTemplateColumns: '1fr 100px 100px',
+                padding: '16px 16px',
+                borderTop: '1px solid rgba(255,255,255,0.05)',
+                alignItems: 'center',
+                transition: 'background 0.2s',
+                cursor: 'pointer'
+            }}
+                className="room-row"
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 13, color: '#9ca3af', fontFamily: 'monospace' }}>
+                        {/* Improved ID display: Start...End */}
+                        {roomId.slice(0, 8)}...{roomId.slice(-6)}
+                    </div>
+                    {isResolved && (
+                        <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4 }}>
+                            📺 Replay
+                        </span>
+                    )}
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                    <span style={{
+                        padding: '4px 8px',
+                        background: `${tier?.color || '#888'}20`,
+                        color: tier?.color || '#888',
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontWeight: 600
+                    }}>
+                        {gameType}
+                    </span>
+                </div>
+                <div style={{
+                    textAlign: 'right',
+                    fontWeight: 700,
+                    color: statusColor,
+                    fontSize: 13
+                }}>
+                    {statusText}
+                </div>
+
+                {/* CSS for hover effect */}
+                <style jsx>{`
+                    .room-row:hover {
+                        background: rgba(255,255,255,0.05);
+                    }
+                `}</style>
             </div>
-        </div>
+        </Link>
     )
 }
