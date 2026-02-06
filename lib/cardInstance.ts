@@ -100,11 +100,16 @@ export function createCardInstance(
  */
 export function calculateDurability(card: CardInstance): number {
     if (card.status === 'wrecked') return 0;
-    if (card.status === 'expired') return 0;
+    // Removed expired check for legacy reset support
+    // if (card.status === 'expired') return 0;
+
+    // Legacy Support: If remainingDays is missing, assume FRESH (reset) per user request
+    if (card.remainingDays === undefined) return 100;
 
     if (card.remainingDays <= 0) return 0;
 
-    const remaining = (card.remainingDays / card.totalDays) * 100;
+    const total = card.totalDays || DURABILITY_DAYS[card.cardType] || 5;
+    const remaining = (card.remainingDays / total) * 100;
     return Math.round(remaining);
 }
 
@@ -112,14 +117,34 @@ export function calculateDurability(card: CardInstance): number {
  * Kart aktif mi? (durability > 0 ve status active)
  */
 export function isCardActive(card: CardInstance): boolean {
+    if (card.status === 'wrecked') return false;
+    // Legacy support: undefined remainingDays = Active/Fresh
+    if (card.remainingDays === undefined) return true;
+
+    // Status can be 'expired' but if we are resetting logic, we might ignore 'expired' status if it was set by old logic
+    // But safe to respect explicit status for now unless user wants complete wipe. 
+    // User said "geçmişe yönelik uygulama", so let's treat them as active if not wrecked.
+    if (card.status === 'expired' && card.remainingDays === undefined) return true; // Revive legacy expired
+
     if (card.status !== 'active') return false;
     return card.remainingDays > 0;
 }
 
+// ... (skip checkAndUpdateExpiry update for brevity unless needed) ...
+
 /**
- * Kartın expire olup olmadığını kontrol et ve status güncelle
+ * Expiry update check
  */
 export function checkAndUpdateExpiry(card: CardInstance): CardInstance {
+    // Legacy Reset: If no remainingDays, treat as Fresh Active
+    if (card.remainingDays === undefined) {
+        if (card.status === 'expired') {
+            // Revive it!
+            return { ...card, status: 'active', remainingDays: DURABILITY_DAYS[card.cardType] || 5, totalDays: DURABILITY_DAYS[card.cardType] || 5 };
+        }
+        return card;
+    }
+
     if (card.status !== 'active') return card;
 
     if (card.remainingDays <= 0) {

@@ -3,7 +3,7 @@ import type { SyntheticEvent } from 'react'
 import Head from 'next/head'
 import Topbar from '../components/Topbar'
 import { TOKENS } from '../lib/tokens'
-import { RENEWAL_PRICES, CardType } from '../lib/cardInstance'
+import { RENEWAL_PRICES, CardType, DURABILITY_DAYS } from '../lib/cardInstance'
 
 interface CardInstanceData {
   id: string;
@@ -100,10 +100,8 @@ function getDurabilityColor(visualState: string): string {
 
 function getRemainingUses(card: any): number {
   if (card.remainingDays !== undefined) return card.remainingDays;
-  // Legacy fallback
-  const now = Date.now();
-  const remaining = (card.expiresAt || 0) - now;
-  return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
+  // Legacy fallback: Return FULL duration per user request (Reset)
+  return DURABILITY_DAYS[card.cardType as CardType] || 5;
 }
 
 export default function Inventory() {

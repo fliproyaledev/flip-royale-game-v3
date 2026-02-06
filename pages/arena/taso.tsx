@@ -427,7 +427,10 @@ export default function TasoLobby() {
             const res = await fetch('/api/arena/taso/list')
             const data = await res.json()
             if (data.ok) {
-                setOpenRooms(data.rooms || [])
+                // Filter out ghost rooms (legacy IDs) or invalid ones
+                // Also ensure we only show 0x IDs to prevent "Bytes32 mismatch" errors
+                const validRooms = (data.rooms || []).filter((r: ArenaRoom) => r.id && r.id.startsWith('0x'))
+                setOpenRooms(validRooms)
             }
         } catch (err) {
             console.error('Load rooms error:', err)
@@ -631,18 +634,26 @@ export default function TasoLobby() {
 
         setCancellingRoom(roomId)
         try {
-            toast('Cancelling room...', 'info')
+            // Check if this is a "Ghost" room (legacy string ID)
+            // If it doesn't start with 0x, it's not on-chain, so skip contract call.
+            const isChainRoom = roomId.startsWith('0x')
 
-            // 1. Cancel on Chain (Refund USDC)
-            const cancelHash = await writeContractAsync({
-                address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
-                abi: ARENA_ABI,
-                functionName: 'cancelRoom',
-                args: [roomId as `0x${string}`]
-            })
+            if (isChainRoom) {
+                toast('Cancelling room on-chain...', 'info')
+                // 1. Cancel on Chain (Refund USDC)
+                const cancelHash = await writeContractAsync({
+                    address: ARENA_CONTRACT_ADDRESS as `0x${string}`,
+                    abi: ARENA_ABI,
+                    functionName: 'cancelRoom',
+                    args: [roomId as `0x${string}`]
+                })
 
-            setTxHash(cancelHash)
-            toast('Refund TX Sent! Updating list...', 'success')
+                setTxHash(cancelHash)
+                toast('Refund TX Sent! Cleaning up...', 'success')
+            } else {
+                console.log('Skipping on-chain cancel for ghost room:', roomId)
+                toast('Cleaning up ghost room...', 'info')
+            }
 
             // 2. Remove from KV (Instant UI update)
             await fetch('/api/arena/taso/cancel', {
@@ -653,6 +664,7 @@ export default function TasoLobby() {
 
             // Reload rooms immediately
             loadRooms()
+            toast('Room removed!', 'success')
 
         } catch (err: any) {
             console.error(err)

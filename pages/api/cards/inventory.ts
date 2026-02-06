@@ -29,17 +29,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Calculate current durability and check expiry for each card
         const updatedCards = cards.map(card => {
             const updated = checkAndUpdateExpiry(card);
+            // Ensure durability percentage is calculated if missing or needs recalculation
+            const durability = calculateDurability(updated); // Remove 'card.durability undefined' check as generic CardInstance doesn't have it
+
             return {
                 ...updated,
-                durability: calculateDurability(updated),
-                visualState: getDurabilityVisual(updated),
+                durability, // Explicitly include calculated %
+                visualState: getDurabilityVisual(updated), // Use updated instance
+                ownerId: cleanWallet
             };
         });
 
         // Separate by status
-        const activeCards = updatedCards.filter(c => c.status === 'active' && c.durability > 0);
-        const expiredCards = updatedCards.filter(c => c.status === 'expired' || (c.status === 'active' && c.durability === 0));
-        const wreckedCards = updatedCards.filter(c => c.status === 'wrecked');
+        // Cast to any for filter because 'durability' is now present on the objects
+        const activeCards = updatedCards.filter((c: any) => c.status === 'active' && c.durability > 0);
+        const expiredCards = updatedCards.filter((c: any) => c.status === 'expired' || (c.status === 'active' && c.durability === 0));
+        const wreckedCards = updatedCards.filter((c: any) => c.status === 'wrecked');
 
         return res.status(200).json({
             ok: true,
