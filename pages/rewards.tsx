@@ -277,11 +277,18 @@ function RoomRow({ roomId, userAddress, roomData, isLoading }: { roomId: `0x${st
 
     const room = roomData
     // Ensure status is a number (Wagmi returns BigInt)
-    const status = Number(room.status)
-    const gameMode = Number(room.gameMode)
-    const tier = TIER_INFO[Number(room.tier) as 0 | 1 | 2 | 3]
+    // Handle both Object (if named params) and Array (if anonymous) returns
+    // ABI: id, player1, player2, stake, tier, gameMode, status, winner...
+    const status = Number(room.status !== undefined ? room.status : room[6])
+    const gameMode = Number(room.gameMode !== undefined ? room.gameMode : room[5])
+    const tierRaw = Number(room.tier !== undefined ? room.tier : room[4])
+    const winner = room.winner || room[7]
+    const tier = TIER_INFO[tierRaw as 0 | 1 | 2 | 3]
 
-    const isWinner = room.winner?.toLowerCase() === userAddress.toLowerCase()
+    const isWinner = winner?.toLowerCase() === userAddress.toLowerCase()
+
+    // Check local storage for pending status if on-chain is 0/1 but we have a result
+    // This fixes the "Pending" flash for optimistic UI or finding local result
 
     // Status Logic
     const isResolved = status === 2 // Resolved

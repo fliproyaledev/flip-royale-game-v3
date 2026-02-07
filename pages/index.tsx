@@ -1522,8 +1522,8 @@ export default function Home() {
   return (
     <>
       <Head>
-      <meta name="base:app_id" content="696ea714f22fe462e74c15d5" />
-    </Head>
+        <meta name="base:app_id" content="696ea714f22fe462e74c15d5" />
+      </Head>
       <div className="app">
         <header className="topbar">
           <div className="brand">
@@ -1544,6 +1544,8 @@ export default function Home() {
             <a className="tab" href="/inventory">INVENTORY</a>
             <a className="tab" href="/my-packs">MY PACKS</a>
             <a className="tab" href="/shop">SHOP</a>
+            <a className="tab" href="/arena" style={{ color: '#f59e0b' }}>⚔️ ARENA</a>
+            <a className="tab" href="/rewards" style={{ color: '#10b981' }}>💰 ARENA HISTORY</a>
             <a className="tab" href="/leaderboard">LEADERBOARD</a>
             <a className="tab" href="/referrals">REFERRALS</a>
             <a className="tab" href="/history">HISTORY</a>
