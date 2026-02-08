@@ -121,6 +121,31 @@ export function determineWinner(
 }
 
 // ─────────────────────────────────────────────────────────────
+// HELPER: WRECK USER CARD IN KV
+// ─────────────────────────────────────────────────────────────
+
+async function wreckUserCard(wallet: string, cardId: string, gameId: string): Promise<void> {
+    try {
+        const userCardsKey = `cards:${wallet.toLowerCase()}`;
+        const userCards = await kv.get<CardInstance[]>(userCardsKey) || [];
+
+        const cardIndex = userCards.findIndex(c => c.id === cardId);
+        if (cardIndex !== -1) {
+            // Apply wreck status using helper
+            userCards[cardIndex] = wreckCard(userCards[cardIndex], gameId);
+
+            // Save updated inventory
+            await kv.set(userCardsKey, userCards);
+            console.log(`💀 [Card Flip] Card ${cardId} wrecked for user ${wallet}`);
+        } else {
+            console.error(`❌ [Card Flip] Card ${cardId} NOT FOUND in user ${wallet} inventory! Cannot wreck.`);
+        }
+    } catch (err) {
+        console.error('Failed to persist wrecked status:', err);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
 // TASO OPERATIONS
 // ─────────────────────────────────────────────────────────────
 
@@ -200,10 +225,20 @@ export async function joinTasoGame(
             game.winner = game.player1.wallet;
             game.loserCardWrecked = game.player2.card.cardId;
             game.status = 'resolved';
+
+            // 🔥 WRECK THE LOSER'S CARD IMMEDIATELY
+            if (game.loserCardWrecked) {
+                await wreckUserCard(game.player2.wallet, game.loserCardWrecked, game.id);
+            }
         } else if (winnerResult === 'player2') {
             game.winner = game.player2.wallet;
             game.loserCardWrecked = game.player1.card.cardId;
             game.status = 'resolved';
+
+            // 🔥 WRECK THE LOSER'S CARD IMMEDIATELY
+            if (game.loserCardWrecked) {
+                await wreckUserCard(game.player1.wallet, game.loserCardWrecked, game.id);
+            }
         } else {
             // Draw - no winner, no wrecked card
             // Both players keep their cards

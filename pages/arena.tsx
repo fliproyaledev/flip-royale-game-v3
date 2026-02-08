@@ -38,13 +38,13 @@ export default function ArenaPage() {
     },
     {
       id: 'taso',
-      name: 'Flip Flop',
+      name: 'Card Flip',
       emoji: '🃏',
       description: 'Card flip showdown',
       subtitle: 'Front or Back - Test your luck!',
       color: '#ec4899',
       gradient: 'linear-gradient(135deg, #ec4899, #db2777)',
-      href: '/arena/flip-flop',
+      href: '/arena/card-flip',
       features: ['1v1 card flip', 'Loser card wrecked', 'High risk, high reward']
     },
     {
@@ -64,7 +64,7 @@ export default function ArenaPage() {
     <>
       <Head>
         <title>Arena | FLIP ROYALE</title>
-        <meta name="description" content="PvP game modes - Flip Duel & Flip Flop" />
+        <meta name="description" content="PvP game modes - Flip Duel & Card Flip" />
       </Head>
 
       <div className="app" data-theme={theme}>

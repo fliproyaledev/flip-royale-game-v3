@@ -298,7 +298,7 @@ function RoomRow({ roomId, userAddress, roomData, isLoading }: { roomId: `0x${st
     const isFilled = status === 1    // Filled / In Progress
 
     // Updated Type Labels
-    const gameType = gameMode === 0 ? 'Flip Duel' : 'Flip Flop'
+    const gameType = gameMode === 0 ? 'Flip Duel' : 'Card Flip'
 
     let statusColor = '#9ca3af'
     let statusText = 'Pending' // Default fallback

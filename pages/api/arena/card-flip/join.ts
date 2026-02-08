@@ -1,5 +1,5 @@
 /**
- * POST /api/arena/flip-flop/join - Join Flip Flop game
+ * POST /api/arena/card-flip/join - Join Card Flip game
  * Joining player makes their choice and game auto-resolves
  */
 

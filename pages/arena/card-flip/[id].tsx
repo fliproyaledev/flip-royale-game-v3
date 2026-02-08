@@ -1,5 +1,5 @@
 /**
- * Flip Flop Game - Card Flip with REAL spinning animation
+ * Card Flip Game - Card Flip with REAL spinning animation
  * Cards spin on Y-axis showing front and back alternating
  */
 
@@ -329,7 +329,7 @@ export default function TasoGamePage() {
     const loadGame = async (isFirstLoad = false) => {
         try {
             if (isFirstLoad) setInitialLoading(true)
-            const res = await fetch(`/api/arena/flip-flop/${id}`)
+            const res = await fetch(`/api/arena/card-flip/${id}`)
 
             if (res.status === 404) {
                 setNotFound(true)
@@ -385,7 +385,7 @@ export default function TasoGamePage() {
         setSelectedChoice(choice)
 
         try {
-            const res = await fetch('/api/arena/flip-flop/choice', {
+            const res = await fetch('/api/arena/card-flip/choice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ wallet: address, gameId: id, choice })
@@ -437,7 +437,7 @@ export default function TasoGamePage() {
                 <main style={{ padding: 40, textAlign: 'center' }}>
                     <h2 style={{ color: '#ef4444' }}>Game not found</h2>
                     <p style={{ marginBottom: 20 }}>This room does not exist or has expired.</p>
-                    <Link href="/arena/flip-flop">← Back to Lobby</Link>
+                    <Link href="/arena/card-flip">← Back to Lobby</Link>
                 </main>
             </div>
         )
@@ -469,7 +469,7 @@ export default function TasoGamePage() {
     return (
         <>
             <Head>
-                <title>Flip Flop Game | FLIP ROYALE</title>
+                <title>Card Flip Game | FLIP ROYALE</title>
             </Head>
 
             <div className="app" data-theme={theme}>
@@ -479,7 +479,7 @@ export default function TasoGamePage() {
                     {/* Header */}
                     <div style={{ textAlign: 'center', marginBottom: 24 }}>
                         <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 8, color: '#ec4899' }}>
-                            🃏 Flip Flop Game
+                            🃏 Card Flip Game
                         </h1>
                         <p style={{ opacity: 0.7 }}>
                             {game.status === 'open' && '⏳ Waiting for opponent...'}
@@ -774,7 +774,7 @@ export default function TasoGamePage() {
                     {/* Back Button */}
                     <div style={{ textAlign: 'center', marginTop: 32 }}>
                         <Link
-                            href="/arena/flip-flop"
+                            href="/arena/card-flip"
                             style={{
                                 display: 'inline-block',
                                 padding: '14px 40px',

@@ -1,5 +1,5 @@
 /**
- * POST /api/arena/flip-flop/create - Create new Flip Flop room
+ * POST /api/arena/card-flip/create - Create new Card Flip room
  * Room creator makes their choice (front/back)
  */
 

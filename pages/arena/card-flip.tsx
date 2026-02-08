@@ -1,5 +1,5 @@
 /**
- * Flip Flop Arena - USDC Card Flip Game
+ * Card Flip Arena - USDC Card Flip Game
  * Players pick front/back when creating or joining rooms
  * Uses FlipRoyaleArena contract for USDC stakes
  */
@@ -424,7 +424,7 @@ export default function TasoLobby() {
     const loadRooms = async () => {
         try {
             // Use KV-based instant list instead of RPC scan
-            const res = await fetch('/api/arena/flip-flop/list')
+            const res = await fetch('/api/arena/card-flip/list')
             const data = await res.json()
             if (data.ok) {
                 // Filter out ghost rooms (legacy IDs) or invalid ones
@@ -512,7 +512,7 @@ export default function TasoLobby() {
             console.log('Room Created:', createdRoomId)
 
             // Save choice to backend for Oracle
-            await fetch('/api/arena/flip-flop/choice', {
+            await fetch('/api/arena/card-flip/choice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -599,7 +599,7 @@ export default function TasoLobby() {
             await publicClient.waitForTransactionReceipt({ hash: joinHash })
 
             // Save choice to backend for Oracle resolution
-            await fetch('/api/arena/flip-flop/choice', {
+            await fetch('/api/arena/card-flip/choice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -615,7 +615,7 @@ export default function TasoLobby() {
             toast('🎯 Joined! Resolving game...', 'success')
 
             // Navigate to game page
-            router.push(`/arena/flip-flop/${selectedRoomId}`)
+            router.push(`/arena/card-flip/${selectedRoomId}`)
 
         } catch (err: any) {
             console.error(err)
@@ -656,7 +656,7 @@ export default function TasoLobby() {
             }
 
             // 2. Remove from KV (Instant UI update)
-            await fetch('/api/arena/flip-flop/cancel', {
+            await fetch('/api/arena/card-flip/cancel', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ wallet: address, gameId: roomId })
@@ -679,7 +679,7 @@ export default function TasoLobby() {
     return (
         <>
             <Head>
-                <title>Flip Flop | FLIP ROYALE</title>
+                <title>Card Flip | FLIP ROYALE</title>
                 <meta name="description" content="USDC card flip arena - Pick FRONT or BACK!" />
             </Head>
 
@@ -693,7 +693,7 @@ export default function TasoLobby() {
                     </Link>
 
                     <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 8, color: '#ec4899' }}>
-                        🃏 Flip Flop
+                        🃏 Card Flip
                     </h1>
 
                     {/* USDC Balance */}
@@ -746,7 +746,7 @@ export default function TasoLobby() {
 
                     {!isConnected ? (
                         <div className="panel" style={{ textAlign: 'center', padding: 32 }}>
-                            <p style={{ marginBottom: 16 }}>Connect your wallet to play Flip Flop</p>
+                            <p style={{ marginBottom: 16 }}>Connect your wallet to play Card Flip</p>
                             <ConnectButton />
                         </div>
                     ) : (
