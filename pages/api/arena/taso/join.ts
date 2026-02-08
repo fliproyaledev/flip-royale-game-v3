@@ -4,8 +4,9 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { kv } from '@vercel/kv';
 import { joinTasoGame, getTasoGame, TasoCard, TasoChoice } from '../../../../lib/tasoGame';
-import { getUser } from '../../../../lib/users';
+import { CardInstance, isCardActive } from '../../../../lib/cardInstance';
 import { getTokenById } from '../../../../lib/tokens';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -36,35 +37,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(400).json({ ok: false, error: 'Game is not open' });
         }
 
-        // Get user and select card
-        const user = await getUser(cleanWallet);
-        if (!user) {
-            return res.status(404).json({ ok: false, error: 'User not found' });
-        }
+        // Get cards from KV storage (new format with proper IDs)
+        const cardsKey = `cards:${cleanWallet}`;
+        const userCards = await kv.get<CardInstance[]>(cardsKey) || [];
 
-        const inventory = user.inventory || {};
-        const cardTokenIds = Object.keys(inventory).filter(k => !k.includes('_pack') && inventory[k] > 0);
+        // Filter to only active cards
+        const activeCards = userCards.filter(isCardActive);
 
-        if (cardTokenIds.length < 1) {
-            return res.status(400).json({ ok: false, error: 'No cards available' });
+        if (activeCards.length < 1) {
+            return res.status(400).json({ ok: false, error: 'No active cards available' });
         }
 
         // Random select one card
-        const randomIndex = Math.floor(Math.random() * cardTokenIds.length);
-        const selectedTokenId = cardTokenIds[randomIndex];
-        const token = getTokenById(selectedTokenId);
-
-        if (!token) {
-            return res.status(400).json({ ok: false, error: 'Card not found' });
-        }
+        const randomIndex = Math.floor(Math.random() * activeCards.length);
+        const selectedCard = activeCards[randomIndex];
+        const token = getTokenById(selectedCard.tokenId);
 
         const tasoCard: TasoCard = {
-            cardId: `${selectedTokenId}_${Date.now()}`,
-            tokenId: selectedTokenId,
-            symbol: token.symbol,
-            name: token.name,
-            logo: token.logo,
-            cardType: token.about || 'common',
+            cardId: selectedCard.id, // Use ACTUAL card ID from KV for proper wrecking
+            tokenId: selectedCard.tokenId,
+            symbol: token?.symbol || selectedCard.tokenId,
+            name: token?.name || selectedCard.tokenId,
+            logo: token?.logo || '',
+            cardType: selectedCard.cardType || 'pegasus',
         };
 
         // Join game with choice - game auto-resolves
@@ -83,3 +78,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ ok: false, error: error.message });
     }
 }
+

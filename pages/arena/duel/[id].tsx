@@ -101,7 +101,7 @@ function getCardCSSStyles(type: string): CardCSSStyles {
 
 // Get pack image based on card type
 function getPackImage(): string {
-    return '/sentient-pack.png'
+    return '/duelpack.png'
 }
 
 // Animation phases
@@ -490,7 +490,7 @@ export default function DuelReplayPage() {
                                         animation: phase === 'packs_open' ? 'shake 0.5s ease 0.1s' : 'none'
                                     }}>
                                         <img
-                                            src="/genesis-pack.png"
+                                            src="/duelpack.png"
                                             alt="Pack"
                                             style={{
                                                 width: 120,

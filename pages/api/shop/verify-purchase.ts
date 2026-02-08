@@ -7,22 +7,22 @@ const ORACLE_SECRET = process.env.ORACLE_SECRET;
 import { getUser, updateUser } from '../../../lib/users'
 import { createCardInstance, parseCardType, CardInstance, CardType } from '../../../lib/cardInstance'
 
-// Paket fiyatları (FLIP cinsinden)
+// Paket fiyatları (VIRTUAL token cinsinden - ReplyCorp API için)
 const PACK_PRICES_FLIP: Record<string, number> = {
-  common: 50000,
-  rare: 100000,
-  unicorn: 50000,
-  genesis: 50000,
-  sentient: 50000
+  common: 15,
+  rare: 25,
+  unicorn: 35,
+  genesis: 20,
+  sentient: 20
 }
 
 // Paket fiyatları (USD cinsinden - referral komisyon için)
 const PACK_PRICES: Record<string, number> = {
-  common: 25,
-  rare: 50,
-  unicorn: 25,
-  genesis: 25,
-  sentient: 25
+  common: 15,
+  rare: 25,
+  unicorn: 35,
+  genesis: 20,
+  sentient: 20
 }
 
 // Valid pack types
