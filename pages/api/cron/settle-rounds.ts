@@ -249,7 +249,7 @@ export default async function handler(
 
                 // Find an active card instance for this token that hasn't been used yet in this round
                 const candidateCard = userCards.find(c =>
-                  c.tokenId === pick.tokenId &&
+                  c.tokenId.toLowerCase() === pick.tokenId.toLowerCase() &&
                   c.status === 'active' &&
                   c.remainingDays > 0 &&
                   !usedCardIds.has(c.id)
@@ -262,7 +262,9 @@ export default async function handler(
                   }
                   usedCardIds.add(candidateCard.id);
                   cardsUpdated = true;
-                  console.log(`📉 [CRON] Decreased durability for card ${candidateCard.id} (${pick.tokenId}) for user ${uid}`);
+                  console.log(`📉 [CRON] Decreased durability for card ${candidateCard.id} (${pick.tokenId}) for user ${uid}. Remaining: ${candidateCard.remainingDays}`);
+                } else {
+                  console.log(`⚠️ [CRON] No active card found for token ${pick.tokenId} (User: ${uid}) despite being in active round.`);
                 }
               }
 

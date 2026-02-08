@@ -304,7 +304,9 @@ export async function resolveTasoGame(gameId: string): Promise<TasoGame | null> 
 
                 // Save updated inventory
                 await kv.set(userCardsKey, userCards);
-                console.log(`💀 Card ${game.loserCardWrecked} wrecked for user ${loser.wallet}`);
+                console.log(`💀 [TASO] Card ${game.loserCardWrecked} wrecked for user ${loser.wallet}`);
+            } else {
+                console.error(`❌ [TASO] Card ${game.loserCardWrecked} NOT FOUND in user ${loser.wallet} inventory! Cannot wreck.`);
             }
         } catch (err) {
             console.error('Failed to persist wrecked status:', err);

@@ -4,6 +4,8 @@ import Head from 'next/head'
 import Topbar from '../components/Topbar'
 import { TOKENS } from '../lib/tokens'
 import { RENEWAL_PRICES, CardType, DURABILITY_DAYS } from '../lib/cardInstance'
+import { useAccount, useReadContract } from 'wagmi'
+import { ERC20_ABI, VIRTUAL_TOKEN_ADDRESS, weiToFlip } from '../lib/contracts/packShopV2'
 
 interface CardInstanceData {
   id: string;
@@ -105,12 +107,25 @@ function getRemainingUses(card: any): number {
 }
 
 export default function Inventory() {
+  const { address } = useAccount()
   const [cards, setCards] = useState<CardInstanceData[]>([])
   const [user, setUser] = useState<any>(null)
   const [filter, setFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [renewingCardId, setRenewingCardId] = useState<string | null>(null)
   const [showRenewModal, setShowRenewModal] = useState<CardInstanceData | null>(null)
+
+  // Real-time FLIP balance check
+  const { data: flipBalanceData, refetch: refetchBalance } = useReadContract({
+    address: VIRTUAL_TOKEN_ADDRESS as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: [address!],
+    query: { enabled: !!address, refetchInterval: 10000 },
+  })
+
+  const realFlipBalance = flipBalanceData ? weiToFlip(flipBalanceData as bigint) : (user?.flip || 0);
+
 
   useEffect(() => {
     async function load() {
@@ -186,6 +201,7 @@ export default function Inventory() {
         ))
         // Update user flip balance
         setUser((prev: any) => ({ ...prev, flip: data.newBalance }))
+        refetchBalance() // Refresh on-chain data
         setShowRenewModal(null)
       } else {
         alert(data.error || 'Failed to renew card')
@@ -251,7 +267,7 @@ export default function Inventory() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <h2>Card Collection</h2>
             <div style={{ color: '#9ca3af', fontSize: 14 }}>
-              💰 $FLIP Balance: <span style={{ color: '#10b981', fontWeight: 700 }}>{(user?.flip || 0).toLocaleString()}</span>
+              💰 $FLIP Balance: <span style={{ color: '#10b981', fontWeight: 700 }}>{realFlipBalance.toLocaleString()}</span>
             </div>
           </div>
           <div className="sep"></div>
