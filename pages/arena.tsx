@@ -44,7 +44,7 @@ export default function ArenaPage() {
       subtitle: 'Front or Back - Test your luck!',
       color: '#ec4899',
       gradient: 'linear-gradient(135deg, #ec4899, #db2777)',
-      href: '/arena/taso',
+      href: '/arena/flip-flop',
       features: ['1v1 card flip', 'Loser card wrecked', 'High risk, high reward']
     },
     {

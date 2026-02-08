@@ -329,7 +329,7 @@ export default function TasoGamePage() {
     const loadGame = async (isFirstLoad = false) => {
         try {
             if (isFirstLoad) setInitialLoading(true)
-            const res = await fetch(`/api/arena/taso/${id}`)
+            const res = await fetch(`/api/arena/flip-flop/${id}`)
 
             if (res.status === 404) {
                 setNotFound(true)
@@ -385,7 +385,7 @@ export default function TasoGamePage() {
         setSelectedChoice(choice)
 
         try {
-            const res = await fetch('/api/arena/taso/choice', {
+            const res = await fetch('/api/arena/flip-flop/choice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ wallet: address, gameId: id, choice })
@@ -437,7 +437,7 @@ export default function TasoGamePage() {
                 <main style={{ padding: 40, textAlign: 'center' }}>
                     <h2 style={{ color: '#ef4444' }}>Game not found</h2>
                     <p style={{ marginBottom: 20 }}>This room does not exist or has expired.</p>
-                    <Link href="/arena/taso">← Back to Lobby</Link>
+                    <Link href="/arena/flip-flop">← Back to Lobby</Link>
                 </main>
             </div>
         )
@@ -774,7 +774,7 @@ export default function TasoGamePage() {
                     {/* Back Button */}
                     <div style={{ textAlign: 'center', marginTop: 32 }}>
                         <Link
-                            href="/arena/taso"
+                            href="/arena/flip-flop"
                             style={{
                                 display: 'inline-block',
                                 padding: '14px 40px',

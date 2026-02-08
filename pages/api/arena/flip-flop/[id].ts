@@ -1,5 +1,5 @@
-// pages/api/arena/taso/[id].ts
-// Fetch specific Taso room details and player choices
+// pages/api/arena/flip-flop/[id].ts
+// Fetch specific Flip Flop room details and player choices
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { ethers } from 'ethers'

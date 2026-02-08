@@ -424,7 +424,7 @@ export default function TasoLobby() {
     const loadRooms = async () => {
         try {
             // Use KV-based instant list instead of RPC scan
-            const res = await fetch('/api/arena/taso/list')
+            const res = await fetch('/api/arena/flip-flop/list')
             const data = await res.json()
             if (data.ok) {
                 // Filter out ghost rooms (legacy IDs) or invalid ones
@@ -512,7 +512,7 @@ export default function TasoLobby() {
             console.log('Room Created:', createdRoomId)
 
             // Save choice to backend for Oracle
-            await fetch('/api/arena/taso/choice', {
+            await fetch('/api/arena/flip-flop/choice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -599,7 +599,7 @@ export default function TasoLobby() {
             await publicClient.waitForTransactionReceipt({ hash: joinHash })
 
             // Save choice to backend for Oracle resolution
-            await fetch('/api/arena/taso/choice', {
+            await fetch('/api/arena/flip-flop/choice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -615,7 +615,7 @@ export default function TasoLobby() {
             toast('🎯 Joined! Resolving game...', 'success')
 
             // Navigate to game page
-            router.push(`/arena/taso/${selectedRoomId}`)
+            router.push(`/arena/flip-flop/${selectedRoomId}`)
 
         } catch (err: any) {
             console.error(err)
@@ -656,7 +656,7 @@ export default function TasoLobby() {
             }
 
             // 2. Remove from KV (Instant UI update)
-            await fetch('/api/arena/taso/cancel', {
+            await fetch('/api/arena/flip-flop/cancel', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ wallet: address, gameId: roomId })

@@ -1,5 +1,5 @@
 /**
- * POST /api/arena/taso/cancel - Remove room from KV (Frontend helper)
+ * POST /api/arena/flip-flop/cancel - Remove room from KV (Frontend helper)
  * Note: Real refund must happen on-chain. This just cleans the UI list.
  */
 

@@ -1,11 +1,11 @@
 /**
- * POST /api/arena/taso/join - Taso oyununa katıl
- * Katılan oyuncu seçimini yapar ve oyun otomatik çözülür
+ * POST /api/arena/flip-flop/create - Create new Flip Flop room
+ * Room creator makes their choice (front/back)
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { kv } from '@vercel/kv';
-import { joinTasoGame, getTasoGame, TasoCard, TasoChoice } from '../../../../lib/tasoGame';
+import { createTasoGame, TASO_TIERS, TasoTier, TasoCard, TasoChoice } from '../../../../lib/tasoGame';
 import { CardInstance, isCardActive } from '../../../../lib/cardInstance';
 import { getTokenById } from '../../../../lib/tokens';
 
@@ -15,10 +15,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-        const { wallet, gameId, choice } = req.body;
+        const { wallet, tier, choice } = req.body;
 
-        if (!wallet || !gameId) {
-            return res.status(400).json({ ok: false, error: 'Wallet and gameId required' });
+        if (!wallet) {
+            return res.status(400).json({ ok: false, error: 'Wallet address required' });
+        }
+
+        if (!tier || !TASO_TIERS[tier as TasoTier]) {
+            return res.status(400).json({ ok: false, error: 'Invalid tier' });
         }
 
         // Validate choice
@@ -27,15 +31,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const cleanWallet = wallet.toLowerCase();
-
-        // Verify game exists
-        const existingGame = await getTasoGame(gameId);
-        if (!existingGame) {
-            return res.status(404).json({ ok: false, error: 'Game not found' });
-        }
-        if (existingGame.status !== 'open') {
-            return res.status(400).json({ ok: false, error: 'Game is not open' });
-        }
 
         // Get cards from KV storage (new format with proper IDs)
         const cardsKey = `cards:${cleanWallet}`;
@@ -62,19 +57,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             cardType: selectedCard.cardType || 'pegasus',
         };
 
-        // Join game with choice - game auto-resolves
-        const game = await joinTasoGame(gameId, cleanWallet, tasoCard, choice as TasoChoice);
-        if (!game) {
-            return res.status(400).json({ ok: false, error: 'Failed to join game' });
-        }
+        // Create game with choice
+        const game = await createTasoGame(cleanWallet, tier as TasoTier, tasoCard, choice as TasoChoice);
+
+        // Don't expose player1's choice in response
+        const safeGame = {
+            ...game,
+            player1: {
+                ...game.player1,
+                choice: undefined, // Hide choice
+            }
+        };
 
         return res.status(200).json({
             ok: true,
-            game, // Game is already resolved, can show results
-            yourChoice: choice,
+            game: safeGame,
+            yourChoice: choice, // Only tell creator their own choice
         });
     } catch (error: any) {
-        console.error('Join taso error:', error);
+        console.error('Create taso error:', error);
         return res.status(500).json({ ok: false, error: error.message });
     }
 }

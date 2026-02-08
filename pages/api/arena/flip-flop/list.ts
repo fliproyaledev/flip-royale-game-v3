@@ -1,5 +1,5 @@
 /**
- * GET /api/arena/taso/list - List Open Flip Flop Rooms (KV Based for Speed)
+ * GET /api/arena/flip-flop/list - List Open Flip Flop Rooms (KV Based for Speed)
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
