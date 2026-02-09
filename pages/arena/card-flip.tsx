@@ -114,7 +114,7 @@ function CardSelector({
                             fontSize: 9,
                             fontWeight: 700,
                             color: styles.typeColor,
-                            background: 'rgba(0,0,0,0.3)',
+                            textShadow: styles.textColor === '#000000' ? 'none' : '0 1px 3px rgba(0,0,0,0.8)',
                             padding: '2px 6px',
                             borderRadius: 4,
                             marginTop: 4
@@ -561,10 +561,11 @@ export default function TasoLobby() {
             const room = openRooms.find(r => r.id === selectedRoomId)
             if (!room) throw new Error('Room not found')
 
-            const stake = room.stake
+            const stake = typeof room.stake === 'bigint' ? room.stake : BigInt(room.stake)
 
-            // Check allowance
-            if (!allowance || allowance < stake) {
+            // Check allowance - ensure we compare BigInt to BigInt
+            const currentAllowance = allowance ? BigInt(allowance.toString()) : BigInt(0)
+            if (currentAllowance < stake) {
                 setStatus('approving')
                 toast('Approving USDC...', 'info')
 

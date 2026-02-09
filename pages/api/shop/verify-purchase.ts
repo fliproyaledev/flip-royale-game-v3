@@ -7,8 +7,41 @@ const ORACLE_SECRET = process.env.ORACLE_SECRET;
 import { getUser, updateUser } from '../../../lib/users'
 import { createCardInstance, parseCardType, CardInstance, CardType } from '../../../lib/cardInstance'
 
-// Paket fiyatları (VIRTUAL token cinsinden - ReplyCorp API için)
-const PACK_PRICES_FLIP: Record<string, number> = {
+// ReplyCorp API Response Types (Fee Router Integration)
+interface ReplyCorpAttribution {
+  twitterId: string;
+  twitterHandle?: string;
+  walletAddress: string | null;
+  attributedAmount: number;
+  attributionPercentage: number;
+  degree?: number;
+}
+
+interface ReplyCorpResponse {
+  conversion: {
+    id: string;
+    conversionType: string;
+    conversionValue: number;
+    convertedAt: string;
+  };
+  attribution?: {
+    pointsDistributed: boolean;
+    totalPointsDistributed: number;
+    firstDegreeCount: number;
+    secondDegreeCount: number;
+    attributions: ReplyCorpAttribution[];
+    eligibleAttributions?: ReplyCorpAttribution[];
+  };
+  feeDistribution?: {
+    totalCommission: number;
+    replyCorpFee: number;
+    totalToSendToContract: number;
+    attributionHash: string;
+  };
+}
+
+// Paket fiyatları (VIRTUAL token cinsinden - ReplyCorp API ve ödeme için)
+const PACK_PRICES_VIRTUAL: Record<string, number> = {
   common: 15,
   rare: 25,
   unicorn: 35,
@@ -28,8 +61,12 @@ const PACK_PRICES: Record<string, number> = {
 // Valid pack types
 const VALID_PACK_TYPES = ['common', 'rare', 'unicorn', 'genesis', 'sentient']
 
-// Komisyon oranı
-const COMMISSION_RATE = 0.10 // %10
+// Komisyon oranları (ReplyCorp Fee Router Integration)
+const REFERRER_COMMISSION_RATE = 0.20  // %20 - Referrer'lara dağıtılacak
+const REPLYCORP_FEE_RATE = 0.05        // %5 - ReplyCorp'a (API tarafında hesaplanır)
+
+// Eski oran (mevcut kontrat referral sistemi için)
+const COMMISSION_RATE = 0.10 // %10 - FlipRoyalePackShop.sol kontratı için
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // 1. Sadece POST
@@ -239,7 +276,7 @@ async function logPurchaseWithXHandle(
   }
 }
 
-// Send conversion to ReplyCorp API for attribution tracking
+// Send conversion to ReplyCorp API for attribution tracking (Fee Router Integration)
 async function sendToReplyCorp(
   xUserId: string,
   walletAddress: string,
@@ -247,20 +284,45 @@ async function sendToReplyCorp(
   packType: string,
   quantity: number,
   txHash: string
-) {
+): Promise<ReplyCorpResponse | null> {
   try {
     const REPLYCORP_API_KEY = process.env.REPLYCORP_API_KEY;
     const REPLYCORP_CAMPAIGN_ID = process.env.REPLYCORP_CAMPAIGN_ID;
 
     if (!REPLYCORP_API_KEY || !REPLYCORP_CAMPAIGN_ID) {
       console.log('[ReplyCorp] API key or campaign ID not configured, skipping');
-      return;
+      return null;
     }
 
-    // Calculate FLIP amount
-    const flipAmount = PACK_PRICES_FLIP[packType] ? PACK_PRICES_FLIP[packType] * quantity : 50000 * quantity;
+    // Pack fiyatı VIRTUAL cinsinden
+    const packPrice = PACK_PRICES_VIRTUAL[packType] || 15;
+    const totalVolume = packPrice * quantity;
 
-    // Send conversion to ReplyCorp (amount in FLIP)
+    // Fee Router için hesaplamalar
+    // totalVolume: Toplam satış tutarı (VIRTUAL)
+    // netProfit: Net kar (maliyet yok, tamamı profit)
+    // commission: Referrer'lara dağıtılacak miktar (%20)
+    // ReplyCorp fee: netProfit'in %5'i (API tarafında hesaplanır)
+    const netProfit = totalVolume;
+    const commission = totalVolume * REFERRER_COMMISSION_RATE;
+
+    const payload = {
+      twitterId: xUserId,
+      eventType: 'purchase',
+      totalVolume: totalVolume,
+      netProfit: netProfit,
+      commission: commission,
+      walletAddress: walletAddress,
+      metadata: {
+        txHash: txHash,
+        packType: packType,
+        quantity: quantity,
+        currency: 'VIRTUAL'
+      }
+    };
+
+    console.log(`[ReplyCorp] 📤 Sending Fee Router payload: ${JSON.stringify(payload)}`);
+
     const response = await fetch(
       `https://prod.api.replycorp.io/api/v1/campaigns/${REPLYCORP_CAMPAIGN_ID}/conversions`,
       {
@@ -269,41 +331,45 @@ async function sendToReplyCorp(
           'X-API-Key': REPLYCORP_API_KEY,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          twitterId: xUserId,
-          eventType: 'purchase',
-          amount: flipAmount,
-          walletAddress: walletAddress,
-          metadata: {
-            txHash: txHash,
-            packType: packType,
-            quantity: quantity,
-            currency: 'FLIP'
-          }
-        })
+        body: JSON.stringify(payload)
       }
     );
 
-    // Log the payload that was sent
-    const sentPayload = {
-      twitterId: xUserId,
-      eventType: 'purchase',
-      amount: flipAmount,
-      walletAddress: walletAddress,
-      metadata: { txHash, packType, quantity, currency: 'FLIP' }
-    };
-    console.log(`[ReplyCorp] 📤 Sent payload: ${JSON.stringify(sentPayload)}`);
-
     if (response.ok) {
-      const data = await response.json();
-      console.log(`[ReplyCorp] ✅ Response: ${JSON.stringify(data)}`);
+      const data: ReplyCorpResponse = await response.json();
+      console.log(`[ReplyCorp] ✅ Conversion created: ${data.conversion?.id}`);
+
+      // Attribution bilgisi varsa logla
+      if (data.attribution) {
+        console.log(`[ReplyCorp] 📊 Attribution: ${data.attribution.attributions?.length || 0} referrers, ${data.attribution.totalPointsDistributed} points`);
+      }
+
+      // Fee distribution bilgisi varsa logla (kontrat entegrasyonu için)
+      if (data.feeDistribution) {
+        console.log(`[ReplyCorp] 💰 Fee Distribution Ready:`);
+        console.log(`   - Commission: ${data.feeDistribution.totalCommission} VIRTUAL`);
+        console.log(`   - ReplyCorp Fee: ${data.feeDistribution.replyCorpFee} VIRTUAL`);
+        console.log(`   - Total to Contract: ${data.feeDistribution.totalToSendToContract} VIRTUAL`);
+        console.log(`   - Attribution Hash: ${data.feeDistribution.attributionHash}`);
+
+        // TODO: Fee Router kontrat gelince buraya dağıtım kodu eklenecek
+        // await distributeViaFeeRouter(
+        //   data.conversion.id,
+        //   data.feeDistribution.totalToSendToContract,
+        //   data.feeDistribution.attributionHash
+        // );
+      }
+
+      return data;
     } else {
       const errorData = await response.json().catch(() => ({}));
-      console.error(`[ReplyCorp] ❌ API error: ${response.status} - ${JSON.stringify(errorData)}`);
+      console.error(`[ReplyCorp] ❌ API error: ${response.status}`, errorData);
+      return null;
     }
   } catch (e) {
     console.error('[ReplyCorp] Send error:', e);
     // ReplyCorp hatası satın almayı engellemez
+    return null;
   }
 }
 

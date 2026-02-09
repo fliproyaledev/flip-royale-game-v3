@@ -3,7 +3,7 @@ import { ethers } from 'ethers'
 import { kv } from '@vercel/kv'
 import { TasoGame } from '../../../../lib/tasoGame'
 import { getTokenById } from '../../../../lib/tokens'
-import { CardInstance } from '../../../../lib/cardInstance'
+import { CardInstance, wreckCard } from '../../../../lib/cardInstance'
 
 // Config
 const ARENA_CONTRACT = process.env.NEXT_PUBLIC_ARENA_CONTRACT
@@ -138,6 +138,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             updated = true;
 
             console.log(`[Taso Choice] Locally resolved: ${status} result=${flipResult}`)
+
+            // ═══════════════════════════════════════════════════════════════
+            // 🔥 CRITICAL: WRECK THE LOSER'S CARD
+            // ═══════════════════════════════════════════════════════════════
+            const loser = winner === game.player1.wallet ? game.player2! : game.player1;
+            const loserCardId = (loser.card as any)?.id || loser.card?.cardId;
+
+            if (loserCardId && loser.wallet) {
+                try {
+                    const loserCardsKey = `cards:${loser.wallet.toLowerCase()}`;
+                    const loserCards = await kv.get<CardInstance[]>(loserCardsKey) || [];
+
+                    const cardIndex = loserCards.findIndex(c => c.id === loserCardId);
+                    if (cardIndex !== -1) {
+                        // Apply wreck status
+                        loserCards[cardIndex] = wreckCard(loserCards[cardIndex], game.id);
+                        await kv.set(loserCardsKey, loserCards);
+
+                        // Store loser card ID for reference
+                        game.loserCardWrecked = loserCardId;
+
+                        console.log(`💀 [Card Flip] Card ${loserCardId} WRECKED for loser ${loser.wallet}`);
+                    } else {
+                        console.error(`❌ [Card Flip] Card ${loserCardId} NOT FOUND in ${loser.wallet} inventory!`);
+                    }
+                } catch (wreckErr) {
+                    console.error('[Card Flip] Failed to wreck card:', wreckErr);
+                }
+            } else {
+                console.warn(`[Card Flip] Missing loser card info - Loser: ${loser.wallet}, CardId: ${loserCardId}`);
+            }
         }
 
         if (updated) {
