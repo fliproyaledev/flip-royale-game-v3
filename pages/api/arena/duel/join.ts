@@ -174,58 +174,66 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // ═══════════════════════════════════════════════════════════════
         // 🔋 DURABILITY DECREASE: All cards used in duel lose 1 day
         // ═══════════════════════════════════════════════════════════════
-        try {
-            // Decrease durability for Player 1's cards
-            const p1CardsKey = `cards:${matchedDuel.player1.wallet.toLowerCase()}`;
-            const p1UserCards = await kv.get<CardInstance[]>(p1CardsKey) || [];
-            let p1Updated = false;
+        const DURABILITY_DEFAULTS: Record<string, number> = {
+            sentient: 5, genesis: 7, unicorn: 10, pegasus: 14, firstborn: 14
+        };
 
-            for (const duelCard of matchedDuel.player1.cards) {
-                // Find matching card in user's inventory by tokenId
-                const cardIdx = p1UserCards.findIndex(c =>
+        const decreaseDurability = async (wallet: string, duelCards: DuelCard[]) => {
+            const cardsKey = `cards:${wallet.toLowerCase()}`;
+            const userCards = await kv.get<CardInstance[]>(cardsKey) || [];
+            let updated = false;
+
+            for (const duelCard of duelCards) {
+                // Find matching card by tokenId that is still usable
+                const cardIdx = userCards.findIndex(c =>
                     c.tokenId.toLowerCase() === duelCard.tokenId.toLowerCase() &&
-                    c.status === 'active' &&
-                    (c.remainingDays === undefined || c.remainingDays > 0)
+                    c.status === 'active'
                 );
-                if (cardIdx !== -1 && p1UserCards[cardIdx].remainingDays !== undefined) {
-                    p1UserCards[cardIdx].remainingDays = Math.max(0, p1UserCards[cardIdx].remainingDays - 1);
-                    if (p1UserCards[cardIdx].remainingDays <= 0) {
-                        p1UserCards[cardIdx].status = 'expired';
+
+                if (cardIdx !== -1) {
+                    const card = userCards[cardIdx];
+
+                    // Initialize remainingDays if undefined (legacy card)
+                    if (card.remainingDays === undefined || card.remainingDays === null) {
+                        const defaultDays = DURABILITY_DEFAULTS[card.cardType?.toLowerCase()] || 7;
+                        card.remainingDays = defaultDays;
+                        card.totalDays = defaultDays;
+                        console.log(`🔋 [Duel] Initialized legacy card ${card.tokenId} with ${defaultDays} days`);
                     }
-                    p1Updated = true;
-                    console.log(`🔋 [Duel] P1 Card ${p1UserCards[cardIdx].tokenId} durability -1 => ${p1UserCards[cardIdx].remainingDays} days`);
+
+                    // Decrease by 1
+                    card.remainingDays = Math.max(0, card.remainingDays - 1);
+
+                    if (card.remainingDays <= 0) {
+                        card.status = 'expired';
+                    }
+
+                    userCards[cardIdx] = card;
+                    updated = true;
+                    console.log(`🔋 [Duel] ${card.tokenId} durability -1 => ${card.remainingDays} days remaining`);
+                } else {
+                    console.warn(`🔋 [Duel] Card ${duelCard.tokenId} not found in ${wallet} CardInstance inventory`);
                 }
             }
-            if (p1Updated) await kv.set(p1CardsKey, p1UserCards);
 
-            // Decrease durability for Player 2's cards
+            if (updated) {
+                await kv.set(cardsKey, userCards);
+                console.log(`🔋 [Duel] Saved ${wallet} inventory with updated durability`);
+            }
+        }
+
+        try {
+            // Decrease durability for Player 1
+            await decreaseDurability(matchedDuel.player1.wallet, matchedDuel.player1.cards);
+
+            // Decrease durability for Player 2
             if (matchedDuel.player2) {
-                const p2CardsKey = `cards:${matchedDuel.player2.wallet.toLowerCase()}`;
-                const p2UserCards = await kv.get<CardInstance[]>(p2CardsKey) || [];
-                let p2Updated = false;
-
-                for (const duelCard of matchedDuel.player2.cards) {
-                    const cardIdx = p2UserCards.findIndex(c =>
-                        c.tokenId.toLowerCase() === duelCard.tokenId.toLowerCase() &&
-                        c.status === 'active' &&
-                        (c.remainingDays === undefined || c.remainingDays > 0)
-                    );
-                    if (cardIdx !== -1 && p2UserCards[cardIdx].remainingDays !== undefined) {
-                        p2UserCards[cardIdx].remainingDays = Math.max(0, p2UserCards[cardIdx].remainingDays - 1);
-                        if (p2UserCards[cardIdx].remainingDays <= 0) {
-                            p2UserCards[cardIdx].status = 'expired';
-                        }
-                        p2Updated = true;
-                        console.log(`🔋 [Duel] P2 Card ${p2UserCards[cardIdx].tokenId} durability -1 => ${p2UserCards[cardIdx].remainingDays} days`);
-                    }
-                }
-                if (p2Updated) await kv.set(p2CardsKey, p2UserCards);
+                await decreaseDurability(matchedDuel.player2.wallet, matchedDuel.player2.cards);
             }
 
             console.log(`🔋 [Duel] Durability decreased for all cards in duel ${matchedDuel.id}`);
         } catch (durabilityErr) {
             console.error('[Duel] Failed to decrease durability:', durabilityErr);
-            // Don't fail the request, the duel is still valid
         }
 
         // ─────────────────────────────────────────────────────────────
