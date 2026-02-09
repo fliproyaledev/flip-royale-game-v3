@@ -4,9 +4,11 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { kv } from '@vercel/kv';
 import { getFlipDuel, CARDS_PER_DUEL, DuelCard, getTokenFDV, DUEL_TIERS, FlipDuel, saveFlipDuel } from '../../../../lib/duelV2';
 import { getUser } from '../../../../lib/users';
 import { getTokenById } from '../../../../lib/tokens';
+import { CardInstance } from '../../../../lib/cardInstance';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
@@ -168,6 +170,63 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // ... existing logic
         // Save matched duel
         await saveFlipDuel(matchedDuel);
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🔋 DURABILITY DECREASE: All cards used in duel lose 1 day
+        // ═══════════════════════════════════════════════════════════════
+        try {
+            // Decrease durability for Player 1's cards
+            const p1CardsKey = `cards:${matchedDuel.player1.wallet.toLowerCase()}`;
+            const p1UserCards = await kv.get<CardInstance[]>(p1CardsKey) || [];
+            let p1Updated = false;
+
+            for (const duelCard of matchedDuel.player1.cards) {
+                // Find matching card in user's inventory by tokenId
+                const cardIdx = p1UserCards.findIndex(c =>
+                    c.tokenId.toLowerCase() === duelCard.tokenId.toLowerCase() &&
+                    c.status === 'active' &&
+                    (c.remainingDays === undefined || c.remainingDays > 0)
+                );
+                if (cardIdx !== -1 && p1UserCards[cardIdx].remainingDays !== undefined) {
+                    p1UserCards[cardIdx].remainingDays = Math.max(0, p1UserCards[cardIdx].remainingDays - 1);
+                    if (p1UserCards[cardIdx].remainingDays <= 0) {
+                        p1UserCards[cardIdx].status = 'expired';
+                    }
+                    p1Updated = true;
+                    console.log(`🔋 [Duel] P1 Card ${p1UserCards[cardIdx].tokenId} durability -1 => ${p1UserCards[cardIdx].remainingDays} days`);
+                }
+            }
+            if (p1Updated) await kv.set(p1CardsKey, p1UserCards);
+
+            // Decrease durability for Player 2's cards
+            if (matchedDuel.player2) {
+                const p2CardsKey = `cards:${matchedDuel.player2.wallet.toLowerCase()}`;
+                const p2UserCards = await kv.get<CardInstance[]>(p2CardsKey) || [];
+                let p2Updated = false;
+
+                for (const duelCard of matchedDuel.player2.cards) {
+                    const cardIdx = p2UserCards.findIndex(c =>
+                        c.tokenId.toLowerCase() === duelCard.tokenId.toLowerCase() &&
+                        c.status === 'active' &&
+                        (c.remainingDays === undefined || c.remainingDays > 0)
+                    );
+                    if (cardIdx !== -1 && p2UserCards[cardIdx].remainingDays !== undefined) {
+                        p2UserCards[cardIdx].remainingDays = Math.max(0, p2UserCards[cardIdx].remainingDays - 1);
+                        if (p2UserCards[cardIdx].remainingDays <= 0) {
+                            p2UserCards[cardIdx].status = 'expired';
+                        }
+                        p2Updated = true;
+                        console.log(`🔋 [Duel] P2 Card ${p2UserCards[cardIdx].tokenId} durability -1 => ${p2UserCards[cardIdx].remainingDays} days`);
+                    }
+                }
+                if (p2Updated) await kv.set(p2CardsKey, p2UserCards);
+            }
+
+            console.log(`🔋 [Duel] Durability decreased for all cards in duel ${matchedDuel.id}`);
+        } catch (durabilityErr) {
+            console.error('[Duel] Failed to decrease durability:', durabilityErr);
+            // Don't fail the request, the duel is still valid
+        }
 
         // ─────────────────────────────────────────────────────────────
         // ON-CHAIN RESOLUTION (TRIGGER PAYOUT)
