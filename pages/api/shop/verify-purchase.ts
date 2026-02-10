@@ -6,6 +6,7 @@ const ORACLE_SECRET = process.env.ORACLE_SECRET;
 
 import { getUser, updateUser } from '../../../lib/users'
 import { createCardInstance, parseCardType, CardInstance, CardType } from '../../../lib/cardInstance'
+import { distributeViaFeeRouter } from '../../../lib/contracts/feeRouter'
 
 // ReplyCorp API Response Types (Fee Router Integration)
 interface ReplyCorpAttribution {
@@ -352,12 +353,22 @@ async function sendToReplyCorp(
         console.log(`   - Total to Contract: ${data.feeDistribution.totalToSendToContract} VIRTUAL`);
         console.log(`   - Attribution Hash: ${data.feeDistribution.attributionHash}`);
 
-        // TODO: Fee Router kontrat gelince buraya dağıtım kodu eklenecek
-        // await distributeViaFeeRouter(
-        //   data.conversion.id,
-        //   data.feeDistribution.totalToSendToContract,
-        //   data.feeDistribution.attributionHash
-        // );
+        // 🔥 FEE ROUTER: Trigger on-chain distribution
+        try {
+          const distResult = await distributeViaFeeRouter(
+            data.conversion.id,
+            data.feeDistribution.totalToSendToContract,
+            data.feeDistribution.attributionHash
+          );
+          if (distResult.success) {
+            console.log(`[ReplyCorp] ✅ FeeRouter distribution completed: ${distResult.txHash}`);
+          } else {
+            console.warn(`[ReplyCorp] ⚠️ FeeRouter distribution failed: ${distResult.error}`);
+          }
+        } catch (feeErr) {
+          console.error('[ReplyCorp] FeeRouter distribution error:', feeErr);
+          // Don't block purchase on fee distribution error
+        }
       }
 
       return data;
