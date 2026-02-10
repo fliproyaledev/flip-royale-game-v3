@@ -325,7 +325,7 @@ function RoomRow({ roomId, userAddress, roomData, isLoading }: { roomId: `0x${st
         statusText = 'Open/Waiting'
     }
 
-    const targetLink = `/arena/${gameMode === 0 ? 'duel' : 'taso'}/${roomId}`
+    const targetLink = `/arena/${gameMode === 0 ? 'duel' : 'card-flip'}/${roomId}`
 
     return (
         <div style={{
