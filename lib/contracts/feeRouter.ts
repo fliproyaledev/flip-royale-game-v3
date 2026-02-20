@@ -72,10 +72,13 @@ export function toWei(amount: number): bigint {
 
 /**
  * Convert conversion ID to bytes32 format
+ * Uses right-padding (zeroPadBytes) to match Solidity bytes32 convention.
+ * ReplyCorp writes attribution data with this encoding.
  */
 export function toBytes32(conversionId: string): string {
     const cleanId = conversionId.replace(/-/g, '');
-    return ethers.zeroPadValue(`0x${cleanId}`, 32);
+    // bytes32 uses right-padding (0xUUID...0000) not left-padding (0x0000...UUID)
+    return ethers.zeroPadBytes(`0x${cleanId}`, 32);
 }
 
 /**
