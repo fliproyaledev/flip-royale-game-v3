@@ -2,12 +2,14 @@
  * ReplyCorp Fee Router Contract Integration
  * 
  * Akış:
- * 1. ReplyCorp API'den feeDistribution bilgisi alınır
- * 2. Attribution verisi on-chain'e yazılmasını bekle (retry)
- * 3. approve() - Token izni verilir
- * 4. startDistribution() - Dağıtım başlatılır
- * 5. processBatch() - Batch'ler işlenir (>200 alıcı varsa)
- * 6. finalizeDistribution() - Tamamlanır
+ * 1. Satın alma olduğunda ReplyCorp API'den feeDistribution bilgisi alınır
+ * 2. Hemen bir kere startDistribution denenır
+ * 3. Başarısızsa pending queue'ya kaydedilir (KV)
+ * 4. Cron job (/api/cron/process-distributions) pending'leri tekrar dener
+ * 
+ * NOT: Attribution verisi ReplyCorp'un attribution updater'ı tarafından
+ * on-chain'e yazılır. Bu işlem zaman alabilir, bu yüzden ilk denemede
+ * başarısız olursa pending queue kullanılır.
  */
 
 import { ethers } from 'ethers';
@@ -21,10 +23,6 @@ export const VIRTUAL_TOKEN_ADDRESS = '0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b
 
 // Base RPC
 export const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
-
-// Retry config
-const MAX_RETRIES = 5;
-const RETRY_DELAYS = [10000, 20000, 30000, 60000, 120000]; // 10s, 20s, 30s, 1m, 2m
 
 // Fee Router ABI
 export const FEE_ROUTER_ABI = [
@@ -76,20 +74,12 @@ export function toWei(amount: number): bigint {
  * Convert conversion ID to bytes32 format
  */
 export function toBytes32(conversionId: string): string {
-    // UUID format'ı bytes32'ye çevir
     const cleanId = conversionId.replace(/-/g, '');
     return ethers.zeroPadValue(`0x${cleanId}`, 32);
 }
 
 /**
- * Helper: sleep for given milliseconds
- */
-function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Pending distribution'ı KV'ye kaydet (retry için)
+ * Pending distribution interface
  */
 interface PendingDistribution {
     conversionId: string;
@@ -98,7 +88,7 @@ interface PendingDistribution {
     createdAt: string;
     retryCount: number;
     lastError?: string;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
+    status: 'pending' | 'completed' | 'failed';
 }
 
 async function savePendingDistribution(dist: PendingDistribution): Promise<void> {
@@ -106,7 +96,7 @@ async function savePendingDistribution(dist: PendingDistribution): Promise<void>
         const key = `feerouter:pending:${dist.conversionId}`;
         await kv.set(key, dist);
 
-        // Add to pending list for cron processing
+        // Add to pending list
         const listKey = 'feerouter:pending_list';
         const list = await kv.get<string[]>(listKey) || [];
         if (!list.includes(dist.conversionId)) {
@@ -115,7 +105,7 @@ async function savePendingDistribution(dist: PendingDistribution): Promise<void>
         }
         console.log(`[FeeRouter] 💾 Saved pending distribution: ${dist.conversionId}`);
     } catch (e) {
-        console.error('[FeeRouter] Failed to save pending distribution:', e);
+        console.error('[FeeRouter] Failed to save pending:', e);
     }
 }
 
@@ -127,33 +117,81 @@ async function removePendingDistribution(conversionId: string): Promise<void> {
         const updated = list.filter(id => id !== conversionId);
         await kv.set(listKey, updated);
     } catch (e) {
-        console.error('[FeeRouter] Failed to remove pending distribution:', e);
+        console.error('[FeeRouter] Failed to remove pending:', e);
     }
 }
 
 /**
- * Check if attribution data is available on-chain
+ * Try to execute the full distribution flow on-chain
+ * Returns success/failure without long waits
  */
-async function checkAttributionOnChain(
-    feeRouter: ethers.Contract,
-    conversionIdBytes: string
-): Promise<boolean> {
-    try {
-        const route = await feeRouter.getDistributionRoute(conversionIdBytes);
-        // If totalAmount > 0 or attributionHash is set, data exists
-        return route.totalAmount > BigInt(0) || route.attributionHash !== ethers.ZeroHash;
-    } catch {
-        return false;
+async function executeDistribution(
+    conversionId: string,
+    totalAmount: number,
+    attributionHash: string
+): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    const privateKey = process.env.DISTRIBUTION_WALLET_PRIVATE_KEY;
+    if (!privateKey) {
+        return { success: false, error: 'Private key not configured' };
     }
+
+    const provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const feeRouter = new ethers.Contract(FEE_ROUTER_ADDRESS, FEE_ROUTER_ABI, wallet);
+    const token = new ethers.Contract(VIRTUAL_TOKEN_ADDRESS, ERC20_ABI, wallet);
+
+    const amountWei = toWei(totalAmount);
+    const conversionIdBytes = toBytes32(conversionId);
+
+    // 1. Check balance
+    const balance = await token.balanceOf(wallet.address);
+    if (balance < amountWei) {
+        return { success: false, error: `Insufficient balance: ${ethers.formatEther(balance)} VIRTUAL` };
+    }
+
+    // 2. Ensure approval (max approve once)
+    const allowance = await token.allowance(wallet.address, FEE_ROUTER_ADDRESS);
+    if (allowance < amountWei) {
+        console.log('[FeeRouter] 📝 Approving tokens (max)...');
+        const approveTx = await token.approve(FEE_ROUTER_ADDRESS, ethers.MaxUint256);
+        await approveTx.wait();
+        console.log(`[FeeRouter] ✅ Approved: ${approveTx.hash}`);
+    }
+
+    // 3. Try startDistribution - this is where it fails if attribution not on-chain
+    console.log('[FeeRouter] 📤 Calling startDistribution...');
+    const startTx = await feeRouter.startDistribution(
+        conversionIdBytes,
+        amountWei,
+        attributionHash
+    );
+    await startTx.wait();
+    console.log(`[FeeRouter] ✅ Distribution started: ${startTx.hash}`);
+
+    // 4. Process Batches
+    const batchCount = await feeRouter.getBatchCount(conversionIdBytes);
+    console.log(`[FeeRouter] 📦 Processing ${batchCount} batch(es)...`);
+    for (let i = 0; i < Number(batchCount); i++) {
+        const completed = await feeRouter.isBatchCompleted(conversionIdBytes, i);
+        if (!completed) {
+            const batchTx = await feeRouter.processBatch(conversionIdBytes, i);
+            await batchTx.wait();
+            console.log(`[FeeRouter] ✅ Batch ${i + 1}/${batchCount} processed`);
+        }
+    }
+
+    // 5. Finalize
+    console.log('[FeeRouter] 🏁 Finalizing distribution...');
+    const finalizeTx = await feeRouter.finalizeDistribution(conversionIdBytes);
+    await finalizeTx.wait();
+    console.log(`[FeeRouter] ✅ Distribution finalized: ${finalizeTx.hash}`);
+
+    return { success: true, txHash: finalizeTx.hash };
 }
 
 /**
- * Fee Router ile token dağıtımı yap (retry mekanizması ile)
- * 
- * @param conversionId - ReplyCorp'tan gelen conversion ID
- * @param totalAmount - Toplam dağıtılacak miktar (VIRTUAL)
- * @param attributionHash - ReplyCorp'tan gelen attribution hash
- * @returns İşlem başarılı mı?
+ * Main entry point: Try distribution, save to pending if fails
+ * Called from verify-purchase.ts - MUST be fast, no long waits
  */
 export async function distributeViaFeeRouter(
     conversionId: string,
@@ -161,185 +199,124 @@ export async function distributeViaFeeRouter(
     attributionHash: string
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-        // Kontrat adresi kontrolü
         if (!FEE_ROUTER_ADDRESS) {
-            console.log('[FeeRouter] ⏳ Contract not deployed yet, skipping distribution');
+            console.log('[FeeRouter] ⏳ Contract not deployed yet, skipping');
             return { success: false, error: 'Contract not deployed' };
         }
 
-        const privateKey = process.env.DISTRIBUTION_WALLET_PRIVATE_KEY;
-        if (!privateKey) {
-            console.error('[FeeRouter] ❌ Distribution wallet private key not configured');
-            return { success: false, error: 'Private key not configured' };
+        console.log(`[FeeRouter] 🚀 Attempting distribution for ${conversionId}`);
+        console.log(`[FeeRouter]   Amount: ${totalAmount} VIRTUAL`);
+
+        // Try once immediately
+        const result = await executeDistribution(conversionId, totalAmount, attributionHash);
+
+        if (result.success) {
+            console.log(`[FeeRouter] ✅ Distribution completed: ${result.txHash}`);
+            await removePendingDistribution(conversionId);
+            return result;
         }
 
-        // Provider ve wallet oluştur
-        const provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
-        const wallet = new ethers.Wallet(privateKey, provider);
-
-        // Kontratları oluştur
-        const feeRouter = new ethers.Contract(FEE_ROUTER_ADDRESS, FEE_ROUTER_ABI, wallet);
-        const token = new ethers.Contract(VIRTUAL_TOKEN_ADDRESS, ERC20_ABI, wallet);
-
-        // Miktarı wei'ye çevir
-        const amountWei = toWei(totalAmount);
-        const conversionIdBytes = toBytes32(conversionId);
-
-        console.log(`[FeeRouter] 🚀 Starting distribution for conversion ${conversionId}`);
-        console.log(`[FeeRouter]   Amount: ${totalAmount} VIRTUAL (${amountWei} wei)`);
-
-        // 1. Token bakiyesi kontrol et
-        const balance = await token.balanceOf(wallet.address);
-        if (balance < amountWei) {
-            console.error(`[FeeRouter] ❌ Insufficient balance: ${ethers.formatEther(balance)} VIRTUAL`);
-            // Save as pending for later retry
-            await savePendingDistribution({
-                conversionId, totalAmount, attributionHash,
-                createdAt: new Date().toISOString(),
-                retryCount: 0,
-                lastError: 'Insufficient balance',
-                status: 'pending'
-            });
-            return { success: false, error: 'Insufficient balance - saved for retry' };
-        }
-
-        // 2. Approve - büyük miktar için bir kere approve yap (gas tasarrufu)
-        const allowance = await token.allowance(wallet.address, FEE_ROUTER_ADDRESS);
-        if (allowance < amountWei) {
-            console.log('[FeeRouter] 📝 Approving tokens (max amount)...');
-            // MAX approve - her seferinde tekrar approve gerek kalmasın
-            const maxApproval = ethers.MaxUint256;
-            const approveTx = await token.approve(FEE_ROUTER_ADDRESS, maxApproval);
-            await approveTx.wait();
-            console.log(`[FeeRouter] ✅ Approved (max): ${approveTx.hash}`);
-        }
-
-        // 3. Wait for attribution data on-chain (retry with backoff)
-        let attributionReady = false;
-        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            attributionReady = await checkAttributionOnChain(feeRouter, conversionIdBytes);
-
-            if (attributionReady) {
-                console.log(`[FeeRouter] ✅ Attribution data found on-chain (attempt ${attempt + 1})`);
-                break;
-            }
-
-            const delay = RETRY_DELAYS[attempt] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
-            console.log(`[FeeRouter] ⏳ Attribution not on-chain yet, waiting ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
-            await sleep(delay);
-        }
-
-        // Attribution hala yazılmadıysa → pending queue'ya ekle
-        if (!attributionReady) {
-            console.log(`[FeeRouter] ⏳ Attribution still not on-chain after ${MAX_RETRIES} retries. Saving to pending queue.`);
-            await savePendingDistribution({
-                conversionId, totalAmount, attributionHash,
-                createdAt: new Date().toISOString(),
-                retryCount: MAX_RETRIES,
-                lastError: 'Attribution data not found after retries',
-                status: 'pending'
-            });
-            return { success: false, error: 'Attribution not yet on-chain - saved for retry' };
-        }
-
-        // 4. Start Distribution
-        console.log('[FeeRouter] 📤 Starting distribution...');
-        const startTx = await feeRouter.startDistribution(
-            conversionIdBytes,
-            amountWei,
-            attributionHash
-        );
-        await startTx.wait();
-        console.log(`[FeeRouter] ✅ Distribution started: ${startTx.hash}`);
-
-        // 5. Process Batches (varsa)
-        const batchCount = await feeRouter.getBatchCount(conversionIdBytes);
-        console.log(`[FeeRouter] 📦 Processing ${batchCount} batch(es)...`);
-
-        for (let i = 0; i < Number(batchCount); i++) {
-            const completed = await feeRouter.isBatchCompleted(conversionIdBytes, i);
-            if (!completed) {
-                const batchTx = await feeRouter.processBatch(conversionIdBytes, i);
-                await batchTx.wait();
-                console.log(`[FeeRouter] ✅ Batch ${i + 1}/${batchCount} processed`);
-            }
-        }
-
-        // 6. Finalize Distribution
-        console.log('[FeeRouter] 🏁 Finalizing distribution...');
-        const finalizeTx = await feeRouter.finalizeDistribution(conversionIdBytes);
-        await finalizeTx.wait();
-        console.log(`[FeeRouter] ✅ Distribution finalized: ${finalizeTx.hash}`);
-
-        // Clean up pending if it was there
-        await removePendingDistribution(conversionId);
-
-        return { success: true, txHash: finalizeTx.hash };
-
-    } catch (error: any) {
-        console.error('[FeeRouter] ❌ Distribution error:', error);
-
-        // Save to pending queue on any error
+        // Failed - likely "attribution data not found"
+        // Save to pending queue for cron retry
+        console.log(`[FeeRouter] ⏳ Distribution failed, saving to pending queue for retry`);
         await savePendingDistribution({
             conversionId, totalAmount, attributionHash,
             createdAt: new Date().toISOString(),
             retryCount: 0,
-            lastError: error.message?.substring(0, 200) || 'Unknown error',
+            lastError: result.error?.substring(0, 200),
             status: 'pending'
         });
 
-        return { success: false, error: error.message };
+        return { success: false, error: `Queued for retry: ${result.error}` };
+
+    } catch (error: any) {
+        const errorMsg = error.reason || error.shortMessage || error.message || 'Unknown error';
+        console.error(`[FeeRouter] ❌ Error: ${errorMsg}`);
+
+        // Save to pending queue
+        await savePendingDistribution({
+            conversionId, totalAmount, attributionHash,
+            createdAt: new Date().toISOString(),
+            retryCount: 0,
+            lastError: errorMsg.substring(0, 200),
+            status: 'pending'
+        });
+
+        return { success: false, error: `Queued for retry: ${errorMsg}` };
     }
 }
 
 /**
- * Process pending distributions (cron job'dan çağrılır)
+ * Process all pending distributions (called by cron)
  */
 export async function processPendingDistributions(): Promise<{
     processed: number;
     succeeded: number;
     failed: number;
+    details: string[];
 }> {
     const listKey = 'feerouter:pending_list';
     const list = await kv.get<string[]>(listKey) || [];
+    const details: string[] = [];
+
+    if (list.length === 0) {
+        return { processed: 0, succeeded: 0, failed: 0, details: ['No pending distributions'] };
+    }
 
     let processed = 0, succeeded = 0, failed = 0;
 
     for (const conversionId of list) {
         const pending = await kv.get<PendingDistribution>(`feerouter:pending:${conversionId}`);
-        if (!pending || pending.status === 'completed') continue;
+        if (!pending || pending.status === 'completed' || pending.status === 'failed') {
+            continue;
+        }
 
-        console.log(`[FeeRouter Cron] Processing pending: ${conversionId} (retry #${pending.retryCount + 1})`);
+        // Max 15 retries before giving up
+        if (pending.retryCount >= 15) {
+            pending.status = 'failed';
+            await kv.set(`feerouter:pending:${conversionId}`, pending);
+            details.push(`❌ ${conversionId}: gave up after ${pending.retryCount} retries`);
+            continue;
+        }
 
-        const result = await distributeViaFeeRouter(
-            pending.conversionId,
-            pending.totalAmount,
-            pending.attributionHash
-        );
+        console.log(`[FeeRouter Cron] 🔄 Retrying: ${conversionId} (attempt #${pending.retryCount + 1})`);
         processed++;
 
-        if (result.success) {
-            succeeded++;
-            await removePendingDistribution(conversionId);
-            console.log(`[FeeRouter Cron] ✅ ${conversionId} completed: ${result.txHash}`);
-        } else {
-            failed++;
-            // Update retry count
-            pending.retryCount += 1;
-            pending.lastError = result.error;
-            if (pending.retryCount > 10) {
-                pending.status = 'failed'; // Give up after 10 total retries
+        try {
+            const result = await executeDistribution(
+                pending.conversionId,
+                pending.totalAmount,
+                pending.attributionHash
+            );
+
+            if (result.success) {
+                succeeded++;
+                await removePendingDistribution(conversionId);
+                details.push(`✅ ${conversionId}: completed (tx: ${result.txHash})`);
+                console.log(`[FeeRouter Cron] ✅ ${conversionId} completed: ${result.txHash}`);
+            } else {
+                failed++;
+                pending.retryCount += 1;
+                pending.lastError = result.error?.substring(0, 200);
+                await kv.set(`feerouter:pending:${conversionId}`, pending);
+                details.push(`⏳ ${conversionId}: retry ${pending.retryCount} - ${result.error?.substring(0, 80)}`);
+                console.log(`[FeeRouter Cron] ⏳ ${conversionId}: will retry later (${pending.retryCount})`);
             }
+        } catch (error: any) {
+            failed++;
+            const errMsg = error.reason || error.shortMessage || error.message || 'Unknown';
+            pending.retryCount += 1;
+            pending.lastError = errMsg.substring(0, 200);
             await kv.set(`feerouter:pending:${conversionId}`, pending);
-            console.log(`[FeeRouter Cron] ❌ ${conversionId} failed (retry ${pending.retryCount}): ${result.error}`);
+            details.push(`⏳ ${conversionId}: retry ${pending.retryCount} - ${errMsg.substring(0, 80)}`);
         }
     }
 
-    return { processed, succeeded, failed };
+    return { processed, succeeded, failed, details };
 }
 
 /**
- * Distribution durumunu kontrol et
+ * Get distribution status from on-chain
  */
 export async function getDistributionStatus(conversionId: string): Promise<{
     exists: boolean;
@@ -354,7 +331,6 @@ export async function getDistributionStatus(conversionId: string): Promise<{
 
         const provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
         const feeRouter = new ethers.Contract(FEE_ROUTER_ADDRESS, FEE_ROUTER_ABI, provider);
-
         const route = await feeRouter.getDistributionRoute(toBytes32(conversionId));
 
         return {
@@ -367,4 +343,20 @@ export async function getDistributionStatus(conversionId: string): Promise<{
         console.error('[FeeRouter] Status check error:', error);
         return { exists: false, started: false, finalized: false };
     }
+}
+
+/**
+ * Get all pending distributions status (for admin panel)
+ */
+export async function getPendingDistributions(): Promise<PendingDistribution[]> {
+    const listKey = 'feerouter:pending_list';
+    const list = await kv.get<string[]>(listKey) || [];
+    const results: PendingDistribution[] = [];
+
+    for (const conversionId of list) {
+        const pending = await kv.get<PendingDistribution>(`feerouter:pending:${conversionId}`);
+        if (pending) results.push(pending);
+    }
+
+    return results;
 }
