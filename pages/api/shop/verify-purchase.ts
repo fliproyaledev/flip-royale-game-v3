@@ -7,6 +7,10 @@ const ORACLE_SECRET = process.env.ORACLE_SECRET;
 import { getUser, updateUser } from '../../../lib/users'
 import { createCardInstance, parseCardType, CardInstance, CardType } from '../../../lib/cardInstance'
 import { distributeViaFeeRouter } from '../../../lib/contracts/feeRouter'
+import { ethers } from 'ethers';
+
+// Basic rate limiting using UPSTASH KV
+const WINDOW_SIZE_IN_SECONDS = 60;
 
 // ReplyCorp API Response Types (Fee Router Integration)
 interface ReplyCorpAttribution {
@@ -310,9 +314,9 @@ async function sendToReplyCorp(
     const payload = {
       twitterId: xUserId,
       eventType: 'purchase',
-      totalVolume: totalVolume,
-      netProfit: netProfit,
-      commission: commission,
+      totalVolume: ethers.parseEther(totalVolume.toString()).toString(),
+      netProfit: ethers.parseEther(netProfit.toString()).toString(),
+      commission: ethers.parseEther(commission.toString()).toString(),
       walletAddress: walletAddress,
       metadata: {
         txHash: txHash,
@@ -357,7 +361,7 @@ async function sendToReplyCorp(
         try {
           const distResult = await distributeViaFeeRouter(
             data.conversion.id,
-            data.feeDistribution.totalToSendToContract,
+            data.feeDistribution.totalToSendToContract.toString(), // Convert to string for Wei amount
             data.feeDistribution.attributionHash
           );
           if (distResult.success) {
