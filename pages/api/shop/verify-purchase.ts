@@ -314,9 +314,9 @@ async function sendToReplyCorp(
     const payload = {
       twitterId: xUserId,
       eventType: 'purchase',
-      totalVolume: ethers.parseEther(totalVolume.toString()).toString(),
-      netProfit: ethers.parseEther(netProfit.toString()).toString(),
-      commission: ethers.parseEther(commission.toString()).toString(),
+      totalVolume: totalVolume,
+      netProfit: netProfit,
+      commission: commission,
       walletAddress: walletAddress,
       metadata: {
         txHash: txHash,
@@ -361,7 +361,7 @@ async function sendToReplyCorp(
         try {
           const distResult = await distributeViaFeeRouter(
             data.conversion.id,
-            data.feeDistribution.totalToSendToContract.toString(), // Convert to string for Wei amount
+            data.feeDistribution.totalToSendToContract,
             data.feeDistribution.attributionHash
           );
           if (distResult.success) {

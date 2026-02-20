@@ -82,9 +82,9 @@ export function toBytes32(conversionId: string): string {
 /**
  * Pending distribution interface
  */
-interface PendingDistribution {
+export interface PendingDistribution {
     conversionId: string;
-    totalAmount: string; // Already in wei from ReplyCorp API
+    totalAmount: number; // Already in wei from ReplyCorp API
     attributionHash: string;
     createdAt: string;
     retryCount: number;
@@ -128,7 +128,7 @@ async function removePendingDistribution(conversionId: string): Promise<void> {
  */
 async function executeDistribution(
     conversionId: string,
-    totalAmount: string, // wei string
+    totalAmount: number,
     attributionHash: string
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     const privateKey = process.env.DISTRIBUTION_WALLET_PRIVATE_KEY;
@@ -141,7 +141,7 @@ async function executeDistribution(
     const feeRouter = new ethers.Contract(FEE_ROUTER_ADDRESS, FEE_ROUTER_ABI, wallet);
     const token = new ethers.Contract(VIRTUAL_TOKEN_ADDRESS, ERC20_ABI, wallet);
 
-    const amountWei = BigInt(totalAmount);
+    const amountWei = toWei(totalAmount);
     const conversionIdBytes = toBytes32(conversionId);
 
     // 1. Check balance
@@ -196,7 +196,7 @@ async function executeDistribution(
  */
 export async function distributeViaFeeRouter(
     conversionId: string,
-    totalAmount: string,
+    totalAmount: number,
     attributionHash: string
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
