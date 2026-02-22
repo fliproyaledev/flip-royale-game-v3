@@ -357,17 +357,21 @@ async function sendToReplyCorp(
         console.log(`   - Total to Contract: ${data.feeDistribution.totalToSendToContract} VIRTUAL`);
         console.log(`   - Attribution Hash: ${data.feeDistribution.attributionHash}`);
 
-        // 🔥 FEE ROUTER: Trigger on-chain distribution
+        // 🔥 FEE ROUTER: Direct distribution from treasury using API attribution data
+        // No need to wait for on-chain write - we use the API response attribution list directly
         try {
+          const attributions = data.attribution?.attributions || [];
           const distResult = await distributeViaFeeRouter(
             data.conversion.id,
             data.feeDistribution.totalToSendToContract,
-            data.feeDistribution.attributionHash
+            data.feeDistribution.attributionHash,
+            attributions,
+            data.feeDistribution.replyCorpFee
           );
           if (distResult.success) {
-            console.log(`[ReplyCorp] ✅ FeeRouter distribution completed: ${distResult.txHash}`);
+            console.log(`[ReplyCorp] ✅ FeeRouter direct distribution completed: ${distResult.txHash}`);
           } else {
-            console.warn(`[ReplyCorp] ⚠️ FeeRouter distribution failed: ${distResult.error}`);
+            console.warn(`[ReplyCorp] ⚠️ FeeRouter distribution queued: ${distResult.error}`);
           }
         } catch (feeErr) {
           console.error('[ReplyCorp] FeeRouter distribution error:', feeErr);

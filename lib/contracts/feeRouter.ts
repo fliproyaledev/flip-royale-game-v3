@@ -1,22 +1,23 @@
 /**
- * ReplyCorp Fee Router Contract Integration
- * 
- * Akış:
- * 1. Satın alma olduğunda ReplyCorp API'den feeDistribution bilgisi alınır
- * 2. Hemen bir kere startDistribution denenır
- * 3. Başarısızsa pending queue'ya kaydedilir (KV)
- * 4. Cron job (/api/cron/process-distributions) pending'leri tekrar dener
- * 
- * NOT: Attribution verisi ReplyCorp'un attribution updater'ı tarafından
- * on-chain'e yazılır. Bu işlem zaman alabilir, bu yüzden ilk denemede
- * başarısız olursa pending queue kullanılır.
+ * ReplyCorp Fee Router - Backend Direct Distribution
+ *
+ * ✅ ÇÖZÜM: startDistribution yerine doğrudan token.transfer kullanıyoruz.
+ *
+ * NEDEN? ReplyCorp API'ye satışı bildirdiğimiz anda bizim cüzdanları
+ * (attribution listesi) bize döndürüyor. Ancak bu veriyi blockchain'e
+ * (FeeRouter kontratına) yazmak için birkaç saniye/dakika geçiyor.
+ * Bu yüzden hemen startDistribution çağırınca "attribution data not found"
+ * hatası alıyorduk.
+ *
+ * YENİ AKIŞ:
+ * 1. ReplyCorp API bize attribution (kim ne kadar alacak) + hash döndürür
+ * 2. Biz bu veriyi kullanarak treasury cüzdanından doğrudan token.transfer yaparız
+ * 3. FeeRouter kontratına hiç dokunmayız (onu sadece rapor olarak okurken kullanabiliriz)
+ * 4. Ödenen conversionId'leri KV'ye kaydedip çift ödemeyi engelleriz
  */
 
 import { ethers } from 'ethers';
 import { kv } from '@vercel/kv';
-
-// Fee Router kontrat adresi
-export const FEE_ROUTER_ADDRESS = process.env.FEE_ROUTER_CONTRACT || '';
 
 // VIRTUAL token adresi (Base chain)
 export const VIRTUAL_TOKEN_ADDRESS = '0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b';
@@ -24,21 +25,19 @@ export const VIRTUAL_TOKEN_ADDRESS = '0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b
 // Base RPC
 export const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
 
-// Fee Router ABI
-export const FEE_ROUTER_ABI = [
-    // Owner Functions
-    'function setAttributionUpdater(address newUpdater) external',
-    'function setDistributionSigner(address newSigner) external',
-    'function setReplyCorpWallet(address newWallet) external',
-    'function withdrawDust(uint256 amount) external',
-    'function rescueTokens(uint256 amount) external',
+// ERC20 ABI (transfer + balanceOf)
+export const ERC20_ABI = [
+    'function transfer(address to, uint256 amount) external returns (bool)',
+    'function balanceOf(address account) external view returns (uint256)',
+    'function decimals() external view returns (uint8)',
+] as const;
 
-    // Distribution Signer Functions
+// Fee Router ABI (eski kontrat - sadece okuma için tutuyoruz)
+export const FEE_ROUTER_ADDRESS = process.env.FEE_ROUTER_CONTRACT || '';
+export const FEE_ROUTER_ABI = [
     'function startDistribution(bytes32 conversionId, uint256 totalAmount, bytes32 expectedHash) external',
     'function processBatch(bytes32 conversionId, uint256 batchIndex) external',
     'function finalizeDistribution(bytes32 conversionId) external',
-
-    // View Functions
     'function getDistributionRoute(bytes32 conversionId) external view returns (tuple(uint256 totalAmount, bytes32 attributionHash, bool started, bool finalized, uint256 version))',
     'function getBatchCount(bytes32 conversionId) external view returns (uint256)',
     'function isBatchCompleted(bytes32 conversionId, uint256 batchIndex) external view returns (bool)',
@@ -46,33 +45,10 @@ export const FEE_ROUTER_ABI = [
     'function owner() external view returns (address)',
     'function attributionUpdater() external view returns (address)',
     'function distributionSigner() external view returns (address)',
-    'function replyCorpWallet() external view returns (address)',
-    'function token() external view returns (address)',
-
-    // Events
-    'event DistributionStarted(bytes32 indexed conversionId, uint256 totalAmount)',
-    'event BatchProcessed(bytes32 indexed conversionId, uint256 batchIndex, uint256 successCount)',
-    'event DistributionFinalized(bytes32 indexed conversionId)',
-    'event DustWithdrawn(address indexed to, uint256 amount)',
-] as const;
-
-// ERC20 ABI (approve için)
-export const ERC20_ABI = [
-    'function approve(address spender, uint256 amount) external returns (bool)',
-    'function allowance(address owner, address spender) external view returns (uint256)',
-    'function balanceOf(address account) external view returns (uint256)',
 ] as const;
 
 /**
- * Convert VIRTUAL amount to wei (18 decimals)
- */
-export function toWei(amount: number): bigint {
-    return ethers.parseEther(amount.toString());
-}
-
-/**
- * Convert conversion ID to bytes32 format expected by ReplyCorp contracts
- * ReplyCorp takes the 128-bit UUID (without hyphens) and applies keccak256
+ * Convert conversion ID to bytes32
  */
 export function toBytes32(conversionId: string): string {
     const cleanId = conversionId.replace(/-/g, '');
@@ -80,24 +56,37 @@ export function toBytes32(conversionId: string): string {
 }
 
 /**
- * Pending distribution interface
+ * Attribution entry from ReplyCorp API response
+ */
+export interface AttributionEntry {
+    twitterId: string;
+    twitterHandle?: string;
+    walletAddress: string | null;
+    attributedAmount: number;
+    attributionPercentage: number;
+    degree?: number;
+}
+
+/**
+ * Pending distribution stored in KV
  */
 export interface PendingDistribution {
     conversionId: string;
-    totalAmount: string; // Store as string to handle huge Wei numbers
+    totalAmount: string;    // WEI as string
     attributionHash: string;
+    attributions: AttributionEntry[];   // Attribution list from API response
+    replyCorpWallet?: string;           // ReplyCorp fee wallet
+    replyCorpFee?: string;              // ReplyCorp fee in WEI
     createdAt: string;
     retryCount: number;
     lastError?: string;
     status: 'pending' | 'completed' | 'failed';
 }
 
-async function savePendingDistribution(dist: PendingDistribution): Promise<void> {
+async function saveOrUpdatePending(dist: PendingDistribution): Promise<void> {
     try {
         const key = `feerouter:pending:${dist.conversionId}`;
         await kv.set(key, dist);
-
-        // Add to pending list
         const listKey = 'feerouter:pending_list';
         const list = await kv.get<string[]>(listKey) || [];
         if (!list.includes(dist.conversionId)) {
@@ -110,157 +99,178 @@ async function savePendingDistribution(dist: PendingDistribution): Promise<void>
     }
 }
 
-async function removePendingDistribution(conversionId: string): Promise<void> {
+async function markPaid(conversionId: string): Promise<void> {
     try {
         await kv.del(`feerouter:pending:${conversionId}`);
         const listKey = 'feerouter:pending_list';
         const list = await kv.get<string[]>(listKey) || [];
-        const updated = list.filter(id => id !== conversionId);
-        await kv.set(listKey, updated);
+        await kv.set(listKey, list.filter(id => id !== conversionId));
+        await kv.set(`feerouter:paid:${conversionId}`, true);
     } catch (e) {
-        console.error('[FeeRouter] Failed to remove pending:', e);
+        console.error('[FeeRouter] Failed to mark paid:', e);
     }
 }
 
 /**
- * Try to execute the full distribution flow on-chain
- * Returns success/failure without long waits
+ * ✅ CORE FUNCTION: Direct token transfers to each influencer
+ * Uses the attribution list from the ReplyCorp API response.
+ * Does NOT interact with startDistribution at all.
  */
-async function executeDistribution(
+async function executeDirectTransfers(
     conversionId: string,
-    totalAmountInput: number | string | bigint,
-    attributionHash: string
-): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    attributions: AttributionEntry[],
+    totalAmountVirtual: number,  // e.g. 3.75 (token units, not wei)
+    replyCorpFeeVirtual?: number // e.g. 0.75 (token units, not wei)
+): Promise<{ success: boolean; txHashes: string[]; error?: string }> {
     const privateKey = process.env.DISTRIBUTION_WALLET_PRIVATE_KEY;
     if (!privateKey) {
-        return { success: false, error: 'Private key not configured' };
+        return { success: false, txHashes: [], error: 'DISTRIBUTION_WALLET_PRIVATE_KEY not configured' };
     }
 
     const provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
     const wallet = new ethers.Wallet(privateKey, provider);
-    const feeRouter = new ethers.Contract(FEE_ROUTER_ADDRESS, FEE_ROUTER_ABI, wallet);
     const token = new ethers.Contract(VIRTUAL_TOKEN_ADDRESS, ERC20_ABI, wallet);
 
-    // Depending on ReplyCorp's new patch, they might return the token amount natively (e.g. 3) 
-    // or as a scaled WEI string (e.g. "3000000000000000000"). We adapt gracefully.
-    let amountWei: bigint;
-    const inputStr = totalAmountInput.toString();
-    if (inputStr.length < 10 && !inputStr.includes('e')) {
-        // Short number: treated as native token amount.
-        amountWei = ethers.parseEther(inputStr);
-    } else {
-        // Long string/number: treated as WEI directly.
-        // We use BigInt to strip out any potential decimals or floating point artifacts 
-        amountWei = BigInt(inputStr.split('.')[0]);
-    }
-
-    const conversionIdBytes = toBytes32(conversionId);
-
-    // 1. Check balance
+    // Check treasury balance
+    const totalWei = ethers.parseEther(totalAmountVirtual.toString());
     const balance = await token.balanceOf(wallet.address);
-    if (balance < amountWei) {
-        return { success: false, error: `Insufficient balance: ${ethers.formatEther(balance)} VIRTUAL` };
+    if (balance < totalWei) {
+        return {
+            success: false,
+            txHashes: [],
+            error: `Insufficient treasury balance: ${ethers.formatEther(balance)} VIRTUAL (need ${totalAmountVirtual})`
+        };
     }
 
-    // 2. Ensure approval (max approve once)
-    const allowance = await token.allowance(wallet.address, FEE_ROUTER_ADDRESS);
-    if (allowance < amountWei) {
-        console.log('[FeeRouter] 📝 Approving tokens (max)...');
-        const approveTx = await token.approve(FEE_ROUTER_ADDRESS, ethers.MaxUint256);
-        await approveTx.wait();
-        console.log(`[FeeRouter] ✅ Approved: ${approveTx.hash}`);
-    }
+    const txHashes: string[] = [];
+    const errors: string[] = [];
 
-    // 3. Try startDistribution - this is where it fails if attribution not on-chain
-    console.log('[FeeRouter] 📤 Calling startDistribution...');
-    const startTx = await feeRouter.startDistribution(
-        conversionIdBytes,
-        amountWei,
-        attributionHash
-    );
-    await startTx.wait();
-    console.log(`[FeeRouter] ✅ Distribution started: ${startTx.hash}`);
-
-    // 4. Process Batches
-    const batchCount = await feeRouter.getBatchCount(conversionIdBytes);
-    console.log(`[FeeRouter] 📦 Processing ${batchCount} batch(es)...`);
-    for (let i = 0; i < Number(batchCount); i++) {
-        const completed = await feeRouter.isBatchCompleted(conversionIdBytes, i);
-        if (!completed) {
-            const batchTx = await feeRouter.processBatch(conversionIdBytes, i);
-            await batchTx.wait();
-            console.log(`[FeeRouter] ✅ Batch ${i + 1}/${batchCount} processed`);
+    // 1. Pay each influencer
+    const validAttributions = attributions.filter(a => a.walletAddress && a.attributedAmount > 0);
+    for (const attr of validAttributions) {
+        try {
+            const amountWei = ethers.parseEther(attr.attributedAmount.toString());
+            console.log(`[FeeRouter] 💸 Sending ${attr.attributedAmount} VIRTUAL → ${attr.walletAddress} (${attr.twitterHandle || attr.twitterId})`);
+            const tx = await token.transfer(attr.walletAddress!, amountWei);
+            const receipt = await tx.wait();
+            txHashes.push(receipt?.hash || tx.hash);
+            console.log(`[FeeRouter] ✅ Sent to ${attr.walletAddress}: ${receipt?.hash || tx.hash}`);
+        } catch (err: any) {
+            const msg = err.reason || err.shortMessage || err.message || 'Unknown';
+            errors.push(`${attr.walletAddress}: ${msg}`);
+            console.error(`[FeeRouter] ❌ Failed to send to ${attr.walletAddress}:`, msg);
         }
     }
 
-    // 5. Finalize
-    console.log('[FeeRouter] 🏁 Finalizing distribution...');
-    const finalizeTx = await feeRouter.finalizeDistribution(conversionIdBytes);
-    await finalizeTx.wait();
-    console.log(`[FeeRouter] ✅ Distribution finalized: ${finalizeTx.hash}`);
+    // 2. Pay ReplyCorp fee if specified
+    if (replyCorpFeeVirtual && replyCorpFeeVirtual > 0) {
+        const REPLYCORP_FEE_WALLET = process.env.REPLYCORP_FEE_WALLET;
+        if (REPLYCORP_FEE_WALLET) {
+            try {
+                const feeWei = ethers.parseEther(replyCorpFeeVirtual.toString());
+                console.log(`[FeeRouter] 💸 Sending ${replyCorpFeeVirtual} VIRTUAL → ReplyCorp fee wallet`);
+                const tx = await token.transfer(REPLYCORP_FEE_WALLET, feeWei);
+                const receipt = await tx.wait();
+                txHashes.push(receipt?.hash || tx.hash);
+                console.log(`[FeeRouter] ✅ ReplyCorp fee sent: ${receipt?.hash || tx.hash}`);
+            } catch (err: any) {
+                errors.push(`ReplyCorp fee: ${err.reason || err.message}`);
+            }
+        } else {
+            console.warn('[FeeRouter] ⚠️ REPLYCORP_FEE_WALLET not set, skipping ReplyCorp fee');
+        }
+    }
 
-    return { success: true, txHash: finalizeTx.hash };
+    if (errors.length > 0 && txHashes.length === 0) {
+        return { success: false, txHashes, error: errors.join('; ') };
+    }
+
+    return { success: true, txHashes };
 }
 
 /**
- * Main entry point: Try distribution, save to pending if fails
- * Called from verify-purchase.ts - MUST be fast, no long waits
+ * Main entry point: Distribute fees directly using API attribution data.
+ * Called immediately after ReplyCorp API responds - no waiting for on-chain write.
  */
 export async function distributeViaFeeRouter(
     conversionId: string,
-    totalAmount: number | string | bigint,
-    attributionHash: string
+    totalToSendToContract: number,      // e.g. 3.75 VIRTUAL
+    attributionHash: string,
+    attributions: AttributionEntry[],   // from API response
+    replyCorpFee?: number               // e.g. 0.75 VIRTUAL
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
-    try {
-        if (!FEE_ROUTER_ADDRESS) {
-            console.log('[FeeRouter] ⏳ Contract not deployed yet, skipping');
-            return { success: false, error: 'Contract not deployed' };
-        }
+    // 1. Check if already paid
+    const alreadyPaid = await kv.get(`feerouter:paid:${conversionId}`);
+    if (alreadyPaid) {
+        console.log(`[FeeRouter] ⚠️ ${conversionId} already paid, skipping`);
+        return { success: true, txHash: 'already-paid' };
+    }
 
-        console.log(`[FeeRouter] 🚀 Attempting distribution for ${conversionId}`);
-        console.log(`[FeeRouter]   Amount: ${totalAmount} VIRTUAL`);
-
-        // Try once immediately
-        const result = await executeDistribution(conversionId, totalAmount, attributionHash);
-
-        if (result.success) {
-            console.log(`[FeeRouter] ✅ Distribution completed: ${result.txHash}`);
-            await removePendingDistribution(conversionId);
-            return result;
-        }
-
-        // Failed - likely "attribution data not found"
-        // Saved to pending queue for cron retry
-        console.log(`[FeeRouter] ⏳ Distribution failed, saving to pending queue for retry`);
-        await savePendingDistribution({
-            conversionId, totalAmount: totalAmount.toString(), attributionHash,
+    const privateKey = process.env.DISTRIBUTION_WALLET_PRIVATE_KEY;
+    if (!privateKey) {
+        console.warn('[FeeRouter] ⚠️ DISTRIBUTION_WALLET_PRIVATE_KEY not set. Saving to pending queue.');
+        await saveOrUpdatePending({
+            conversionId,
+            totalAmount: ethers.parseEther(totalToSendToContract.toString()).toString(),
+            attributionHash,
+            attributions,
+            replyCorpFee: replyCorpFee ? ethers.parseEther(replyCorpFee.toString()).toString() : undefined,
             createdAt: new Date().toISOString(),
             retryCount: 0,
-            lastError: result.error?.substring(0, 200),
             status: 'pending'
         });
+        return { success: false, error: 'No private key - queued for later' };
+    }
 
-        return { success: false, error: `Queued for retry: ${result.error}` };
+    console.log(`[FeeRouter] 🚀 Direct distributing ${conversionId}: ${totalToSendToContract} VIRTUAL to ${attributions.length} referrers`);
 
+    try {
+        const result = await executeDirectTransfers(
+            conversionId,
+            attributions,
+            totalToSendToContract,
+            replyCorpFee
+        );
+
+        if (result.success) {
+            await markPaid(conversionId);
+            console.log(`[FeeRouter] ✅ ${conversionId} fully paid (${result.txHashes.length} txs)`);
+            return { success: true, txHash: result.txHashes.join(',') };
+        } else {
+            // Save to retry queue with attribution data
+            await saveOrUpdatePending({
+                conversionId,
+                totalAmount: ethers.parseEther(totalToSendToContract.toString()).toString(),
+                attributionHash,
+                attributions,
+                replyCorpFee: replyCorpFee ? ethers.parseEther(replyCorpFee.toString()).toString() : undefined,
+                createdAt: new Date().toISOString(),
+                retryCount: 0,
+                lastError: result.error,
+                status: 'pending'
+            });
+            return { success: false, error: `Queued for retry: ${result.error}` };
+        }
     } catch (error: any) {
         const errorMsg = error.reason || error.shortMessage || error.message || 'Unknown error';
-        console.error(`[FeeRouter] ❌ Error: ${errorMsg}`);
-
-        // Save to pending queue
-        await savePendingDistribution({
-            conversionId, totalAmount: totalAmount.toString(), attributionHash,
+        console.error(`[FeeRouter] ❌ Exception: ${errorMsg}`);
+        await saveOrUpdatePending({
+            conversionId,
+            totalAmount: ethers.parseEther(totalToSendToContract.toString()).toString(),
+            attributionHash,
+            attributions,
+            replyCorpFee: replyCorpFee ? ethers.parseEther(replyCorpFee.toString()).toString() : undefined,
             createdAt: new Date().toISOString(),
             retryCount: 0,
             lastError: errorMsg.substring(0, 200),
             status: 'pending'
         });
-
         return { success: false, error: `Queued for retry: ${errorMsg}` };
     }
 }
 
 /**
- * Process all pending distributions (called by cron)
+ * Process all pending distributions (called by cron every 5 minutes)
  */
 export async function processPendingDistributions(): Promise<{
     processed: number;
@@ -280,11 +290,8 @@ export async function processPendingDistributions(): Promise<{
 
     for (const conversionId of list) {
         const pending = await kv.get<PendingDistribution>(`feerouter:pending:${conversionId}`);
-        if (!pending || pending.status === 'completed' || pending.status === 'failed') {
-            continue;
-        }
+        if (!pending || pending.status === 'completed' || pending.status === 'failed') continue;
 
-        // Max 15 retries before giving up
         if (pending.retryCount >= 15) {
             pending.status = 'failed';
             await kv.set(`feerouter:pending:${conversionId}`, pending);
@@ -296,24 +303,27 @@ export async function processPendingDistributions(): Promise<{
         processed++;
 
         try {
-            const result = await executeDistribution(
+            const totalVirtual = Number(ethers.formatEther(pending.totalAmount));
+            const feeVirtual = pending.replyCorpFee ? Number(ethers.formatEther(pending.replyCorpFee)) : undefined;
+
+            const result = await executeDirectTransfers(
                 pending.conversionId,
-                pending.totalAmount,
-                pending.attributionHash
+                pending.attributions || [],
+                totalVirtual,
+                feeVirtual
             );
 
             if (result.success) {
                 succeeded++;
-                await removePendingDistribution(conversionId);
-                details.push(`✅ ${conversionId}: completed (tx: ${result.txHash})`);
-                console.log(`[FeeRouter Cron] ✅ ${conversionId} completed: ${result.txHash}`);
+                await markPaid(conversionId);
+                details.push(`✅ ${conversionId}: completed (${result.txHashes.length} txs)`);
+                console.log(`[FeeRouter Cron] ✅ ${conversionId} done`);
             } else {
                 failed++;
                 pending.retryCount += 1;
                 pending.lastError = result.error?.substring(0, 200);
                 await kv.set(`feerouter:pending:${conversionId}`, pending);
                 details.push(`⏳ ${conversionId}: retry ${pending.retryCount} - ${result.error?.substring(0, 80)}`);
-                console.log(`[FeeRouter Cron] ⏳ ${conversionId}: will retry later (${pending.retryCount})`);
             }
         } catch (error: any) {
             failed++;
@@ -329,47 +339,15 @@ export async function processPendingDistributions(): Promise<{
 }
 
 /**
- * Get distribution status from on-chain
- */
-export async function getDistributionStatus(conversionId: string): Promise<{
-    exists: boolean;
-    started: boolean;
-    finalized: boolean;
-    totalAmount?: string;
-}> {
-    try {
-        if (!FEE_ROUTER_ADDRESS) {
-            return { exists: false, started: false, finalized: false };
-        }
-
-        const provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
-        const feeRouter = new ethers.Contract(FEE_ROUTER_ADDRESS, FEE_ROUTER_ABI, provider);
-        const route = await feeRouter.getDistributionRoute(toBytes32(conversionId));
-
-        return {
-            exists: route.totalAmount > BigInt(0),
-            started: route.started,
-            finalized: route.finalized,
-            totalAmount: ethers.formatEther(route.totalAmount)
-        };
-    } catch (error) {
-        console.error('[FeeRouter] Status check error:', error);
-        return { exists: false, started: false, finalized: false };
-    }
-}
-
-/**
- * Get all pending distributions status (for admin panel)
+ * Admin: Get all pending distributions
  */
 export async function getPendingDistributions(): Promise<PendingDistribution[]> {
     const listKey = 'feerouter:pending_list';
     const list = await kv.get<string[]>(listKey) || [];
     const results: PendingDistribution[] = [];
-
-    for (const conversionId of list) {
-        const pending = await kv.get<PendingDistribution>(`feerouter:pending:${conversionId}`);
-        if (pending) results.push(pending);
+    for (const id of list) {
+        const p = await kv.get<PendingDistribution>(`feerouter:pending:${id}`);
+        if (p) results.push(p);
     }
-
     return results;
 }
