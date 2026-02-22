@@ -344,29 +344,55 @@ async function sendToReplyCorp(
       const data: ReplyCorpResponse = await response.json();
       console.log(`[ReplyCorp] ✅ Conversion created: ${data.conversion?.id}`);
 
+      // *** DEBUG: Log full raw API response attribution data ***
+      console.log(`[ReplyCorp] 🔍 FULL ATTRIBUTION DEBUG:`, JSON.stringify(data.attribution, null, 2));
+      console.log(`[ReplyCorp] 🔍 FULL FEE DISTRIBUTION DEBUG:`, JSON.stringify(data.feeDistribution, null, 2));
+
       // Attribution bilgisi varsa logla
       if (data.attribution) {
-        console.log(`[ReplyCorp] 📊 Attribution: ${data.attribution.attributions?.length || 0} referrers, ${data.attribution.totalPointsDistributed} points`);
+        const attrList = data.attribution.attributions || [];
+        console.log(`[ReplyCorp] 📊 Attribution: ${attrList.length} referrers, ${data.attribution.totalPointsDistributed} points`);
+        attrList.forEach((a, i) => {
+          console.log(`[ReplyCorp]   [${i + 1}] wallet=${a.walletAddress || 'NULL'} pct=${a.attributionPercentage}% amount=${a.attributedAmount}`);
+        });
       }
 
-      // Fee distribution bilgisi varsa logla (kontrat entegrasyonu için)
+      // Fee distribution bilgisi varsa logla
       if (data.feeDistribution) {
+        const commission = data.feeDistribution.totalCommission;
+        const replyCorpFee = data.feeDistribution.replyCorpFee;
         console.log(`[ReplyCorp] 💰 Fee Distribution Ready:`);
-        console.log(`   - Commission: ${data.feeDistribution.totalCommission} VIRTUAL`);
-        console.log(`   - ReplyCorp Fee: ${data.feeDistribution.replyCorpFee} VIRTUAL`);
+        console.log(`   - Commission: ${commission} VIRTUAL`);
+        console.log(`   - ReplyCorp Fee: ${replyCorpFee} VIRTUAL`);
         console.log(`   - Total to Contract: ${data.feeDistribution.totalToSendToContract} VIRTUAL`);
         console.log(`   - Attribution Hash: ${data.feeDistribution.attributionHash}`);
 
-        // 🔥 FEE ROUTER: Direct distribution from treasury using API attribution data
-        // No need to wait for on-chain write - we use the API response attribution list directly
+        // 🔥 FEE ROUTER: Direct distribution using API attribution percentages
+        // Payout per referrer = (attributionPercentage / 100) * commission
+        // This is calculated HERE (not inside feeRouter.ts) so we have full control
         try {
-          const attributions = data.attribution?.attributions || [];
+          const rawAttributions = data.attribution?.attributions || [];
+
+          // Build clean payout list using percentage × commission formula
+          const payoutAttributions = rawAttributions
+            .filter(a => a.walletAddress && a.attributionPercentage > 0)
+            .map(a => ({
+              ...a,
+              // Override attributedAmount with the ACTUAL token payout
+              attributedAmount: (a.attributionPercentage / 100) * commission
+            }));
+
+          console.log(`[ReplyCorp] 💸 Computed payouts for ${payoutAttributions.length} referrers:`);
+          payoutAttributions.forEach(a => {
+            console.log(`   → ${a.walletAddress} gets ${a.attributedAmount.toFixed(4)} VIRTUAL (${a.attributionPercentage}%)`);
+          });
+
           const distResult = await distributeViaFeeRouter(
             data.conversion.id,
             data.feeDistribution.totalToSendToContract,
             data.feeDistribution.attributionHash,
-            attributions,
-            data.feeDistribution.replyCorpFee
+            payoutAttributions,
+            replyCorpFee
           );
           if (distResult.success) {
             console.log(`[ReplyCorp] ✅ FeeRouter direct distribution completed: ${distResult.txHash}`);
