@@ -84,7 +84,7 @@ export function toBytes32(conversionId: string): string {
  */
 export interface PendingDistribution {
     conversionId: string;
-    totalAmount: number; // Already in wei from ReplyCorp API
+    totalAmount: string; // Store as string to handle huge Wei numbers
     attributionHash: string;
     createdAt: string;
     retryCount: number;
@@ -128,7 +128,7 @@ async function removePendingDistribution(conversionId: string): Promise<void> {
  */
 async function executeDistribution(
     conversionId: string,
-    totalAmount: number,
+    totalAmountInput: number | string | bigint,
     attributionHash: string
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     const privateKey = process.env.DISTRIBUTION_WALLET_PRIVATE_KEY;
@@ -141,7 +141,19 @@ async function executeDistribution(
     const feeRouter = new ethers.Contract(FEE_ROUTER_ADDRESS, FEE_ROUTER_ABI, wallet);
     const token = new ethers.Contract(VIRTUAL_TOKEN_ADDRESS, ERC20_ABI, wallet);
 
-    const amountWei = toWei(totalAmount);
+    // Depending on ReplyCorp's new patch, they might return the token amount natively (e.g. 3) 
+    // or as a scaled WEI string (e.g. "3000000000000000000"). We adapt gracefully.
+    let amountWei: bigint;
+    const inputStr = totalAmountInput.toString();
+    if (inputStr.length < 10 && !inputStr.includes('e')) {
+        // Short number: treated as native token amount.
+        amountWei = ethers.parseEther(inputStr);
+    } else {
+        // Long string/number: treated as WEI directly.
+        // We use BigInt to strip out any potential decimals or floating point artifacts 
+        amountWei = BigInt(inputStr.split('.')[0]);
+    }
+
     const conversionIdBytes = toBytes32(conversionId);
 
     // 1. Check balance
@@ -196,7 +208,7 @@ async function executeDistribution(
  */
 export async function distributeViaFeeRouter(
     conversionId: string,
-    totalAmount: number,
+    totalAmount: number | string | bigint,
     attributionHash: string
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
@@ -218,10 +230,10 @@ export async function distributeViaFeeRouter(
         }
 
         // Failed - likely "attribution data not found"
-        // Save to pending queue for cron retry
+        // Saved to pending queue for cron retry
         console.log(`[FeeRouter] ⏳ Distribution failed, saving to pending queue for retry`);
         await savePendingDistribution({
-            conversionId, totalAmount, attributionHash,
+            conversionId, totalAmount: totalAmount.toString(), attributionHash,
             createdAt: new Date().toISOString(),
             retryCount: 0,
             lastError: result.error?.substring(0, 200),
@@ -236,7 +248,7 @@ export async function distributeViaFeeRouter(
 
         // Save to pending queue
         await savePendingDistribution({
-            conversionId, totalAmount, attributionHash,
+            conversionId, totalAmount: totalAmount.toString(), attributionHash,
             createdAt: new Date().toISOString(),
             retryCount: 0,
             lastError: errorMsg.substring(0, 200),
