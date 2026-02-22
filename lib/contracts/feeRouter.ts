@@ -303,8 +303,28 @@ export async function processPendingDistributions(): Promise<{
         processed++;
 
         try {
-            const totalVirtual = Number(ethers.formatEther(pending.totalAmount));
-            const feeVirtual = pending.replyCorpFee ? Number(ethers.formatEther(pending.replyCorpFee)) : undefined;
+            // Smart amount parser: handles 3 legacy formats in the KV store:
+            // 1. WEI string: "3750000000000000000" (new format, correct)
+            // 2. Decimal string: "3.75" (intermediate format, needs parseEther)
+            // 3. Raw 10^4 int: 37500 (oldest format, needs × 10^14)
+            const parseStoredAmount = (raw: string | number | undefined): number => {
+                if (!raw) return 0;
+                const s = raw.toString();
+                if (s.includes('.')) {
+                    // Format 2: decimal like "3.75" → already native token units
+                    return Number(s);
+                }
+                const n = BigInt(s);
+                if (n > BigInt('1000000000000000')) {
+                    // Format 1: WEI string > 10^15, convert back to token units
+                    return Number(ethers.formatEther(n));
+                }
+                // Format 3: raw 10^4 int like 37500 → divide by 10^4 to get 3.75
+                return Number(n) / 10000;
+            };
+
+            const totalVirtual = parseStoredAmount(pending.totalAmount);
+            const feeVirtual = pending.replyCorpFee ? parseStoredAmount(pending.replyCorpFee) : undefined;
 
             const result = await executeDirectTransfers(
                 pending.conversionId,
